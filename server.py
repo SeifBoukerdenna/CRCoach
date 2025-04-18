@@ -80,8 +80,8 @@ async def index(request):
     return web.FileResponse("client/index.html")
 
 app = web.Application()
-app.router.add_get("/", index)
-app.router.add_static("/static/", path="client/", show_index=False)
+# app.router.add_get("/", index)
+# app.router.add_static("/static/", path="client/", show_index=False)
 app.router.add_post("/upload", upload)
 app.router.add_post("/offer", offer)
 
