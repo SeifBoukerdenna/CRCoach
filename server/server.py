@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import asyncio, cv2, numpy as np
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
