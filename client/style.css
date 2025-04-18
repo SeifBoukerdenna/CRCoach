@@ -1,0 +1,48 @@
+body {
+    text-align: center;
+    font-family: sans-serif;
+    margin: 2rem;
+}
+
+h1 {
+    margin-bottom: 1rem;
+}
+
+#controls {
+    margin-bottom: 1.5rem;
+}
+
+button {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+}
+
+#status {
+    margin-top: 0.5rem;
+    font-weight: bold;
+}
+
+.video-container {
+    display: inline-block;
+    border: 2px solid #444;
+    border-radius: 8px;
+    overflow: hidden;
+    width: 360px;
+    /* phone‑like width */
+    height: auto;
+}
+
+video {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+#metrics {
+    background: #222;
+    color: #eee;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    display: flex;
+    justify-content: space-around;
+}

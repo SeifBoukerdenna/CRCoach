@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>iOS Live (WebRTC)</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <h1>📱 iOS Live (WebRTC)</h1>
+    <div id="controls">
+        <button id="start">Connect Stream</button>
+        <div id="status">Status: disconnected</div>
+    </div>
+
+    <div class="video-container">
+        <video id="video" autoplay playsinline></video>
+        <div id="metrics">
+            <span id="resolution">—×—</span>
+            <span id="fps">— FPS</span>
+            <span id="rtt">— ms</span>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
