@@ -1,41 +1,142 @@
-/* src/App.css */
+/* ─────────────  Clash Royale AI Coach • Color‑Balanced UI  ───────────── */
 
-.app {
+/* ==== 1. Palette ==== */
+:root {
+  /* core royals */
+  --cr-blue-600: #1e53ff;
+  /* accent */
+  --cr-blue-400: #5490ff;
+  /* lighter accent */
+
+  /* gold & treasure */
+  --cr-gold-500: #ffc933;
+  --cr-gold-400: #ffd977;
+
+  /* elixir purple */
+  --cr-purple-500: #b154ff;
+  --cr-purple-400: #c47cff;
+
+  /* success / danger */
+  --cr-green-500: #00c851;
+  --cr-red-600: #e53935;
+
+  /* neutrals */
+  --cr-navy-900: #071120;
+  --cr-navy-800: #0b1627;
+  --cr-shadow: rgba(0, 0, 0, 0.35);
+}
+
+/* ==== 2. Global backdrop ==== */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -50%;
+  /* big canvas so we can move it around   */
+  z-index: -1;
+
+  /* Three soft blobs --------------------------------------------------- */
+  background:
+    radial-gradient(circle at 30% 30%, var(--cr-purple-500) 0%, transparent 40%),
+    radial-gradient(circle at 75% 75%, var(--cr-blue-400) 0%, transparent 45%),
+    radial-gradient(circle at 50% 120%, var(--cr-gold-400) 0%, transparent 50%);
+
+  filter: blur(120px);
+  /* big blur for dreamy look              */
+  animation: drift 60s linear infinite;
+  transform: translate(-25%, -25%);
+}
+
+@keyframes drift {
+  0% {
+    transform: translate(-25%, -25%) rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: translate(-20%, -30%) rotate(180deg) scale(1.15);
+  }
+
+  100% {
+    transform: translate(-25%, -25%) rotate(360deg) scale(1);
+  }
+}
+
+body {
+  margin: 0;
+  font-family: "Burbank Big Condensed Bold", Impact, "Arial Black", sans-serif;
+  color: #f5f7ff;
+
+  /* softer diagonal two‑stop gradient (navy ➞ subtle purple) */
+  background: linear-gradient(135deg, var(--cr-navy-900) 0%, #101a36 50%, #1a1e3e 100%);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ==== 3. Header ==== */
+.header {
   text-align: center;
-  font-family: sans-serif;
-  margin: 2rem;
+  margin: 1.25rem 1rem 0.75rem;
 }
 
-.app h1 {
-  margin-bottom: 1rem;
+.header h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw + 1rem, 3rem);
+  font-weight: 900;
+  color: var(--cr-gold-500);
+  text-shadow: 0 4px 12px var(--cr-shadow);
 }
 
-.controls {
-  margin-bottom: 1.5rem;
+.tagline {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  color: var(--cr-gold-400);
+  opacity: 0.9;
 }
 
-.controls button {
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
+/* ==== 4. Flex layout ==== */
+.layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem 2.25rem;
+  padding: 0 2rem 4rem;
+  width: 100%;
+  max-width: 1260px;
+  justify-content: center;
 }
 
-.controls button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.sidebar-header {
+  text-align: center;
+  margin-bottom: 1.25rem;
 }
 
-.status {
-  margin-top: 0.5rem;
-  font-weight: bold;
+.sidebar-header h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, 2.8vw + 1rem, 2.6rem);
+  font-weight: 900;
+  color: var(--cr-gold-500);
+  text-shadow: 0 4px 12px var(--cr-shadow);
 }
 
+.sidebar-header h1 span {
+  font-size: 0.85em;
+}
+
+.sidebar-header .tagline {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--cr-gold-400);
+  opacity: 0.9;
+}
+
+/* ==== 5. Video frame ==== */
 .video-container {
-  display: inline-block;
-  border: 2px solid #444;
-  border-radius: 8px;
+  width: 320px;
+  max-width: 90vw;
+  border: 3px solid var(--cr-blue-400);
+  border-radius: 18px;
   overflow: hidden;
-  width: 360px;
-  /* phone‑like width */
+  box-shadow: 0 8px 18px var(--cr-shadow);
 }
 
 .video-container video {
@@ -44,11 +145,121 @@
   display: block;
 }
 
-.metrics {
-  background: #222;
-  color: #eee;
-  font-size: 0.9rem;
-  padding: 0.5rem;
+/* ==== 6. Sidebar cards ==== */
+.sidebar {
   display: flex;
-  justify-content: space-around;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 240px;
+  max-width: 350px;
+  flex: 1;
+}
+
+.sidebar>* {
+  background: rgba(11, 22, 45, 0.65);
+  /* semi‑transparent glass */
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  box-shadow: 0 6px 14px var(--cr-shadow);
+}
+
+/* ==== 7. Controls panel ==== */
+.controls {
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+}
+
+.controls button {
+  all: unset;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--cr-purple-500), var(--cr-purple-400));
+  color: #fff;
+  padding: 0.7rem 2.2rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  box-shadow: 0 4px 12px var(--cr-shadow);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.controls button:not(:disabled):hover {
+  filter: brightness(1.12);
+}
+
+.controls button:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* live state color swap (add .connected class in React when status === connected) */
+.controls.connected button {
+  background: linear-gradient(135deg, var(--cr-green-500), #37e36d);
+}
+
+.status {
+  margin-top: 0.9rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--cr-gold-500);
+}
+
+/* ==== 8. Metrics strip ==== */
+.metrics {
+  padding: 1rem 1.4rem;
+  display: flex;
+  gap: 0.8rem;
+  justify-content: flex-start;
+  font-size: 0.88rem;
+}
+
+.metrics span {
+  padding: 0.35rem 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  font-weight: 600;
+  color: var(--cr-blue-400);
+  min-width: 66px;
+  text-align: center;
+}
+
+.metrics span:first-child {
+  color: var(--cr-purple-400);
+}
+
+/* resolution */
+.metrics span:nth-child(2) {
+  color: var(--cr-gold-400);
+}
+
+/* fps */
+.metrics span:last-child {
+  color: var(--cr-green-500);
+}
+
+/* rtt */
+
+/* lag highlight */
+.metrics[data-lag='true'] span:last-child {
+  background: var(--cr-red-600);
+  color: #fff;
+}
+
+.layout {
+  padding-top: 1.25rem;
+}
+
+/* ==== 9. Responsive tweaks ==== */
+@media (max-width: 650px) {
+  .layout {
+    gap: 1.5rem;
+  }
+
+  .sidebar {
+    max-width: 90vw;
+  }
 }
