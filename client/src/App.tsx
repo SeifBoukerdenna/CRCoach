@@ -1,21 +1,52 @@
-import React, { useState } from 'react';
-import { useWebRTC } from './hooks/useWebRTC';
-import { Controls } from './components/Controls';
-import { VideoPlayer } from './components/VideoPlayer';
-import { Metrics } from './components/Metrics';
-import './App.css';
+import React, { useEffect, useState } from "react";
+import { useWebRTC } from "./hooks/useWebRTC";
+import { Controls } from "./components/Controls";
+import { VideoPlayer } from "./components/VideoPlayer";
+import { Metrics } from "./components/Metrics";
+import "./App.css";
 
 export const App: React.FC = () => {
-  const { status, resolution, rtt, fps, connect, videoElement, debugInfo } = useWebRTC();
+  const {
+    status,
+    resolution,
+    rtt,
+    fps,
+    connect,
+    reset,
+    videoElement,
+    disconnect,
+  } = useWebRTC();
+
+  const [code, setCode] = useState("");
   const [connecting, setConnecting] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
+  const codeReady = code.length === 4;
+  const [prevStatus, setPrevStatus] = useState(status);
+
+  // Reset input if user stops connection
+  useEffect(() => {
+    if (prevStatus === "connected" && status === "disconnected") {
+      setCode("");
+    }
+    setPrevStatus(status);
+  }, [prevStatus, status]);
+
+  const handleInput = (val: string) => {
+    const cleaned = val.replace(/\D/g, "").slice(0, 4);
+    if (status === "invalid") reset();
+    setCode(cleaned);
+  };
 
   const handleConnect = async () => {
+    if (status === "connected") {
+      disconnect();     // ← will trigger input reset below
+      return;
+    }
+
+    if (!codeReady) return;
+
     setConnecting(true);
     try {
-      await connect();
-    } catch (error) {
-      console.error('Connection failed:', error);
+      await connect(code);
     } finally {
       setConnecting(false);
     }
@@ -23,39 +54,44 @@ export const App: React.FC = () => {
 
   return (
     <main className="layout">
-      {/* left – live feed */}
       <VideoPlayer videoRef={videoElement} />
 
-      {/* right – title + controls + metrics */}
       <aside className="sidebar">
-        <div className="sidebar-header">
-          <h1>Clash Royale AI Coach <span>🚀</span></h1>
-          <p className="tagline">Live strategy feedback from your mobile gameplay</p>
+        <div className="pills">
+          <span
+            className={`pill ${status === "connected" ? "pill-live" : "pill-off"
+              }`}
+          >
+            {status === "connected" ? "LIVE" : "OFFLINE"}
+          </span>
+          <span className="pill pill-timer">
+            <Controls.Timer status={status} />
+          </span>
         </div>
+
+        <label className="code-label" htmlFor="code">
+          Session Code
+        </label>
+        <input
+          id="code"
+          className="code-input"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="1234"
+          value={code}
+          disabled={status === "connected"}
+          onChange={(e) => handleInput(e.target.value)}
+        />
 
         <Controls
           status={status}
           onConnect={handleConnect}
           connecting={connecting}
+          codeReady={codeReady}
         />
+
         <Metrics resolution={resolution} fps={fps} rtt={rtt} />
-
-        {/* Debug section - can be toggled */}
-        <div className="debug-controls">
-          <button
-            className="debug-toggle"
-            onClick={() => setShowDebug(!showDebug)}
-          >
-            {showDebug ? "Hide Debug Info" : "Show Debug Info"}
-          </button>
-
-          {showDebug && (
-            <div className="debug-panel">
-              <h3>WebRTC Debug Log</h3>
-              <pre>{debugInfo || "No debug info yet"}</pre>
-            </div>
-          )}
-        </div>
       </aside>
     </main>
   );
