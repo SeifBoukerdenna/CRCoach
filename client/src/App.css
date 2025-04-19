@@ -263,3 +263,79 @@ body {
     max-width: 90vw;
   }
 }
+
+/* Adding debug panel styles to App.css */
+
+/* Debug controls */
+.debug-controls {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.debug-toggle {
+  all: unset;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--cr-blue-600), var(--cr-blue-400));
+  color: #fff;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  box-shadow: 0 4px 12px var(--cr-shadow);
+  transition: transform 0.15s ease, filter 0.15s ease;
+  text-align: center;
+}
+
+.debug-toggle:hover {
+  filter: brightness(1.12);
+}
+
+.debug-toggle:active {
+  transform: scale(0.96);
+}
+
+/* Debug panel */
+.debug-panel {
+  margin-top: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.debug-panel h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--cr-gold-500);
+}
+
+.debug-panel pre {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #e0e0ff;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+/* Add this to your application somewhere */
+.connection-debug {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  max-width: 300px;
+  max-height: 200px;
+  overflow: auto;
+  z-index: 1000;
+}
