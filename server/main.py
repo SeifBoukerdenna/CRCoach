@@ -6,7 +6,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from config import HOST, PORT
-from signaling import router, pcs
+from signaling import router, pcs_by_code
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("main")
@@ -17,8 +17,8 @@ async def lifespan(app: FastAPI):
     # Startup: No specific code needed here
     yield
     # Shutdown: Close peer connections
-    logger.info("Closing %d peer connections", len(pcs))
-    await asyncio.gather(*(pc.close() for pc in pcs), return_exceptions=True)
+    logger.info("Closing %d peer connections", len(pcs_by_code))
+    await asyncio.gather(*(pc.close() for pc in pcs_by_code), return_exceptions=True)
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(router)

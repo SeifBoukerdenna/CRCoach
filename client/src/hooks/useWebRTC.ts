@@ -75,6 +75,14 @@ export function useWebRTC(): UseWebRTC {
         }
       };
 
+      pc.oniceconnectionstatechange = () => {
+        const ice = pc.iceConnectionState;
+        console.log("ICE state →", ice);
+        if (ice === "disconnected" || ice === "closed" || ice === "failed") {
+          setStatus("disconnected");
+        }
+      };
+
       /* SDP handshake */
       const offer = await pc.createOffer({ offerToReceiveVideo: true });
       await pc.setLocalDescription(offer);
