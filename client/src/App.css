@@ -225,3 +225,20 @@ body {
     opacity: 0.8;
   }
 }
+
+/* Add these styles to your existing App.css file */
+
+.pill-debug {
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.pill-debug:hover {
+  background: rgba(177, 84, 255, 0.4);
+}
+
+.pill-debug.active {
+  background: var(--cr-purple-500);
+}

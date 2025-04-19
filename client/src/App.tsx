@@ -3,6 +3,8 @@ import { useWebRTC } from "./hooks/useWebRTC";
 import { Controls } from "./components/Controls";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { Metrics } from "./components/Metrics";
+import { MLDetection } from "./components/ml/MlDetection";
+import { DebugPanel } from "./components/Debug";
 import "./App.css";
 
 export const App: React.FC = () => {
@@ -19,6 +21,7 @@ export const App: React.FC = () => {
 
   const [code, setCode] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   const codeReady = code.length === 4;
   const [prevStatus, setPrevStatus] = useState(status);
 
@@ -29,6 +32,19 @@ export const App: React.FC = () => {
     }
     setPrevStatus(status);
   }, [prevStatus, status]);
+
+  // Add keyboard shortcut to toggle debug panel (Ctrl+D)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        setShowDebug(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleInput = (val: string) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 4);
@@ -67,6 +83,15 @@ export const App: React.FC = () => {
           <span className="pill pill-timer">
             <Controls.Timer status={status} />
           </span>
+
+          {/* Debug toggle */}
+          <span
+            className={`pill pill-debug ${showDebug ? 'active' : ''}`}
+            onClick={() => setShowDebug(!showDebug)}
+            title="Toggle Debug Panel (Ctrl+D)"
+          >
+            DEBUG
+          </span>
         </div>
 
         <label className="code-label" htmlFor="code">
@@ -92,7 +117,22 @@ export const App: React.FC = () => {
         />
 
         <Metrics resolution={resolution} fps={fps} rtt={rtt} />
+
+        {/* Supercell Logo Detection Component */}
+        <MLDetection
+          sessionCode={code}
+          connected={status === "connected"}
+        />
       </aside>
+
+      {/* Debug Panel */}
+      {showDebug && (
+        <DebugPanel
+          sessionCode={code}
+          connected={status === "connected"}
+          onClose={() => setShowDebug(false)}
+        />
+      )}
     </main>
   );
 };

@@ -4,11 +4,13 @@ from collections import defaultdict
 from time import time
 from typing import Dict, Set
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from aiortc import RTCPeerConnection, RTCSessionDescription
 
 from track import FrameTrack
+from frame_processor import frame_processor, convert_to_json_response
+from logo_detector import logo_detector
 
 logger = logging.getLogger("signaling")
 
@@ -30,14 +32,18 @@ async def upload(code: str, request: Request) -> dict:
         raise HTTPException(400, "Invalid JPEG payload")
 
     FrameTrack.latest_frames[code] = data    # frame bytes
-    FrameTrack.frame_times[code]  = time()   # timestamp (seconds)
+    FrameTrack.frame_times[code] = time()   # timestamp (seconds)
+
+    # Submit frame for processing in background (not awaited)
+    # This won't block the response
+    frame_processor.process_jpeg(data, code)
 
     return {"status": "ok"}
 
 
 # ─────────────────── watchdog helper ───────────────────────
 async def _watch_code(code: str):
-    """Close every PC if no frame for 1.5 s."""
+    """Close every PC if no frame for 1.5 s."""
     logger.info("Watchdog started for code %s", code)
     try:
         while True:
@@ -62,16 +68,24 @@ async def _watch_code(code: str):
         logger.info("Watchdog finished for code %s", code)
 
 
+# ─────────────────── setup ────────────────────────────────
+async def startup_tasks():
+    """Tasks to run on startup."""
+    # Start the frame processor
+    frame_processor.start()
+    logger.info("Frame processor started")
+
+
 # ─────────────────── offer / answer ────────────────────────
 @router.post("/offer")
-async def offer(payload: dict) -> JSONResponse:
+async def offer(payload: dict, background_tasks: BackgroundTasks) -> JSONResponse:
     code = payload.get("code")
-    sdp  = payload.get("sdp")
-    typ  = payload.get("type")
+    sdp = payload.get("sdp")
+    typ = payload.get("type")
     if not (code and sdp and typ):
         raise HTTPException(400, "Missing code / SDP / type")
 
-    # ensure at least one frame exists (<1 s wait)
+    # ensure at least one frame exists (<1 s wait)
     for _ in range(10):
         if code in FrameTrack.latest_frames:
             break
@@ -105,4 +119,73 @@ async def offer(payload: dict) -> JSONResponse:
     return JSONResponse({
         "sdp": pc.localDescription.sdp,
         "type": pc.localDescription.type,
+    })
+
+
+# ─────────────────── detection endpoints ────────────────────────
+@router.get("/detection/{code}")
+async def detection_status(code: str) -> JSONResponse:
+    """Get detection status for a session.
+
+    Args:
+        code: Session code
+
+    Returns:
+        JSON with detection status
+    """
+    # Check if session exists
+    if code not in FrameTrack.latest_frames:
+        return JSONResponse({
+            "status": "unknown",
+            "error": "No active session with this code"
+        }, status_code=404)
+
+    # Get detection results
+    results = frame_processor.get_detection_results(code)
+    response = convert_to_json_response(results)
+
+    return JSONResponse(
+        response,
+        headers={"Content-Type": "application/json"}
+    )
+
+
+@router.get("/session/{code}/status")
+async def session_status(code: str) -> JSONResponse:
+    """Get comprehensive session status including detection info.
+
+    Args:
+        code: Session code
+
+    Returns:
+        JSON with session status
+    """
+    # Check if session exists
+    if code not in FrameTrack.latest_frames:
+        return JSONResponse({
+            "status": "inactive",
+            "viewers": 0,
+            "detections": {}
+        })
+
+    # Get detection results
+    results = frame_processor.get_detection_results(code)
+
+    # Get viewers count
+    viewers = len(pcs_by_code.get(code, set()))
+
+    # Get session duration
+    last_frame = FrameTrack.frame_times.get(code, 0)
+    session_active = (time() - last_frame) < 2.0
+
+    return JSONResponse({
+        "status": "active" if session_active else "stale",
+        "viewers": viewers,
+        "last_frame": last_frame,
+        "detections": {
+            "logo": {
+                "detected": results.get('logo', {}).get('detected', False),
+                "confidence": results.get('logo', {}).get('confidence', 0),
+            }
+        }
     })

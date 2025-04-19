@@ -1,0 +1,111 @@
+.debug-panel {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 400px;
+    max-width: 90vw;
+    max-height: 70vh;
+    background-color: rgba(0, 0, 0, 0.85);
+    border: 1px solid var(--cr-blue-400);
+    border-radius: 8px 0 0 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    overflow: hidden;
+    font-family: monospace;
+    color: white;
+}
+
+.debug-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--cr-blue-600);
+    border-bottom: 1px solid var(--cr-blue-400);
+}
+
+.debug-header h3 {
+    margin: 0;
+    font-size: 14px;
+    color: white;
+}
+
+.debug-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.debug-content {
+    padding: 12px;
+    overflow-y: auto;
+    max-height: calc(70vh - 40px);
+}
+
+.debug-section {
+    margin-bottom: 16px;
+}
+
+.debug-section h4 {
+    margin: 0 0 8px 0;
+    color: var(--cr-gold-500);
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 4px;
+}
+
+.debug-section pre {
+    margin: 0;
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 8px;
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.8);
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.debug-loading {
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 10px;
+    font-size: 12px;
+}
+
+.debug-error {
+    color: var(--cr-red-600);
+    margin-bottom: 10px;
+    font-size: 12px;
+    background: rgba(229, 57, 53, 0.1);
+    padding: s6px;
+    border-radius: 4px;
+}
+
+.debug-actions {
+    margin-top: 12px;
+    text-align: right;
+}
+
+.debug-actions button {
+    background-color: var(--cr-blue-400);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.debug-actions button:hover {
+    background-color: var(--cr-blue-600);
+}
+
+.debug-actions button:disabled {
+    background-color: rgba(255, 255, 255, 0.2);
+    cursor: not-allowed;
+}

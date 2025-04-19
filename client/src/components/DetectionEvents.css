@@ -1,0 +1,134 @@
+/* DetectionEvents.css */
+.detection-event {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 12px;
+    border: 2px solid var(--cr-gold-500);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 20px var(--cr-gold-400);
+    animation: slideDown 0.5s ease;
+    min-width: 250px;
+}
+
+.event-icon {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.event-icon-symbol {
+    position: relative;
+    z-index: 2;
+    font-size: 16px;
+}
+
+.event-pulse {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: var(--cr-gold-500);
+    opacity: 0.8;
+    animation: pulse 1.5s ease infinite;
+}
+
+.event-close {
+    all: unset;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.event-close:hover {
+    opacity: 1;
+}
+
+.event-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.event-title {
+    margin: 0;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--cr-gold-500);
+}
+
+.event-timestamp {
+    margin: 0;
+    font-size: 12px;
+    opacity: 0.7;
+    color: white;
+}
+
+/* When specific event types are detected */
+.detection-event[data-event-type="supercell_logo"] .event-pulse {
+    background-color: white;
+}
+
+.detection-event[data-event-type="supercell_logo"] .event-title {
+    color: white;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+    }
+
+    70% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 10px rgba(255, 215, 0, 0);
+    }
+
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+    }
+}
+
+@keyframes slideDown {
+    0% {
+        transform: translateX(-50%) translateY(-20px);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
