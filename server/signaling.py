@@ -6,103 +6,96 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from aiortc import RTCPeerConnection, RTCSessionDescription
 
-from track import FrameTrack
-from config import JPEG_HEADER
+from track import FrameTrack            # ⬅️  ➊ no global instance now
 
 logger = logging.getLogger("signaling")
 
 router = APIRouter()
-track = FrameTrack()
-pcs: Set[RTCPeerConnection] = set()
+pcs: Set[RTCPeerConnection] = set()     # active peer‑connections
+
 
 # ───────────────────────── upload ──────────────────────────
 @router.post("/upload")
 async def upload(request: Request) -> dict:
-    """Receive raw JPEG bytes from iOS."""
+    """
+    Receive raw JPEG bytes pushed by the ReplayKit extension.
+    The payload is stored on FrameTrack.latest_frame so any
+    active tracks can consume it.
+    """
     data = await request.body()
-    if not data.startswith(JPEG_HEADER):
+
+    # quick JPEG sanity check (0xFFD8 = SOI)
+    if not data.startswith(b"\xFF\xD8"):
         raise HTTPException(400, "Invalid JPEG payload")
-    track.latest_frame = data
+
+    FrameTrack.latest_frame = data      # ⬅️  ➋ share frame with all tracks
     return {"status": "ok"}
 
-# ───────────────────────── offer/answer ────────────────────
+
+# ───────────────────────── offer ───────────────────────────
 @router.post("/offer")
 async def offer(payload: dict) -> JSONResponse:
-    # Validate input
+    """
+    Handle SDP offer from browser, return answer.
+    Always wipes old PCs first so a page refresh works
+    without restarting the server.
+    """
     sdp = payload.get("sdp")
     typ = payload.get("type")
     if not sdp or not typ:
         raise HTTPException(400, "Missing SDP or type")
 
-    # Create peer connection with simplified config for local network
+    # 1)  Drop every stale / previous connection
+    for pc in list(pcs):
+        await pc.close()
+        pcs.discard(pc)
+
+    # 2)  Fresh peer‑connection (no ICE servers for LAN)
     pc = RTCPeerConnection()
     pcs.add(pc)
-    logger.info("Peer connection created")
+    logger.info("Created new peer‑connection (%d total)", len(pcs))
 
-    # Connection state monitoring
     @pc.on("connectionstatechange")
-    async def on_connectionstatechange():
-        logger.info("Connection state changed to: %s", pc.connectionState)
+    async def _():
         if pc.connectionState in ("failed", "closed", "disconnected"):
-            logger.warning("Connection state is %s, closing", pc.connectionState)
             await pc.close()
             pcs.discard(pc)
-
-    # Log ICE gathering state changes
-    @pc.on("icegatheringstatechange")
-    def on_icegatheringstatechange():
-        logger.info("ICE gathering state changed to: %s", pc.iceGatheringState)
-
-    # Log ICE connection state changes
-    @pc.on("iceconnectionstatechange")
-    def on_iceconnectionstatechange():
-        logger.info("ICE connection state changed to: %s", pc.iceConnectionState)
+            logger.warning("Peer‑connection closed (%d remaining)", len(pcs))
 
     try:
-        # Set remote description (client offer)
-        logger.info("Setting remote description (offer)")
+        # Apply remote SDP
         await pc.setRemoteDescription(RTCSessionDescription(sdp=sdp, type=typ))
 
-        # Add the video track
-        logger.info("Adding video track")
-        pc.addTrack(track)
+        # 3)  Give *this* viewer its own video track
+        pc.addTrack(FrameTrack())
 
-        # Create answer
-        logger.info("Creating answer")
+        # 4)  Create / send answer
         answer = await pc.createAnswer()
-
-        # Set local description
-        logger.info("Setting local description (answer)")
         await pc.setLocalDescription(answer)
 
-        # Wait for ICE gathering or timeout after 2 seconds
-        logger.info("Waiting for ICE gathering (max 2 seconds)")
-        ice = asyncio.Event()
+        # Wait ≤2 s for ICE gathering
+        done = asyncio.Event()
 
         if pc.iceGatheringState == "complete":
-            ice.set()
+            done.set()
         else:
+
             @pc.on("icegatheringstatechange")
             def _():
                 if pc.iceGatheringState == "complete":
-                    ice.set()
+                    done.set()
 
-        try:
-            await asyncio.wait_for(ice.wait(), 2.0)
-            logger.info("ICE gathering complete")
-        except asyncio.TimeoutError:
-            logger.warning("ICE gathering timeout - proceeding with available candidates")
+            try:
+                await asyncio.wait_for(done.wait(), 2.0)
+            except asyncio.TimeoutError:
+                logger.warning("ICE gathering timeout – continuing")
 
-        # Return the answer with any gathered ICE candidates
-        logger.info("Sending answer back to client")
-        return JSONResponse({
-            "sdp": pc.localDescription.sdp,
-            "type": pc.localDescription.type,
-        })
+        return JSONResponse(
+            {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
+        )
 
     except Exception as e:
-        logger.error("Error during WebRTC setup: %s", str(e), exc_info=True)
-        # If anything fails, clean up the peer connection
         await pc.close()
         pcs.discard(pc)
-        raise HTTPException(500, f"WebRTC setup failed: {str(e)}")
+        logger.error("WebRTC setup failed: %s", e, exc_info=True)
+        raise HTTPException(500, f"WebRTC setup failed: {e}")
