@@ -38,12 +38,13 @@ body {
 
 /* ==== 4. Video pane ==== */
 .video-container {
+  position: relative;
   width: 320px;
   max-width: 90vw;
   border: 3px solid var(--cr-blue-400);
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 18px var(--cr-shadow);
 }
 
 .video-container video {
@@ -190,4 +191,37 @@ body {
 
 .pill-off {
   background: rgba(255, 255, 255, 0.25);
+}
+
+.waiting-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #1e53ff, #3b7bff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  z-index: 2;
+}
+
+.waiting-text {
+  font: 900 1.6rem/1.2 "Burbank Big Condensed Bold", Impact, sans-serif;
+  color: var(--cr-gold-500);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.05em;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
 }
