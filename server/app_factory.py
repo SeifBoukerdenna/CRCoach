@@ -3,6 +3,7 @@ import signal
 import asyncio
 from aiohttp import web
 from signaling import upload_handler, offer_handler, pcs
+from frame_capture_handler import register_frame_capture_routes
 
 logger = logging.getLogger("webrtc.app")
 
@@ -11,8 +12,10 @@ def create_app() -> web.Application:
     app.router.add_post("/upload", upload_handler)
     app.router.add_post("/offer", offer_handler)
 
+    # Register frame capture routes
+    register_frame_capture_routes(app)  # Add this line
+
     async def on_shutdown(app):
-        # logger.info("Shutting down %d peer connections", len(pcs))
         await asyncio.gather(*(pc.close() for pc in pcs), return_exceptions=True)
 
     app.on_shutdown.append(on_shutdown)

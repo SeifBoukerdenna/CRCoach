@@ -103,14 +103,7 @@ class LogoDetector:
             logger.error(f"Error creating synthetic logo template: {e}")
 
     def detect(self, frame: np.ndarray) -> Dict:
-        """Detect the Supercell logo in the given frame.
-
-        Args:
-            frame: Input frame as numpy array (BGR format)
-
-        Returns:
-            Detection result dictionary
-        """
+        """Detect the Supercell logo in the given frame."""
         start_time = time.time()
 
         if self.logo_template is None:
@@ -120,6 +113,11 @@ class LogoDetector:
         try:
             # Check if the frame is mostly black (like the splash screen)
             is_dark = np.mean(frame) < 30
+
+            # Check if frame is very small
+            if frame.shape[0] < 50 or frame.shape[1] < 50:
+                logger.warning(f"Frame too small for detection: {frame.shape}")
+                return {'detected': False, 'confidence': 0, 'location': None}
 
             # If not dark, unlikely to be the logo screen
             if not is_dark:
@@ -143,10 +141,18 @@ class LogoDetector:
             # Detect using two methods for robustness
 
             # 1. Template matching approach
-            template_result = self._template_match(gray_frame, gray_template)
+            try:
+                template_result = self._template_match(gray_frame, gray_template)
+            except Exception as e:
+                logger.error(f"Template matching failed: {e}")
+                template_result = {'detected': False, 'confidence': 0, 'location': None}
 
             # 2. Feature-based approach for the splash screen
-            feature_result = self._detect_splash_screen_features(gray_frame)
+            try:
+                feature_result = self._detect_splash_screen_features(gray_frame)
+            except Exception as e:
+                logger.error(f"Feature detection failed: {e}")
+                feature_result = {'detected': False, 'confidence': 0, 'location': None}
 
             # Combine results (take the higher confidence)
             if template_result['confidence'] > feature_result['confidence']:
@@ -174,18 +180,27 @@ class LogoDetector:
             return {'detected': False, 'confidence': 0, 'location': None}
 
     def _template_match(self, gray_frame: np.ndarray, gray_template: np.ndarray) -> Dict:
-        """Perform template matching for logo detection.
-
-        Args:
-            gray_frame: Grayscale input frame
-            gray_template: Grayscale logo template
-
-        Returns:
-            Detection result
-        """
+        """Perform template matching for logo detection."""
         h, w = gray_frame.shape
         template_h, template_w = gray_template.shape
 
+        # Check if template is larger than frame
+        if template_h > h or template_w > w:
+            # Template is larger than frame - resize template to fit frame
+            scale_h = min(1.0, h / template_h * 0.9)  # Leave some margin
+            scale_w = min(1.0, w / template_w * 0.9)
+            scale = min(scale_h, scale_w)
+
+            # Resize template to be smaller than frame
+            new_h = int(template_h * scale)
+            new_w = int(template_w * scale)
+            gray_template = cv2.resize(gray_template, (new_w, new_h))
+            template_h, template_w = new_h, new_w
+
+            # Log the resize event
+            logger.info(f"Resized template from {template_h}x{template_w} to {new_h}x{new_w} to fit frame {h}x{w}")
+
+        # Continue with the rest of your template matching code...
         # Try multiple scales since the logo size can vary
         scales = [0.2, 0.3, 0.4, 0.5]
         best_match = 0
@@ -198,22 +213,26 @@ class LogoDetector:
             scale_factor = target_h / template_h
             target_w = int(template_w * scale_factor)
 
-            # Skip if target is too small
-            if target_h < 20 or target_w < 20:
+            # Skip if target is too small or larger than template
+            if target_h < 20 or target_w < 20 or target_h > template_h or target_w > template_w:
                 continue
 
             # Resize template
             resized_template = cv2.resize(gray_template, (target_w, target_h))
 
             # Template matching
-            res = cv2.matchTemplate(gray_frame, resized_template, cv2.TM_CCOEFF_NORMED)
-            _, max_val, _, max_loc = cv2.minMaxLoc(res)
+            try:
+                res = cv2.matchTemplate(gray_frame, resized_template, cv2.TM_CCOEFF_NORMED)
+                _, max_val, _, max_loc = cv2.minMaxLoc(res)
 
-            # Update best match
-            if max_val > best_match:
-                best_match = max_val
-                best_loc = max_loc
-                best_scale = scale
+                # Update best match
+                if max_val > best_match:
+                    best_match = max_val
+                    best_loc = max_loc
+                    best_scale = scale
+            except cv2.error as e:
+                logger.warning(f"Template matching error at scale {scale}: {e}")
+                continue
 
         # Create result
         result = {

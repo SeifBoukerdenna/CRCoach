@@ -7,6 +7,7 @@ import tensorflow as tf
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from frame_capture_handler import frame_capture_router
 
 
 from config import HOST, PORT
@@ -85,6 +86,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+app.include_router(frame_capture_router)
+
+
 
 # Add some ML-specific endpoints
 @app.get("/ml/status")
@@ -103,4 +107,5 @@ async def ml_status():
 
 if __name__ == "__main__":
     logger.info("Starting FastAPI server at http://%s:%d", HOST, PORT)
+    os.makedirs("captured_frames", exist_ok=True)
     uvicorn.run("main:app", host=HOST, port=PORT, reload=True, log_level="critical")

@@ -6,6 +6,7 @@ import { Metrics } from "./components/Metrics";
 import { MLDetection } from "./components/ml/MlDetection";
 import { DebugPanel } from "./components/Debug";
 import "./App.css";
+import FrameCapture from "./components/FrameCapture";
 
 export const App: React.FC = () => {
   const {
@@ -73,6 +74,7 @@ export const App: React.FC = () => {
       <VideoPlayer videoRef={videoElement} />
 
       <aside className="sidebar">
+
         <div className="pills">
           <span
             className={`pill ${status === "connected" ? "pill-live" : "pill-off"
@@ -116,7 +118,15 @@ export const App: React.FC = () => {
           codeReady={codeReady}
         />
 
+        {/* Add Frame Capture component */}
+        <FrameCapture
+          sessionCode={code}
+          isConnected={status === "connected"}
+          videoRef={videoElement}
+        />
+
         <Metrics resolution={resolution} fps={fps} rtt={rtt} />
+
 
         {/* Supercell Logo Detection Component */}
         <MLDetection
