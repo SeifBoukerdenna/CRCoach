@@ -192,21 +192,42 @@ export const App: React.FC = () => {
                 inputMode="numeric"
                 maxLength={1}
                 value={code[i] || ""}
+
+                /* ── handle typing ───────────────────────── */
                 onChange={(e) => {
-                  const val = e.target.value.slice(-1); // last char typed
-                  const newCode =
-                    code.slice(0, i) + val + code.slice(i + 1, 4);
+                  const val = e.target.value.slice(-1);               // last char typed
+                  const newCode = code.slice(0, i) + val + code.slice(i + 1, 4);
                   handleInput(newCode);
-                  // auto-focus next slot
+
+                  // auto-advance to next slot
                   if (val && i < 3) {
-                    const next =
-                      e.currentTarget.parentElement?.children[
-                      i + 1
-                      ] as HTMLInputElement;
+                    const next = e.currentTarget.parentElement?.children[i + 1] as HTMLInputElement;
                     next?.focus();
                   }
                 }}
+
+                /* ── handle BACKSPACE delete ─────────────── */
+                onKeyDown={(e) => {
+                  if (e.key !== "Backspace") return;
+
+                  // if current slot has content, simply clear it
+                  if (code[i]) {
+                    const newCode = code.slice(0, i) + "" + code.slice(i + 1);
+                    handleInput(newCode);
+                    return;                                           // stay on this slot
+                  }
+
+                  // if empty & not first slot → jump to previous and clear it
+                  if (i > 0) {
+                    const prevInput = (e.currentTarget.parentElement?.children[i - 1]) as HTMLInputElement;
+                    prevInput?.focus();
+
+                    const newCode = code.slice(0, i - 1) + "" + code.slice(i);
+                    handleInput(newCode);
+                  }
+                }}
               />
+
             ))}
           </div>
         )}
