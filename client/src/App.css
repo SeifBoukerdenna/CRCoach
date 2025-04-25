@@ -225,3 +225,52 @@ body {
     opacity: 0.8;
   }
 }
+
+/* Add these styles to the end of your App.css file */
+
+/* Quality pill styling */
+.quality-pill {
+  padding: 0.35rem 0.8rem;
+  border-radius: 14px;
+  font-weight: 600;
+  min-width: 45px;
+  text-align: center;
+}
+
+.quality-low {
+  background-color: var(--cr-blue-400);
+  color: white;
+}
+
+.quality-medium {
+  background-color: var(--cr-gold-500);
+  color: #333;
+}
+
+.quality-high {
+  background-color: var(--cr-purple-500);
+  color: white;
+}
+
+/* Update metrics container to accommodate the additional pill */
+.metrics {
+  padding: 1rem 1.4rem;
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Make metrics responsive */
+@media (max-width: 480px) {
+  .metrics {
+    gap: 0.4rem;
+  }
+
+  .metrics span {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.8rem;
+    min-width: 55px;
+  }
+}

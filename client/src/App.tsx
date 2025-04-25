@@ -11,6 +11,7 @@ export const App: React.FC = () => {
     resolution,
     rtt,
     fps,
+    quality,
     connect,
     reset,
     videoElement,
@@ -91,7 +92,13 @@ export const App: React.FC = () => {
           codeReady={codeReady}
         />
 
-        <Metrics resolution={resolution} fps={fps} rtt={rtt} />
+        <Metrics
+          resolution={resolution}
+          fps={fps}
+          rtt={rtt}
+          quality={quality}
+          isHighLatency={parseInt(rtt) > 100} // Consider high latency if over 100ms
+        />
       </aside>
     </main>
   );

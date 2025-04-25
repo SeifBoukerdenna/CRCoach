@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConnectionStatus } from "../types/webrtc";
 
+export type StreamQuality = "low" | "medium" | "high";
+
 export interface UseWebRTC {
   status: ConnectionStatus;
   resolution: string;
   rtt: string;
   fps: string;
+  quality: StreamQuality;
   connect: (code: string) => Promise<void>;
-  disconnect: () => void; // ← NEW
+  disconnect: () => void;
   reset: () => void;
   videoElement: React.RefObject<HTMLVideoElement | null>;
 }
@@ -18,8 +21,9 @@ export function useWebRTC(): UseWebRTC {
 
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [resolution, setResolution] = useState("—×—");
-  const [rtt, setRtt] = useState("— ms");
-  const [fps, setFps] = useState("— FPS");
+  const [rtt, setRtt] = useState("— ms");
+  const [fps, setFps] = useState("— FPS");
+  const [quality, setQuality] = useState<StreamQuality>("medium");
 
   /* ——— cleanup on unmount ——— */
   useEffect(() => () => pcRef.current?.close(), []);
@@ -46,6 +50,24 @@ export function useWebRTC(): UseWebRTC {
       });
     }, 1000);
   }, []);
+
+  /* ——— quality detection based on resolution ——— */
+  useEffect(() => {
+    if (resolution === "—×—") return;
+
+    // Extract width from resolution (format: "320×240")
+    const width = parseInt(resolution.split("×")[0], 10);
+    if (isNaN(width)) return;
+
+    // Determine quality based on width
+    if (width <= 240) {
+      setQuality("low");
+    } else if (width <= 320) {
+      setQuality("medium");
+    } else {
+      setQuality("high");
+    }
+  }, [resolution]);
 
   /* ——— main connect flow ——— */
   const connect = useCallback(
@@ -131,6 +153,7 @@ export function useWebRTC(): UseWebRTC {
     resolution,
     rtt,
     fps,
+    quality,
     connect,
     reset,
     disconnect,
