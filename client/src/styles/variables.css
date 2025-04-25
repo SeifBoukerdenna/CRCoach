@@ -1,0 +1,98 @@
+/* CSS Variables for theming */
+
+:root {
+    /* ---------- Color Palette ---------- */
+    --cr-blue-start: #2f8cff;
+    /* light top */
+    --cr-blue-end: #001a48;
+    /* deep bottom */
+    --cr-blue-3: #00318c;
+    --cr-blue-4: #001a48;
+
+    --cr-gold-0: #ffe36b;
+    --cr-gold-1: #ffc907;
+    --cr-gold-2: #b58300;
+
+    --cr-red: #ff5252;
+    --cr-green: #2cf476;
+    --cr-purple: #a34cff;
+    --cr-purple-light: #b773ff;
+
+    /* ---------- Spacing ---------- */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-xxl: 48px;
+
+    /* ---------- Borders & Shadows ---------- */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
+
+    /* ---------- Typography ---------- */
+    --font-family: 'Bangers', 'Arial Black', sans-serif;
+    --font-size-xs: 12px;
+    --font-size-sm: 14px;
+    --font-size-md: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 22px;
+    --font-size-xxl: 32px;
+    --font-size-jumbo: 48px;
+
+    /* ---------- Animations ---------- */
+    --transition-fast: 150ms ease;
+    --transition-normal: 300ms ease;
+    --transition-slow: 500ms ease;
+
+    /* ---------- Layout ---------- */
+    --header-height: 64px;
+    --footer-height: 48px;
+    --sidebar-width: 320px;
+    --max-content-width: 1200px;
+    --card-padding: 20px;
+
+    /* ---------- Z-index Layers ---------- */
+    --z-background: -10;
+    --z-default: 1;
+    --z-overlay: 10;
+    --z-dropdown: 20;
+    --z-modal: 30;
+    --z-tooltip: 40;
+    --z-toast: 50;
+}
+
+/* Dark theme variations (can be applied later) */
+.theme-dark {
+    --cr-blue-start: #1a5aa0;
+    --cr-blue-end: #001533;
+    --cr-blue-3: #002a66;
+    --cr-blue-4: #001533;
+}
+
+/* High contrast theme for accessibility */
+.theme-high-contrast {
+    --cr-blue-start: #0078d7;
+    --cr-blue-end: #000000;
+    --cr-blue-3: #0053a3;
+    --cr-gold-0: #ffdf00;
+    --cr-gold-1: #ffcd00;
+    --cr-red: #ff0000;
+    --cr-green: #00ff00;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    :root {
+        --spacing-lg: 16px;
+        --spacing-xl: 24px;
+        --spacing-xxl: 32px;
+        --sidebar-width: 100%;
+        --card-padding: 16px;
+    }
+}

@@ -1,0 +1,150 @@
+/* Button Component Styles */
+
+.cr-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: var(--font-family);
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform .12s ease, filter .15s ease, background-color .15s ease;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, .3), inset 0 1px 3px rgba(255, 255, 255, .18);
+    letter-spacing: 1px;
+    padding: 10px 24px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .4);
+}
+
+/* Size Variants */
+.cr-button-small {
+    font-size: 14px;
+    padding: 6px 16px;
+    border-radius: 12px;
+}
+
+.cr-button-medium {
+    font-size: 18px;
+    padding: 10px 24px;
+    border-radius: 16px;
+}
+
+.cr-button-large {
+    font-size: 24px;
+    padding: 16px 32px;
+    border-radius: 20px;
+}
+
+/* Color Variants */
+.cr-button-primary {
+    background: linear-gradient(0deg, var(--cr-blue-3) 0%, var(--cr-blue-start) 70%);
+    color: white;
+}
+
+.cr-button-secondary {
+    background: linear-gradient(0deg, rgba(70, 70, 70, 1) 0%, rgba(100, 100, 100, 1) 70%);
+    color: white;
+}
+
+.cr-button-danger {
+    background: linear-gradient(0deg, #b52020 0%, #e43737 55%, #ff5b5b 100%);
+    color: white;
+}
+
+.cr-button-gold {
+    background: linear-gradient(0deg, #e4a500 0%, #ffc907 50%, #ffe36b 100%);
+    color: #05264d;
+}
+
+/* Hover/focus States */
+.cr-button:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.cr-button:focus-visible {
+    outline: 3px solid var(--cr-purple);
+    outline-offset: 2px;
+}
+
+.cr-button:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, .3), inset 0 1px 3px rgba(255, 255, 255, .18);
+}
+
+/* Active State */
+.cr-button-active {
+    background-color: var(--cr-purple);
+    filter: brightness(1.05);
+}
+
+/* Disabled State */
+.cr-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Full Width */
+.cr-button-full-width {
+    width: 100%;
+}
+
+/* Loading State */
+.cr-button-loading {
+    color: transparent !important;
+    text-shadow: none;
+}
+
+.cr-button-loader {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, .25);
+    border-top-color: white;
+    animation: spin .9s linear infinite;
+    top: calc(50% - 10px);
+    left: calc(50% - 10px);
+}
+
+/* Icon Positioning */
+.cr-button-start-icon,
+.cr-button-end-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Animation */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Breathing Effect on Gold Button */
+.cr-button-gold::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    background: radial-gradient(circle, rgba(255, 255, 255, .45) 0%, rgba(255, 255, 255, 0) 70%);
+    filter: blur(10px);
+    opacity: 0;
+    pointer-events: none;
+    animation: breath 4s ease-in-out infinite;
+}
+
+@keyframes breath {
+
+    0%,
+    100% {
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}

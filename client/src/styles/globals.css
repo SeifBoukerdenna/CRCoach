@@ -1,0 +1,244 @@
+/* Global styles and resets */
+@import './variables.css';
+
+/* ---------- Global Reset & Core BG ---------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    height: 100%;
+    font-family: var(--font-family);
+    color: #fff;
+    /* iOS-style vertical gradient */
+    background: linear-gradient(180deg, var(--cr-blue-start) 0%, var(--cr-blue-end) 100%);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+}
+
+#root {
+    height: 100%;
+}
+
+/* ✨ shimmer overlay – faint diagonal sweep */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, .05) 0%,
+            rgba(255, 255, 255, 0) 60%);
+    mix-blend-mode: overlay;
+    animation: bgSweep 10s linear infinite;
+}
+
+/* ✨ sparkle dust – tiny rotating dots */
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 30% 40%, rgba(255, 255, 255, .15) 0 2px, transparent 3px) repeat;
+    background-size: 1200px 1200px;
+    animation: dustDrift 40s linear infinite;
+    mix-blend-mode: screen;
+    opacity: .25;
+}
+
+/* ------------------------------------------------------------------
+   ANIMATIONS
+------------------------------------------------------------------ */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes bob {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes bgSweep {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes dustDrift {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 1200px 800px;
+    }
+}
+
+@keyframes breath {
+
+    0%,
+    100% {
+        opacity: 0;
+    }
+
+    50% {
+        opacity: .6;
+    }
+}
+
+@keyframes wobble {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-2px);
+    }
+}
+
+@keyframes crownFloat {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(-3deg);
+    }
+
+    50% {
+        transform: translateY(-10px) rotate(3deg);
+    }
+}
+
+@keyframes dropBob {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+/* subtle sparkle ping */
+@keyframes spark {
+
+    0%,
+    85% {
+        transform: scale(.2);
+        opacity: 0;
+    }
+
+    88% {
+        transform: scale(1.4);
+        opacity: .9;
+    }
+
+    92%,
+    100% {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
+/* ------------------------------------------------------------------
+   UTILITY CLASSES
+------------------------------------------------------------------ */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.flex {
+    display: flex;
+}
+
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.gap-sm {
+    gap: var(--spacing-sm);
+}
+
+.gap-md {
+    gap: var(--spacing-md);
+}
+
+.gap-lg {
+    gap: var(--spacing-lg);
+}
+
+/* ------------------------------------------------------------------
+   ACCESSIBILITY
+------------------------------------------------------------------ */
+@media (prefers-reduced-motion) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Focus styles for keyboard navigation */
+:focus-visible {
+    outline: 3px solid var(--cr-purple);
+    outline-offset: 2px;
+}

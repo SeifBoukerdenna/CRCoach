@@ -1,162 +1,131 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ConnectionStatus } from "../types/webrtc";
+import {
+  BroadcastStats,
+  ConnectionStatus,
+  StreamQuality,
+} from "../types/broadcast";
+import rtcClient from "../api/rtcClient";
 
-export type StreamQuality = "low" | "medium" | "high";
-
-export interface UseWebRTC {
+/**
+ * Hook return interface for useWebRTC
+ */
+export interface UseWebRTCResult {
+  // Connection state
   status: ConnectionStatus;
+  isConnected: boolean;
+  isConnecting: boolean;
+  isError: boolean;
+
+  // Connection stats
   resolution: string;
   rtt: string;
   fps: string;
   quality: StreamQuality;
+
+  // Actions
   connect: (code: string) => Promise<void>;
   disconnect: () => void;
   reset: () => void;
-  videoElement: React.RefObject<HTMLVideoElement | null>;
+
+  // Refs
+  videoRef: React.RefObject<HTMLVideoElement | null>;
 }
 
-export function useWebRTC(): UseWebRTC {
+/**
+ * Hook options for useWebRTC
+ */
+export interface UseWebRTCOptions {
+  /** Auto-connect with the provided code when the hook mounts */
+  autoConnect?: string;
+  /** Callback when connection status changes */
+  onStatusChange?: (status: ConnectionStatus) => void;
+  /** Callback when connection stats update */
+  onStatsUpdate?: (stats: BroadcastStats) => void;
+}
+
+/**
+ * Hook for managing WebRTC connections for video streaming
+ *
+ * @param options Configuration options for the hook
+ * @returns WebRTC connection state and methods
+ */
+export function useWebRTC(options: UseWebRTCOptions = {}): UseWebRTCResult {
+  // Create refs
   const videoRef = useRef<HTMLVideoElement>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
 
-  const [status, setStatus] = useState<ConnectionStatus>("disconnected");
-  const [resolution, setResolution] = useState("—×—");
-  const [rtt, setRtt] = useState("— ms");
-  const [fps, setFps] = useState("— FPS");
-  const [quality, setQuality] = useState<StreamQuality>("medium");
+  // Set up state
+  const [status, setStatus] = useState<ConnectionStatus>(rtcClient.status);
+  const [stats, setStats] = useState<BroadcastStats>(rtcClient.stats);
 
-  /* ——— cleanup on unmount ——— */
-  useEffect(() => () => pcRef.current?.close(), []);
+  // Memoized connection helpers
+  const isConnected = status === "connected";
+  const isConnecting = status === "connecting" || status === "sending";
+  const isError = status === "error" || status === "invalid";
 
-  /* ——— stats loop ——— */
-  const startStats = useCallback(() => {
-    if (!pcRef.current) return;
-    const pc = pcRef.current;
-    const id = setInterval(async () => {
-      if (!pc || pc.connectionState !== "connected") {
-        clearInterval(id);
-        return;
-      }
-      const stats = await pc.getStats();
-      stats.forEach((r) => {
-        if (
-          r.type === "candidate-pair" &&
-          r.state === "succeeded" &&
-          r.currentRoundTripTime
-        )
-          setRtt(`${Math.round(r.currentRoundTripTime * 1000)} ms`);
-        if (r.type === "inbound-rtp" && r.kind === "video" && r.framesPerSecond)
-          setFps(`${Math.round(r.framesPerSecond)} FPS`);
-      });
-    }, 1000);
+  // Set up client event handlers
+  useEffect(() => {
+    // Set video element on the client
+    rtcClient.setVideoElement(videoRef.current);
+
+    // Register status change handler
+    rtcClient.onStatusChange((newStatus) => {
+      setStatus(newStatus);
+      options.onStatusChange?.(newStatus);
+    });
+
+    // Register stats update handler
+    rtcClient.onStatsUpdate((newStats) => {
+      setStats(newStats);
+      options.onStatsUpdate?.(newStats);
+    });
+
+    // Clean up on unmount
+    return () => {
+      rtcClient.disconnect();
+    };
+  }, [options]);
+
+  // Auto-connect if requested
+  useEffect(() => {
+    if (options.autoConnect && status === "disconnected") {
+      rtcClient.connect(options.autoConnect);
+    }
+  }, [options.autoConnect, status]);
+
+  // Connection methods
+  const connect = useCallback(async (code: string) => {
+    await rtcClient.connect(code);
   }, []);
 
-  /* ——— quality detection based on resolution ——— */
-  useEffect(() => {
-    if (resolution === "—×—") return;
+  const disconnect = useCallback(() => {
+    rtcClient.disconnect();
+  }, []);
 
-    // Extract width from resolution (format: "320×240")
-    const width = parseInt(resolution.split("×")[0], 10);
-    if (isNaN(width)) return;
-
-    // Determine quality based on width
-    if (width <= 240) {
-      setQuality("low");
-    } else if (width <= 320) {
-      setQuality("medium");
-    } else {
-      setQuality("high");
-    }
-  }, [resolution]);
-
-  /* ——— main connect flow ——— */
-  const connect = useCallback(
-    async (code: string) => {
-      if (videoRef.current) videoRef.current.srcObject = null;
-      pcRef.current?.close();
-      pcRef.current = null;
-
-      setStatus("connecting");
-      const pc = new RTCPeerConnection({ iceServers: [] });
-      pcRef.current = pc;
-
-      pc.onconnectionstatechange = () =>
-        setStatus(pc.connectionState as ConnectionStatus);
-
-      pc.addTransceiver("video", { direction: "recvonly" });
-      pc.ontrack = ({ track, streams }) => {
-        if (track.kind !== "video") return;
-        if (videoRef.current) {
-          videoRef.current.srcObject = streams[0];
-          videoRef.current.onloadedmetadata = () => {
-            setResolution(
-              `${videoRef.current!.videoWidth}×${videoRef.current!.videoHeight}`
-            );
-            videoRef.current!.play().catch(() => {});
-          };
-        }
-      };
-
-      pc.oniceconnectionstatechange = () => {
-        const ice = pc.iceConnectionState;
-        console.log("ICE state →", ice);
-        if (ice === "disconnected" || ice === "closed" || ice === "failed") {
-          setStatus("disconnected");
-        }
-      };
-
-      /* SDP handshake */
-      const offer = await pc.createOffer({ offerToReceiveVideo: true });
-      await pc.setLocalDescription(offer);
-
-      setStatus("sending");
-      const res = await fetch("/offer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...pc.localDescription!.toJSON(), code }),
-      });
-
-      if (res.status === 404) {
-        setStatus("invalid");
-        pc.close();
-        pcRef.current = null;
-        return;
-      }
-      if (!res.ok) {
-        setStatus("error");
-        pc.close();
-        pcRef.current = null;
-        return;
-      }
-
-      const ans = await res.json();
-      await pc.setRemoteDescription(ans);
-      startStats();
-      setStatus("connected");
-    },
-    [startStats]
-  );
-
-  /* ——— reset after invalid ——— */
-  const reset = () => {
-    if (status === "invalid") setStatus("disconnected");
-  };
-
-  const disconnect = () => {
-    pcRef.current?.close();
-    pcRef.current = null;
-    setStatus("disconnected");
-  };
+  const reset = useCallback(() => {
+    rtcClient.reset();
+  }, []);
 
   return {
+    // Connection state
     status,
-    resolution,
-    rtt,
-    fps,
-    quality,
+    isConnected,
+    isConnecting,
+    isError,
+
+    // Stats
+    resolution: stats.resolution,
+    rtt: stats.rtt,
+    fps: stats.fps,
+    quality: stats.quality,
+
+    // Actions
     connect,
-    reset,
     disconnect,
-    videoElement: videoRef,
+    reset,
+
+    // Refs
+    videoRef,
   };
 }
+
+export default useWebRTC;

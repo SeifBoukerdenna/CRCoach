@@ -1,75 +1,8 @@
 /* =============================================================== */
-/*  CLASH ROYALE TRAINER – SUPERSELL FINAL PASS                    */
-/*  Only CSS – drop in, hot-reload, enjoy                          */
+/*  CLASH ROYALE TRAINER – Main App Styles                           */
 /* =============================================================== */
-
-/* ---------- Palette ---------- */
-:root {
-  --cr-blue-start: #2f8cff;
-  /* light top */
-  --cr-blue-end: #001a48;
-  /* deep bottom */
-  --cr-blue-3: #00318c;
-  --cr-blue-4: #001a48;
-
-  --cr-gold-0: #ffe36b;
-  --cr-gold-1: #ffc907;
-  --cr-gold-2: #b58300;
-
-  --cr-red: #ff5252;
-  --cr-green: #2cf476;
-  --cr-purple: #a34cff;
-}
-
-/* ---------- Global Reset & Core BG ---------- */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0
-}
-
-html,
-body {
-  height: 100%;
-  font-family: 'Bangers', 'Arial Black', sans-serif;
-  color: #fff;
-  /* iOS-style vertical gradient */
-  background:
-    linear-gradient(180deg, var(--cr-blue-start) 0%, var(--cr-blue-end) 100%);
-  overflow: hidden;
-  -webkit-font-smoothing: antialiased;
-  user-select: none;
-}
-
-/* ✨ shimmer overlay – faint diagonal sweep */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(135deg,
-      rgba(255, 255, 255, .05) 0%,
-      rgba(255, 255, 255, 0) 60%);
-  mix-blend-mode: overlay;
-  animation: bgSweep 10s linear infinite;
-}
-
-/* ✨ sparkle dust – tiny rotating dots */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 30% 40%, rgba(255, 255, 255, .15) 0 2px, transparent 3px) repeat;
-  background-size: 1200px 1200px;
-  animation: dustDrift 40s linear infinite;
-  mix-blend-mode: screen;
-  opacity: .25;
-}
+@import './variables.css';
+@import './globals.css';
 
 /* ---------- Flex Layout ---------- */
 .layout {
@@ -89,10 +22,9 @@ body::after {
 ------------------------------------------------------------------ */
 .card-shell {
   position: relative;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 120%, rgba(0, 0, 0, .35), transparent 60%),
+  background: radial-gradient(circle at 50% 120%, rgba(0, 0, 0, .35), transparent 60%),
     linear-gradient(145deg, var(--cr-blue-3), var(--cr-blue-4));
   border: 4px solid var(--cr-gold-1);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, .12) inset,
@@ -162,7 +94,8 @@ body::after {
 .crown-icon {
   width: 90px;
   height: 90px;
-  filter: drop-shadow(0 4px 6px #000)
+  filter: drop-shadow(0 4px 6px #000);
+  animation: crownFloat 3s ease-in-out infinite;
 }
 
 .waiting-text {
@@ -238,8 +171,7 @@ body::after {
   border: 4px solid var(--cr-gold-1);
   border-radius: 14px;
   color: #fff;
-  text-shadow:
-    0 0 6px rgba(255, 255, 255, .35),
+  text-shadow: 0 0 6px rgba(255, 255, 255, .35),
     0 3px 5px #000;
   box-shadow: 0 4px 0 var(--cr-gold-2), inset 0 4px 9px rgba(0, 0, 0, .55);
 }
@@ -271,7 +203,7 @@ body::after {
   font-size: 32px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  font-family: 'Bangers', 'Arial Black', sans-serif;
+  font-family: var(--font-family);
   cursor: pointer;
   transition: transform .12s ease, filter .15s ease;
   box-shadow: 0 8px 0 rgba(0, 0, 0, .3), inset 0 1px 3px rgba(255, 255, 255, .18);
@@ -369,75 +301,58 @@ body::after {
 }
 
 /* ---------- Elixir Loader ---------- */
+.elixir-loader {
+  position: relative;
+  animation: dropBob 2s ease-in-out infinite;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .55));
+}
+
 .elixir-loader svg {
   width: 54px;
   height: 80px;
-  animation: bob 1.4s ease-in-out infinite
 }
 
-/* ------------------------------------------------------------------
-   ANIMATIONS
------------------------------------------------------------------- */
-@keyframes spin {
-  to {
-    transform: rotate(360deg)
-  }
+/* Subtle sparkle ping */
+.elixir-loader::after {
+  content: "";
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px;
+  background: #fff;
+  border-radius: 50%;
+  opacity: 0;
+  animation: spark 2s ease-in-out infinite;
 }
 
-@keyframes bob {
-
-  0%,
-  100% {
-    transform: translateY(0)
-  }
-
-  50% {
-    transform: translateY(-10px)
-  }
+/* ---------- Settings Button ---------- */
+.settings-button {
+  margin-top: 20px;
+  background: transparent;
+  border: none;
+  color: var(--cr-gold-0);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  transition: transform 0.2s, background-color 0.2s;
+  background-color: rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-@keyframes bgSweep {
-  0% {
-    transform: translateX(-100%)
-  }
-
-  100% {
-    transform: translateX(100%)
-  }
+.settings-button:hover {
+  transform: rotate(30deg);
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
-@keyframes dustDrift {
-  0% {
-    background-position: 0 0
-  }
-
-  100% {
-    background-position: 1200px 800px
-  }
-}
-
-@keyframes breath {
-
-  0%,
-  100% {
-    opacity: 0
-  }
-
-  50% {
-    opacity: .6
-  }
-}
-
-@keyframes wobble {
-
-  0%,
-  100% {
-    transform: translateY(0)
-  }
-
-  50% {
-    transform: translateY(-2px)
-  }
+.settings-button:active {
+  transform: rotate(30deg) scale(0.95);
 }
 
 /* ---------- Responsive ---------- */
@@ -453,79 +368,5 @@ body::after {
     width: 94vw;
     max-width: none;
     min-width: 300px
-  }
-}
-
-/* ============================================================
-   CROWN  — small float + landing pop
-============================================================ */
-.crown-icon {
-  animation: crownFloat 3s ease-in-out infinite;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .6));
-}
-
-@keyframes crownFloat {
-
-  0%,
-  100% {
-    transform: translateY(0) rotate(-3deg)
-  }
-
-  50% {
-    transform: translateY(-10px) rotate(3deg)
-  }
-}
-
-/* ================= ELIXIR STYLING ================= */
-.elixir-loader {
-  position: relative;
-  animation: dropBob 2s ease-in-out infinite;
-  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .55));
-}
-
-@keyframes dropBob {
-
-  0%,
-  100% {
-    transform: translateY(0)
-  }
-
-  50% {
-    transform: translateY(-8px)
-  }
-}
-
-/* subtle sparkle ping */
-.elixir-loader::after {
-  content: "";
-  position: absolute;
-  top: 38%;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  margin: -5px;
-  background: #fff;
-  border-radius: 50%;
-  opacity: 0;
-  animation: spark 2s ease-in-out infinite;
-}
-
-@keyframes spark {
-
-  0%,
-  85% {
-    transform: scale(.2);
-    opacity: 0
-  }
-
-  88% {
-    transform: scale(1.4);
-    opacity: .9
-  }
-
-  92%,
-  100% {
-    transform: scale(0);
-    opacity: 0
   }
 }

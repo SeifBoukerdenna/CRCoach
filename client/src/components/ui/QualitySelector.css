@@ -1,0 +1,131 @@
+/* Quality Selector Styles */
+
+.quality-selector {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.quality-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 700;
+    color: var(--cr-gold-0);
+    font-size: 1rem;
+}
+
+.quality-pip {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    position: relative;
+}
+
+.quality-pip[data-quality="low"] {
+    background-color: var(--cr-red);
+}
+
+.quality-pip[data-quality="medium"] {
+    background-color: var(--cr-gold-1);
+}
+
+.quality-pip[data-quality="high"] {
+    background-color: var(--cr-green);
+}
+
+/* Add a pulsing effect for active quality */
+.quality-pip::after {
+    content: "";
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    animation: pulse 2s infinite;
+    opacity: 0.7;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.7;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 0.4;
+    }
+
+    100% {
+        transform: scale(0.95);
+        opacity: 0.7;
+    }
+}
+
+.quality-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.quality-option {
+    all: unset;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    transition: background 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.quality-option:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.quality-option.active {
+    border-color: var(--cr-purple);
+    background: rgba(177, 84, 255, 0.1);
+}
+
+.quality-option:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.option-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.option-label {
+    font-weight: 700;
+    color: var(--cr-blue-start);
+    font-size: 0.95rem;
+}
+
+.quality-option.active .option-label {
+    color: var(--cr-purple);
+}
+
+.current-badge {
+    background: var(--cr-purple);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+}
+
+.option-description {
+    margin: 0;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.2;
+}

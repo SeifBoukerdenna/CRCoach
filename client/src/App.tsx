@@ -1,253 +1,146 @@
-import React, { useEffect, useState } from "react";
-import { useWebRTC } from "./hooks/useWebRTC";
-import { Controls } from "./components/Controls";
-import { Metrics } from "./components/Metrics";
-import { VideoPlayer } from "./components/VideoPlayer";
-import { ConnectionStatus } from "./types/webrtc";
-import "./App.css";
+import React from "react";
+import { BroadcastProvider, useBroadcast } from "./context/BroadcastContext";
+import { SettingsProvider, useSettings } from "./context/SettingsContext";
+import VideoPlayer from "./components/ui/VideoPlayer";
+import BroadcastControls from "./components/ui/BroadcastControls";
+import SessionCodeInput from "./components/ui/SessionCodeInput";
+import Metrics from "./components/ui/Metrics";
+import Settings from "./components/ui/Settings";
+import "./styles/App.css";
+import { ClashRoyaleCrown, ElixirLoader } from "./assets/icons";
 
-/* ---- SVG Assets (inline) ---------------------------------- */
-/* ---------------------------------------------------------------
-   SUPER-CELL CROWN  (bold outline, inner bevel, subtle shine)
-----------------------------------------------------------------*/
-export const ClashRoyaleCrown: React.FC = () => (
-  <svg
-    className="crown-icon"
-    viewBox="0 0 256 256"
-    width="96"
-    height="96"
-  >
-    <defs>
-      {/* gold bevel */}
-      <linearGradient id="crownFill" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#ffd750" />
-        <stop offset="45%" stopColor="#ffc107" />
-        <stop offset="100%" stopColor="#e3a600" />
-      </linearGradient>
-      {/* top shine */}
-      <linearGradient id="crownHighlight" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0" stopColor="rgba(255,255,255,.7)" />
-        <stop offset="0.4" stopColor="rgba(255,255,255,0)" />
-      </linearGradient>
-    </defs>
-
-    {/* chunky outline */}
-    <path
-      d="M28 88 L78 148 L128 40 L178 148 L228 88 L228 200 L28 200 Z"
-      fill="url(#crownFill)"
-      stroke="#000"
-      strokeWidth="10"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-/* ---------------------------------------------------------------
-   ELIXIR DROP  (glossy gradient + sparkle)
-----------------------------------------------------------------*/
-/* === CR-style ELIXIR DROP ==================================== */
-export const ElixirLoader: React.FC = () => (
-  <div className="elixir-loader">
-    <svg viewBox="0 0 90 140" width="66" height="100">
-      <defs>
-        {/* main purple gradient */}
-        <linearGradient id="elxMain" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#d09bff" />
-          <stop offset="45%" stopColor="#b066ff" />
-          <stop offset="100%" stopColor="#7a3df7" />
-        </linearGradient>
-        {/* faint rim light on the left */}
-        <linearGradient id="rim" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stopColor="rgba(255,255,255,.65)" />
-          <stop offset=".35" stopColor="rgba(255,255,255,0)" />
-        </linearGradient>
-      </defs>
-
-      {/* OUTLINE (black, thick) */}
-      <path
-        d="M45 5
-           Q78 43 78 88
-           Q78 123 45 133
-           Q12 123 12 88
-           Q12 43 45 5 Z"
-        fill="#000"
-      />
-      {/* MAIN FILL */}
-      <path
-        d="M45 12
-           Q70 46 70 87
-           Q70 116 45 124
-           Q20 116 20 87
-           Q20 46 45 12 Z"
-        fill="url(#elxMain)"
-      />
-      {/* GLOSSY TOP */}
-      <path
-        d="M45 15
-           Q62 42 56 60
-           Q45 53 34 62
-           Q30 45 45 15 Z"
-        fill="rgba(255,255,255,.55)"
-        filter="url(#blur1)"
-      />
-      {/* RIM LIGHT */}
-      <path
-        d="M23 46
-           Q45 12 45 12"
-        stroke="url(#rim)"
-        strokeWidth="8"
-        strokeLinecap="round"
-        fill="none"
-      />
-
-      <filter id="blur1"><feGaussianBlur stdDeviation="1.5" /></filter>
-    </svg>
-  </div>
-);
-
-
-
-export const App: React.FC = () => {
+/**
+ * Main application content component
+ */
+const AppContent: React.FC = () => {
+  // Get broadcast context
   const {
     status,
-    resolution,
-    rtt,
-    fps,
-    quality,
+    isConnected,
+    isConnecting,
+    isCodeValid,
+    sessionCode,
+    stats,
+    videoRef,
+    setSessionCode,
     connect,
-    reset,
-    videoElement,
     disconnect,
-  } = useWebRTC();
+    reset,
+  } = useBroadcast();
 
-  const [code, setCode] = useState("");
-  const [connecting, setConnecting] = useState(false);
-  const [prevStatus, setPrevStatus] = useState<ConnectionStatus>(status);
+  // Get settings context
+  const {
+    quality,
+    setQuality,
+    isSettingsOpen,
+    openSettings,
+    closeSettings,
+  } = useSettings();
 
-  const codeReady = code.length === 4;
-  const isConnected = status === "connected";
-
-  /* ------------- effects ----------------------------------- */
-  useEffect(() => {
-    if (prevStatus === "connected" && status === "disconnected") setCode("");
-    setPrevStatus(status);
-  }, [prevStatus, status]);
-
-  /* ------------- handlers ---------------------------------- */
-  const handleInput = (raw: string) => {
-    const cleaned = raw.replace(/\D/g, "").slice(0, 4);
-    if (status === "invalid") reset();
-    setCode(cleaned);
-  };
-
-  const handleConnect = async () => {
+  // Handle connect/disconnect button click
+  const handleConnectClick = async () => {
     if (isConnected) {
       disconnect();
-      return;
-    }
-    if (!codeReady) return;
-
-    setConnecting(true);
-    try {
-      await connect(code);
-    } finally {
-      setConnecting(false);
+    } else {
+      if (status === "invalid") {
+        reset();
+      }
+      await connect();
     }
   };
 
-  /* ------------- render ------------------------------------ */
+  // Handle session code change
+  const handleCodeChange = (code: string) => {
+    if (status === "invalid") {
+      reset();
+    }
+    setSessionCode(code);
+  };
+
   return (
     <main className="layout">
-      {/* ---------- video ----------- */}
+      {/* Video player */}
       <VideoPlayer
-        videoRef={videoElement}
+        videoRef={videoRef}
         isConnected={isConnected}
         CrownIcon={ClashRoyaleCrown}
+        LoadingIcon={ElixirLoader}
       />
 
-      {/* ---------- sidebar --------- */}
+      {/* Sidebar */}
       <aside className="sidebar card-shell">
-        {/* status pills */}
+        {/* Status indicators */}
         <div className="pills">
           <span className={`pill ${isConnected ? "pill-live" : "pill-off"}`}>
             {isConnected ? "LIVE" : "OFFLINE"}
           </span>
           <span className="pill pill-timer">
-            <Controls.Timer status={status} />
+            <BroadcastControls.Timer status={status} />
           </span>
         </div>
 
-        {/* session code */}
+        {/* Session code label */}
         <div className="code-label">SESSION&nbsp;CODE</div>
 
-        {isConnected ? (
-          <div className="code-display">{code}</div>
-        ) : (
-          <div className="code-slot-wrapper">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <input
-                key={i}
-                className="code-slot"
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={code[i] || ""}
+        {/* Session code input */}
+        <SessionCodeInput
+          isConnected={isConnected}
+          initialCode={sessionCode}
+          onChange={(code) => handleCodeChange(code)}
+        />
 
-                /* ── handle typing ───────────────────────── */
-                onChange={(e) => {
-                  const val = e.target.value.slice(-1);               // last char typed
-                  const newCode = code.slice(0, i) + val + code.slice(i + 1, 4);
-                  handleInput(newCode);
-
-                  // auto-advance to next slot
-                  if (val && i < 3) {
-                    const next = e.currentTarget.parentElement?.children[i + 1] as HTMLInputElement;
-                    next?.focus();
-                  }
-                }}
-
-                /* ── handle BACKSPACE delete ─────────────── */
-                onKeyDown={(e) => {
-                  if (e.key !== "Backspace") return;
-
-                  // if current slot has content, simply clear it
-                  if (code[i]) {
-                    const newCode = code.slice(0, i) + "" + code.slice(i + 1);
-                    handleInput(newCode);
-                    return;                                           // stay on this slot
-                  }
-
-                  // if empty & not first slot → jump to previous and clear it
-                  if (i > 0) {
-                    const prevInput = (e.currentTarget.parentElement?.children[i - 1]) as HTMLInputElement;
-                    prevInput?.focus();
-
-                    const newCode = code.slice(0, i - 1) + "" + code.slice(i);
-                    handleInput(newCode);
-                  }
-                }}
-              />
-
-            ))}
-          </div>
-        )}
-
-        {/* connect / stop */}
-        <Controls
+        {/* Connect/Disconnect button */}
+        <BroadcastControls
           status={status}
-          onConnect={handleConnect}
-          connecting={connecting}
-          codeReady={codeReady}
+          connecting={isConnecting}
+          codeReady={isCodeValid}
+          onConnect={handleConnectClick}
         />
 
-        {/* metrics */}
+        {/* Metrics display */}
         <Metrics
-          resolution={resolution}
-          fps={fps}
-          rtt={rtt}
-          quality={quality}
+          resolution={stats.resolution}
+          fps={stats.fps}
+          rtt={stats.rtt}
+          quality={stats.quality}
         />
+
+        {/* Settings button */}
+        <button
+          className="settings-button"
+          onClick={openSettings}
+          title="Open Settings"
+        >
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <path d="M12 15.5c1.93 0 3.5-1.57 3.5-3.5S13.93 8.5 12 8.5 8.5 10.07 8.5 12s1.57 3.5 3.5 3.5zm0-5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5z" />
+            <path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />
+          </svg>
+        </button>
       </aside>
+
+      {/* Settings modal */}
+      <Settings
+        isOpen={isSettingsOpen}
+        onClose={closeSettings}
+        quality={quality}
+        onQualityChange={setQuality}
+        isConnected={isConnected}
+      />
     </main>
   );
 };
+
+/**
+ * Main App component with providers
+ */
+export const App: React.FC = () => {
+  return (
+    <SettingsProvider>
+      <BroadcastProvider>
+        <AppContent />
+      </BroadcastProvider>
+    </SettingsProvider>
+  );
+};
+
+export default App;
