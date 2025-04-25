@@ -1,49 +1,57 @@
 import React, { useEffect, useRef, useState } from "react";
 
-interface VideoPlayerProps {
+interface Props {
     videoRef: React.RefObject<HTMLVideoElement | null>;
+    isConnected: boolean;
+    CrownIcon: React.FC;
 }
 
-export const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoRef }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
+export const VideoPlayer: React.FC<Props> = ({
+    videoRef,
+    isConnected,
+    CrownIcon,
+}) => {
     const [hasVideo, setHasVideo] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
 
+    /* check stream -------------------- */
     useEffect(() => {
-        if (!videoRef.current) return;
+        const vid = videoRef.current;
+        if (!vid) return;
 
-        const video = videoRef.current;
+        vid.autoplay = true;
+        vid.muted = true;
+        vid.playsInline = true;
+        vid.disablePictureInPicture = true;
 
-        // config
-        video.autoplay = true;
-        video.muted = true;
-        video.playsInline = true;
-        video.disablePictureInPicture = true;
-        video.disableRemotePlayback = true;
-        video.preload = "auto";
-
-        video.style.transform = "translateZ(0)";
-
-        const checkStream = () => {
-            setHasVideo(!!video.srcObject);
-        };
-
-        video.addEventListener("loadedmetadata", checkStream);
-        video.addEventListener("emptied", checkStream);
-        video.addEventListener("pause", checkStream);
+        const check = () => setHasVideo(Boolean(vid.srcObject) && isConnected);
+        vid.addEventListener("loadedmetadata", check);
+        vid.addEventListener("emptied", check);
+        vid.addEventListener("pause", check);
+        check();
 
         return () => {
-            video.removeEventListener("loadedmetadata", checkStream);
-            video.removeEventListener("emptied", checkStream);
-            video.removeEventListener("pause", checkStream);
+            vid.removeEventListener("loadedmetadata", check);
+            vid.removeEventListener("emptied", check);
+            vid.removeEventListener("pause", check);
         };
-    }, [videoRef]);
+    }, [videoRef, isConnected]);
 
+    /* UI -------------------------------- */
     return (
-        <div className="video-container" ref={containerRef}>
+        <div className="video-container card-shell" ref={containerRef}>
             <video ref={videoRef} className="video-element" />
+
             {!hasVideo && (
                 <div className="waiting-overlay">
-                    <p className="waiting-text">Waiting for Connection…</p>
+                    <CrownIcon />
+                    <p className="waiting-text">AWAITING&nbsp;CONNECTION</p>
+                    {/* tiny elixir drop for fun */}
+                    <div className="elixir-loader">
+                        <svg viewBox="0 0 50 80" fill="#a34cff">
+                            <path d="M25,5 Q40,20 40,50 Q40,70 25,75 Q10,70 10,50 Q10,20 25,5 Z" />
+                        </svg>
+                    </div>
                 </div>
             )}
         </div>

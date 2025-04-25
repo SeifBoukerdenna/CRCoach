@@ -1,37 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { ConnectionStatus } from "../types/webrtc";
 
-interface Props {
-    status: string;            // from useWebRTC
-    onConnect: () => void;
-    connecting: boolean;
-    codeReady: boolean;
-}
 
-/* ── label helper ───────────────────────────── */
-const label = (status: string, connecting: boolean) => {
-    if (status === "connected") return "Stop Connection";
-    if (connecting) return "Connecting…";
-    if (status === "invalid") return "Invalid Code";
-    return "Connect";
-};
-
-/* ── main button component ───────────────────── */
-export const Controls: React.FC<Props> & {
-    Timer: React.FC<{ status: string }>;
-} = ({ status, onConnect, connecting, codeReady }) => (
-    <button
-        className={`connect-btn ${status}`}
-        disabled={
-            connecting || status === "invalid" || (!codeReady && status !== "connected")
-        }
-        onClick={onConnect}
-    >
-        {label(status, connecting)}
-    </button>
-);
-
-/* ── nested timer component ──────────────────── */
-const TimerImpl: React.FC<{ status: string }> = ({ status }) => {
+/* ── timer component ──────────────────── */
+const TimerImpl: React.FC<{ status: ConnectionStatus }> = ({ status }) => {
     const [secs, setSecs] = useState(0);
 
     useEffect(() => {
@@ -49,4 +21,41 @@ const TimerImpl: React.FC<{ status: string }> = ({ status }) => {
     return <>{`${h}:${m}:${s}`}</>;
 };
 
-Controls.Timer = TimerImpl;
+/* ── main component ───────────────── */
+interface ConnectButtonsProps {
+    status: ConnectionStatus;
+    onConnect: () => void;
+    connecting: boolean;
+    codeReady: boolean;
+}
+
+// Create a component with a Timer property
+const ConnectButtonComponent: React.FC<ConnectButtonsProps> & {
+    Timer: React.FC<{ status: ConnectionStatus }>
+} = ({ status, onConnect, connecting, codeReady }) => {
+    return (
+        <button
+            className={`connect-btn ${status === "connected" ? "connected" : ""}`}
+            disabled={connecting || status === "invalid" || (!codeReady && status !== "connected")}
+            onClick={onConnect}
+        >
+            {connecting ? (
+                <>
+                    Connecting...
+                </>
+            ) : status === "connected" ? (
+                "Stop Connection"
+            ) : status === "invalid" ? (
+                "Invalid Code"
+            ) : (
+                "Connect"
+            )}
+        </button>
+    );
+};
+
+// Add the Timer property to the component
+ConnectButtonComponent.Timer = TimerImpl;
+
+// Export the component
+export const Controls = ConnectButtonComponent;

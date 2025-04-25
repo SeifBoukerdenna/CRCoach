@@ -1,276 +1,356 @@
-/* ─────────────  Clash Royale AI Coach • Desktop HUD  ───────────── */
+/* =============================================================== */
+/*  CLASH ROYALE TRAINER – FINAL POLISH                            */
+/* =============================================================== */
 
-/* ==== 1. Palette ==== */
+/* ---------- Palette ---------- */
 :root {
-  --cr-blue-600: #1e53ff;
-  --cr-blue-400: #5490ff;
-  --cr-gold-500: #ffc933;
-  --cr-gold-400: #ffd977;
-  --cr-purple-500: #b154ff;
-  --cr-purple-400: #c47cff;
-  --cr-green-500: #00c851;
-  --cr-red-600: #e53935;
-  --cr-brown-700: #6b4924;
+  --cr-blue-0: #64a5ff;
+  --cr-blue-1: #2f8cff;
+  --cr-blue-2: #0059e0;
+  --cr-blue-3: #00318c;
+  --cr-blue-4: #001a48;
+  --cr-gold-0: #ffe36b;
+  --cr-gold-1: #ffc907;
+  --cr-gold-2: #b58300;
+  --cr-red: #ff5252;
+  --cr-green: #2cf476;
+  --cr-purple: #a34cff;
 }
 
-/* ==== 2. Royal backdrop ==== */
-body {
+/* ---------- Reset / Background ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
   margin: 0;
-  font-family: "Burbank Big Condensed Bold", Impact, "Arial Black", sans-serif;
-  color: #fff;
-  background: linear-gradient(#0a78d5 0%, #0865c1 100%);
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  padding: 0
 }
 
-/* ==== 3. Flex layout ==== */
+html,
+body {
+  height: 100%;
+  font-family: 'Bangers', 'Arial Black', sans-serif;
+  color: #fff;
+  background:
+    repeating-linear-gradient(135deg, rgba(0, 0, 0, .05)0 8px, rgba(255, 255, 255, .04)8px 16px),
+    radial-gradient(circle at 50% -20%, var(--cr-blue-1), var(--cr-blue-4) 85%);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* ---------- Flex Layout ---------- */
 .layout {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2.2rem;
-  padding: 2.5rem 2rem 4rem;
-  width: 100%;
-  max-width: 1260px;
+  gap: 40px;
+  height: 100vh;
+  padding: 40px;
+  align-items: stretch;
+  /* both children share height */
   justify-content: center;
 }
 
-/* ==== 4. Video pane ==== */
-.video-container {
+/* ---------- Card Shell ---------- */
+.card-shell {
   position: relative;
-  width: 320px;
-  max-width: 90vw;
-  border: 3px solid var(--cr-blue-400);
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 8px 18px var(--cr-shadow);
+  background:
+    radial-gradient(circle at 50% 120%, rgba(0, 0, 0, .35), transparent 60%),
+    linear-gradient(145deg, var(--cr-blue-3), var(--cr-blue-4));
+  border: 4px solid var(--cr-gold-1);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, .14) inset,
+    0 5px 0 var(--cr-gold-2),
+    0 10px 18px rgba(0, 0, 0, .45);
 }
 
-.video-container video {
+/* corner bolts */
+.card-shell::before,
+.card-shell::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #fff 0 12%, var(--cr-gold-0) 30%, var(--cr-gold-1) 60%, var(--cr-gold-2) 100%);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .35), 0 2px 3px rgba(0, 0, 0, .6);
+}
+
+.card-shell::before {
+  top: -7px;
+  left: -7px
+}
+
+.card-shell::after {
+  bottom: -7px;
+  right: -7px
+}
+
+/* ---------- Video Panel ---------- */
+.video-container {
+  flex: 0 1 900px;
+  /* max width 900px, can shrink */
+  max-width: 400px;
+  aspect-ratio: 16/9;
+  display: flex;
+}
+
+.video-element {
   width: 100%;
-  height: auto;
-  display: block;
+  height: 100%;
+  object-fit: contain;
+  background: #000
 }
 
-/* ==== 5. Sidebar base ==== */
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
+.video-container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .12), transparent 40%);
 }
 
-/* ==== 6. Live / timer pills ==== */
-.pills {
-  display: flex;
-  gap: 0.9rem;
-  margin-bottom: 2.2rem;
-}
-
-.pill {
-  padding: 0.35rem 1.2rem;
-  font: 700 1rem/1 "Burbank Big Condensed Bold", Impact, sans-serif;
-  border-radius: 9999px;
-  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.4);
-  color: #fff;
-}
-
-.pill-live {
-  background: var(--cr-red-600);
-}
-
-.pill-off {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.pill-timer {
-  background: var(--cr-gold-500);
-  color: #1d1d1d;
-}
-
-/* ==== 7. Session code ==== */
-.code-label {
-  font: 600 1.05rem/1 sans-serif;
-  margin-bottom: 0.5rem;
-  opacity: 0.85;
-}
-
-.code-input {
-  width: 14rem;
-  margin: 0 auto 2rem;
-  background: transparent;
-  border: none;
-  border-bottom: 3px dashed var(--cr-gold-500);
-  text-align: center;
-  font: 900 3.4rem/1 "Burbank Big Condensed Bold", Impact, sans-serif;
-  letter-spacing: 1.2rem;
-  color: #fff;
-  outline: none;
-}
-
-.code-input::placeholder {
-  color: rgba(255, 255, 255, 0.25);
-}
-
-/* ==== 8. Connect / stop button ==== */
-.connect-btn {
-  all: unset;
-  cursor: pointer;
-  display: block;
-  margin: 0 auto;
-  width: 18rem;
-  max-width: 90%;
-  text-align: center;
-  background: linear-gradient(#ffd83b 0%, #ffca0a 100%);
-  border: 4px solid var(--cr-brown-700);
-  border-radius: 24px;
-  padding: 1.4rem 1rem;
-  color: #fff;
-  font: 900 1.35rem/1.2 "Burbank Big Condensed Bold", Impact, sans-serif;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
-  box-shadow: 0 4px 0 var(--cr-brown-700) inset,
-    0 6px 20px rgba(0, 0, 0, 0.55);
-  transition: transform 0.12s ease;
-}
-
-.connect-btn:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 var(--cr-brown-700) inset,
-    0 3px 12px rgba(0, 0, 0, 0.45);
-}
-
-.connect-btn:disabled {
-  filter: grayscale(0.5);
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-/* ==== 9. Metrics strip (reuse existing) ==== */
-.metrics {
-  padding: 1rem 1.4rem;
-  display: flex;
-  gap: 0.8rem;
-  font-size: 0.88rem;
-}
-
-.metrics span {
-  padding: 0.35rem 1rem;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  font-weight: 600;
-  min-width: 66px;
-  text-align: center;
-}
-
-.metrics span:nth-child(1) {
-  color: var(--cr-purple-400);
-}
-
-.metrics span:nth-child(2) {
-  color: var(--cr-gold-400);
-}
-
-.metrics span:nth-child(3) {
-  color: var(--cr-green-500);
-}
-
-@media (max-width: 650px) {
-  .layout {
-    gap: 1.5rem;
-  }
-
-  .code-input {
-    font-size: 2.6rem;
-  }
-
-  .connect-btn {
-    width: 90%;
-  }
-}
-
-.pill-off {
-  background: rgba(255, 255, 255, 0.25);
-}
-
+/* full-width overlay centred in panel */
 .waiting-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #1e53ff, #3b7bff);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: inherit;
-  z-index: 2;
-}
-
-.waiting-text {
-  font: 900 1.6rem/1.2 "Burbank Big Condensed Bold", Impact, sans-serif;
-  color: var(--cr-gold-500);
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-  letter-spacing: 0.05em;
-  animation: pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes pulse {
-
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.05);
-    opacity: 0.8;
-  }
-}
-
-/* Add these styles to the end of your App.css file */
-
-/* Quality pill styling */
-.quality-pill {
-  padding: 0.35rem 0.8rem;
-  border-radius: 14px;
-  font-weight: 600;
-  min-width: 45px;
+  display: grid;
+  place-items: center;
+  gap: 22px;
+  background: rgba(0, 0, 0, .68);
   text-align: center;
 }
 
-.quality-low {
-  background-color: var(--cr-blue-400);
-  color: white;
+.crown-icon {
+  width: 90px;
+  height: 90px;
+  filter: drop-shadow(0 4px 6px #000)
 }
 
-.quality-medium {
-  background-color: var(--cr-gold-500);
-  color: #333;
+.waiting-text {
+  font-size: clamp(26px, 3vw, 36px);
+  color: var(--cr-gold-0);
+  letter-spacing: 1px;
+  text-shadow: 0 2px 4px #000
 }
 
-.quality-high {
-  background-color: var(--cr-purple-500);
-  color: white;
-}
-
-/* Update metrics container to accommodate the additional pill */
-.metrics {
-  padding: 1rem 1.4rem;
+/* ---------- Sidebar ---------- */
+.sidebar {
+  flex: 0 1 460px;
+  /* MIN 460, grows if space allows => wider than video */
+  min-width: 460px;
+  padding: 36px 40px;
   display: flex;
-  gap: 0.6rem;
-  font-size: 0.88rem;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  gap: 32px;
 }
 
-/* Make metrics responsive */
-@media (max-width: 480px) {
-  .metrics {
-    gap: 0.4rem;
+/* ---------- Status Pills ---------- */
+.pills {
+  display: flex;
+  justify-content: center;
+  gap: 26px
+}
+
+.pill {
+  padding: 9px 32px;
+  border-radius: 999px;
+  font-size: 21px;
+  letter-spacing: .4px;
+  text-shadow: 0 1px 2px #000;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, .25);
+}
+
+.pill-live {
+  background: var(--cr-red)
+}
+
+.pill-off {
+  background: #5576c3
+}
+
+.pill-timer {
+  background: var(--cr-gold-0);
+  color: #5d3f00
+}
+
+/* ---------- Session Code ---------- */
+.code-label {
+  font-size: 24px;
+  text-align: center;
+  color: var(--cr-gold-0);
+  text-shadow: 0 2px 4px #000;
+}
+
+.code-slot-wrapper {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.code-slot {
+  width: 20%;
+  aspect-ratio: 1/1.15;
+  text-align: center;
+  font-size: 48px;
+  font-weight: 900;
+  background: linear-gradient(180deg, var(--cr-blue-4), var(--cr-blue-3));
+  border: 4px solid var(--cr-gold-1);
+  border-radius: 12px;
+  color: #fff;
+  text-shadow: 0 3px 5px #000;
+  box-shadow: 0 4px 0 var(--cr-gold-2), inset 0 4px 9px rgba(0, 0, 0, .55);
+}
+
+.code-slot:focus {
+  outline: none;
+  border-color: var(--cr-gold-0)
+}
+
+.code-display {
+  font-size: 64px;
+  font-weight: 900;
+  letter-spacing: 18px;
+  text-align: center;
+  padding: 18px 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--cr-blue-4), var(--cr-blue-3));
+  border: 4px solid var(--cr-gold-1);
+  box-shadow: 0 4px 0 var(--cr-gold-2), inset 0 4px 9px rgba(0, 0, 0, .55);
+  text-shadow: 0 3px 5px #000;
+}
+
+/* ---------- Connect / Stop Button ---------- */
+.connect-btn {
+  padding: 26px 0;
+  width: 100%;
+  border: none;
+  border-radius: 18px;
+  font-size: 30px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-family: 'Bangers', 'Arial Black', sans-serif;
+  cursor: pointer;
+  transition: transform .12s ease, filter .15s ease;
+  box-shadow:
+    0 7px 0 rgba(0, 0, 0, .28),
+    inset 0 1px 3px rgba(255, 255, 255, .18),
+    0 0 14px rgba(0, 0, 0, .35);
+}
+
+.connect-btn:not(:disabled):hover {
+  filter: brightness(1.08)
+}
+
+.connect-btn:not(:disabled):active {
+  transform: translateY(4px)
+}
+
+.connect-btn {
+  background: linear-gradient(0deg, #e4a500 0%, #ffc907 50%, #ffe36b 100%);
+  color: #05264d;
+  text-shadow:
+    0 2px 3px rgba(0, 0, 0, .6),
+    0 -1px 0 rgba(255, 255, 255, .35);
+}
+
+.connect-btn.connected {
+  background: linear-gradient(0deg, #b52020 0%, #e43737 55%, #ff5b5b 100%);
+  color: #fff;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, .55);
+}
+
+.connect-btn:disabled {
+  opacity: .65;
+  cursor: not-allowed
+}
+
+/* loader */
+.cr-loader {
+  width: 30px;
+  height: 30px;
+  margin-right: 14px;
+  vertical-align: middle;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 255, 255, .25);
+  border-top-color: #fff;
+  animation: spin .9s linear infinite;
+}
+
+/* ---------- Metrics ---------- */
+.metrics {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px
+}
+
+.metric-item {
+  flex: 1 1 46%;
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--cr-blue-4), var(--cr-blue-3));
+  font-size: 20px;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, .45);
+}
+
+.metric-item.res {
+  color: var(--cr-purple)
+}
+
+.metric-item.fps {
+  color: var(--cr-gold-0)
+}
+
+.metric-item.rtt {
+  color: var(--cr-green)
+}
+
+.metric-item.quality {
+  color: var(--cr-gold-1)
+}
+
+/* ---------- Elixir Loader ---------- */
+.elixir-loader svg {
+  width: 52px;
+  height: 78px;
+  animation: bob 1.4s ease-in-out infinite
+}
+
+/* ---------- Animations ---------- */
+@keyframes spin {
+  to {
+    transform: rotate(360deg)
+  }
+}
+
+@keyframes bob {
+
+  0%,
+  100% {
+    transform: translateY(0)
   }
 
-  .metrics span {
-    padding: 0.3rem 0.7rem;
-    font-size: 0.8rem;
-    min-width: 55px;
+  50% {
+    transform: translateY(-10px)
+  }
+}
+
+/* ---------- Responsive ---------- */
+@media(max-width:900px) {
+  .layout {
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px
+  }
+
+  .video-container,
+  .sidebar {
+    width: 94vw;
+    max-width: none;
+    min-width: 300px
   }
 }
