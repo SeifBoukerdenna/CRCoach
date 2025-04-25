@@ -7,11 +7,105 @@ import { ConnectionStatus } from "./types/webrtc";
 import "./App.css";
 
 /* ---- SVG Assets (inline) ---------------------------------- */
+/* ---------------------------------------------------------------
+   SUPER-CELL CROWN  (bold outline, inner bevel, subtle shine)
+----------------------------------------------------------------*/
 export const ClashRoyaleCrown: React.FC = () => (
-  <svg className="crown-icon" viewBox="0 0 320 320" fill="#ffc907">
-    <path d="M160 48c-8.8 0-16 7.2-16 16s7.2 16 16 16 16-7.2 16-16-7.2-16-16-16zM43.2 120c-4.9 0-9.2 2.2-12 6-4.6 6-3.5 14.7 2.5 19.3l70 53.3c3.9 3 9.1 3.8 13.8 2s8.3-6.3 9-11.3l16-112c-18-16-62.3 42.7-99.3 42.7zM160 72c-13.3 0-24-10.7-24-24s10.7-24 24-24 24 10.7 24 24-10.7 24-24 24zM276.8 120c-37 0-81.3-58.7-99.3-42.7l16 112c.7 5 4.3 9.5 9 11.3s9.9 1 13.8-2l70-53.3c6-4.6 7.1-13.3 2.5-19.3-2.8-3.8-7.1-6-12-6zM32 168c-8.8 0-16 7.2-16 16s7.2 16 16 16h9l20 96H259l20-96h9c8.8 0 16-7.2 16-16s-7.2-16-16-16h-9l-27 24h-36l-27-24h-72l-27 24H54l-27-24h-9z" />
+  <svg
+    className="crown-icon"
+    viewBox="0 0 256 256"
+    width="96"
+    height="96"
+  >
+    <defs>
+      {/* gold bevel */}
+      <linearGradient id="crownFill" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#ffd750" />
+        <stop offset="45%" stopColor="#ffc107" />
+        <stop offset="100%" stopColor="#e3a600" />
+      </linearGradient>
+      {/* top shine */}
+      <linearGradient id="crownHighlight" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stopColor="rgba(255,255,255,.7)" />
+        <stop offset="0.4" stopColor="rgba(255,255,255,0)" />
+      </linearGradient>
+    </defs>
+
+    {/* chunky outline */}
+    <path
+      d="M28 88 L78 148 L128 40 L178 148 L228 88 L228 200 L28 200 Z"
+      fill="url(#crownFill)"
+      stroke="#000"
+      strokeWidth="10"
+      strokeLinejoin="round"
+    />
   </svg>
 );
+
+/* ---------------------------------------------------------------
+   ELIXIR DROP  (glossy gradient + sparkle)
+----------------------------------------------------------------*/
+/* === CR-style ELIXIR DROP ==================================== */
+export const ElixirLoader: React.FC = () => (
+  <div className="elixir-loader">
+    <svg viewBox="0 0 90 140" width="66" height="100">
+      <defs>
+        {/* main purple gradient */}
+        <linearGradient id="elxMain" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#d09bff" />
+          <stop offset="45%" stopColor="#b066ff" />
+          <stop offset="100%" stopColor="#7a3df7" />
+        </linearGradient>
+        {/* faint rim light on the left */}
+        <linearGradient id="rim" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stopColor="rgba(255,255,255,.65)" />
+          <stop offset=".35" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
+      </defs>
+
+      {/* OUTLINE (black, thick) */}
+      <path
+        d="M45 5
+           Q78 43 78 88
+           Q78 123 45 133
+           Q12 123 12 88
+           Q12 43 45 5 Z"
+        fill="#000"
+      />
+      {/* MAIN FILL */}
+      <path
+        d="M45 12
+           Q70 46 70 87
+           Q70 116 45 124
+           Q20 116 20 87
+           Q20 46 45 12 Z"
+        fill="url(#elxMain)"
+      />
+      {/* GLOSSY TOP */}
+      <path
+        d="M45 15
+           Q62 42 56 60
+           Q45 53 34 62
+           Q30 45 45 15 Z"
+        fill="rgba(255,255,255,.55)"
+        filter="url(#blur1)"
+      />
+      {/* RIM LIGHT */}
+      <path
+        d="M23 46
+           Q45 12 45 12"
+        stroke="url(#rim)"
+        strokeWidth="8"
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      <filter id="blur1"><feGaussianBlur stdDeviation="1.5" /></filter>
+    </svg>
+  </div>
+);
+
+
 
 export const App: React.FC = () => {
   const {

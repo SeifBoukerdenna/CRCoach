@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { ElixirLoader } from "../App";
 
 interface Props {
     videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -47,11 +48,7 @@ export const VideoPlayer: React.FC<Props> = ({
                     <CrownIcon />
                     <p className="waiting-text">AWAITING&nbsp;CONNECTION</p>
                     {/* tiny elixir drop for fun */}
-                    <div className="elixir-loader">
-                        <svg viewBox="0 0 50 80" fill="#a34cff">
-                            <path d="M25,5 Q40,20 40,50 Q40,70 25,75 Q10,70 10,50 Q10,20 25,5 Z" />
-                        </svg>
-                    </div>
+                    <ElixirLoader />
                 </div>
             )}
         </div>
