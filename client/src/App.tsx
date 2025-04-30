@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { BroadcastProvider, useBroadcast } from "./context/BroadcastContext";
 import { SettingsProvider, useSettings } from "./context/SettingsContext";
 import VideoPlayer from "./components/ui/VideoPlayer";
@@ -10,7 +10,16 @@ import FeedbackPanel from "./components/ui/FeedbackPanel";
 import {
   ClashRoyaleCrown,
   ElixirLoader,
+  SmallCrownIcon,
+  SwordIcon,
+  ShieldIcon
 } from "./assets/icons";
+import {
+  generateRandomDeck,
+  generateRandomElixirRate,
+  generateRandomOpponentName,
+  formatGameTime
+} from "./utils/mockGameData";
 import "./styles/App.css";
 
 /**
@@ -41,6 +50,92 @@ const AppContent: React.FC = () => {
     closeSettings,
   } = useSettings();
 
+  // Mock game data state
+  const [gameData, setGameData] = useState({
+    opponentCards: generateRandomDeck(),
+    opponentElixir: 5,
+    elixirRate: "normal" as "normal" | "2x" | "3x",
+    opponentName: generateRandomOpponentName(),
+    gameTime: 0,
+    currentCard: Math.floor(Math.random() * 8)
+  });
+
+  // Update game data periodically when connected
+  useEffect(() => {
+    if (!isConnected) return;
+
+    // Update game time every second
+    const gameTimeInterval = setInterval(() => {
+      setGameData(prev => ({
+        ...prev,
+        gameTime: prev.gameTime + 1
+      }));
+    }, 1000);
+
+    // Update elixir every 300ms
+    const elixirInterval = setInterval(() => {
+      setGameData(prev => {
+        // Calculate elixir regeneration rate
+        const rate = prev.elixirRate === "normal" ? 0.1 :
+          prev.elixirRate === "2x" ? 0.2 : 0.3;
+
+        // Update elixir (max 10)
+        return {
+          ...prev,
+          opponentElixir: Math.min(10, prev.opponentElixir + rate)
+        };
+      });
+    }, 300);
+
+    // Change elixir rate occasionally
+    const elixirRateInterval = setInterval(() => {
+      if (Math.random() > 0.7) {
+        setGameData(prev => ({
+          ...prev,
+          elixirRate: generateRandomElixirRate()
+        }));
+      }
+    }, 15000);
+
+    // Simulate opponent playing cards
+    const cardPlayInterval = setInterval(() => {
+      if (Math.random() > 0.7 && gameData.opponentElixir >= 3) {
+        setGameData(prev => {
+          // Select a random card to play
+          const newCurrentCard = Math.floor(Math.random() * 8);
+
+          // Reduce elixir by 3-5 points
+          return {
+            ...prev,
+            currentCard: newCurrentCard,
+            opponentElixir: Math.max(0, prev.opponentElixir - (3 + Math.floor(Math.random() * 3)))
+          };
+        });
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(gameTimeInterval);
+      clearInterval(elixirInterval);
+      clearInterval(elixirRateInterval);
+      clearInterval(cardPlayInterval);
+    };
+  }, [isConnected, gameData.opponentElixir]);
+
+  // Reset game data when disconnected
+  useEffect(() => {
+    if (!isConnected) {
+      setGameData({
+        opponentCards: generateRandomDeck(),
+        opponentElixir: 5,
+        elixirRate: "normal",
+        opponentName: generateRandomOpponentName(),
+        gameTime: 0,
+        currentCard: Math.floor(Math.random() * 8)
+      });
+    }
+  }, [isConnected]);
+
   // Handle connect/disconnect button click
   const handleConnectClick = async () => {
     if (isConnected) {
@@ -67,6 +162,7 @@ const AppContent: React.FC = () => {
       <section className="cr-column cr-feedback-column">
         <div className="cr-column-header">
           <div className="cr-column-title">
+            <SmallCrownIcon width={24} height={24} className="cr-title-icon" />
             <h2>TRAINER FEEDBACK</h2>
           </div>
         </div>
@@ -77,6 +173,7 @@ const AppContent: React.FC = () => {
       <section className="cr-column cr-video-column">
         <div className="cr-column-header">
           <div className="cr-column-title">
+            <SwordIcon width={24} height={24} className="cr-title-icon" />
             <h2>BATTLE VIEW</h2>
           </div>
         </div>
@@ -85,6 +182,14 @@ const AppContent: React.FC = () => {
           isConnected={isConnected}
           CrownIcon={ClashRoyaleCrown}
           LoadingIcon={ElixirLoader}
+          gameData={{
+            opponentCards: gameData.opponentCards,
+            opponentElixir: gameData.opponentElixir,
+            elixirRate: gameData.elixirRate,
+            opponentName: gameData.opponentName,
+            gameTime: formatGameTime(gameData.gameTime),
+            currentCard: gameData.currentCard
+          }}
         />
       </section>
 
@@ -92,7 +197,7 @@ const AppContent: React.FC = () => {
       <section className="cr-column cr-controls-column">
         <div className="cr-column-header">
           <div className="cr-column-title">
-            {/* <img src="/assets/shield-icon.png" alt="" className="cr-title-icon" /> */}
+            <ShieldIcon width={24} height={24} className="cr-title-icon" />
             <h2>CONNECTION</h2>
           </div>
         </div>

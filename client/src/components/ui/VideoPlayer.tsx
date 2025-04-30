@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ClashRoyaleCrown, ElixirLoader } from "../../assets/icons";
+import GameInfoOverlay from "./GameInfoOverlay";
 
 interface VideoPlayerProps {
     /** Reference to the video element */
@@ -14,6 +14,15 @@ interface VideoPlayerProps {
     waitingText?: string;
     /** Additional CSS class */
     className?: string;
+    /** Game data for overlay */
+    gameData?: {
+        opponentCards: string[];
+        opponentElixir: number;
+        elixirRate: "normal" | "2x" | "3x";
+        opponentName: string;
+        gameTime: string;
+        currentCard: number;
+    };
 }
 
 /**
@@ -23,15 +32,16 @@ interface VideoPlayerProps {
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     videoRef,
     isConnected = false,
-    LoadingIcon = ElixirLoader,
-    CrownIcon = ClashRoyaleCrown,
+    LoadingIcon,
+    CrownIcon,
     waitingText = "AWAITING CONNECTION",
     className = "",
+    gameData,
 }) => {
     // Track if we have active video
     const [hasVideo, setHasVideo] = useState(false);
 
-    // Monitor video element for stream changes
+    // Configure video element
     useEffect(() => {
         const videoElement = videoRef.current;
         if (!videoElement) return;
@@ -41,6 +51,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         videoElement.muted = true;
         videoElement.playsInline = true;
         videoElement.disablePictureInPicture = true;
+        videoElement.style.objectFit = "contain";
 
         // Check if we have an active stream
         const checkVideoStatus = () => {
@@ -66,14 +77,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return (
         <div className={`video-container card-shell ${className}`}>
             {/* Video element */}
-            <video ref={videoRef} className="video-element" />
+            <div className="video-wrapper">
+                <video ref={videoRef} className="video-element" />
+
+                {/* Game info overlay - shown only when connected */}
+                {isConnected && gameData && (
+                    <GameInfoOverlay
+                        isConnected={isConnected}
+                        opponentElixir={gameData.opponentElixir}
+                        currentElixirRate={gameData.elixirRate}
+                        opponentCards={gameData.opponentCards}
+                        opponentName={gameData.opponentName}
+                        gameTime={gameData.gameTime}
+                        currentCard={gameData.currentCard}
+                    />
+                )}
+            </div>
 
             {/* Waiting overlay - shown when no video */}
             {!hasVideo && (
                 <div className="waiting-overlay">
-                    <CrownIcon />
+                    {CrownIcon && <CrownIcon />}
                     <p className="waiting-text">{waitingText}</p>
-                    <LoadingIcon />
+                    {LoadingIcon && <LoadingIcon />}
                 </div>
             )}
         </div>

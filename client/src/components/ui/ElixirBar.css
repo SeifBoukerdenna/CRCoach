@@ -1,0 +1,131 @@
+/* Elixir Bar Component Styles */
+.elixir-bar {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 12px;
+    padding: 3px 8px;
+    max-width: 280px;
+    width: 100%;
+    border: 1px solid;
+}
+
+/* Player elixir (purple) */
+.elixir-bar.player {
+    border-color: var(--cr-purple);
+}
+
+/* Opponent elixir (red) */
+.elixir-bar.opponent {
+    border-color: var(--cr-red);
+}
+
+/* Container for elixir drops */
+.elixir-drops {
+    display: flex;
+    gap: 3px;
+    flex: 1;
+}
+
+/* Individual elixir drop */
+.elixir-drop {
+    width: 100%;
+    height: 16px;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    background: rgba(30, 30, 30, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Filled elixir for player (purple) */
+.player .elixir-drop.full {
+    background: linear-gradient(to bottom,
+            var(--cr-purple-light) 0%,
+            var(--cr-purple) 100%);
+    box-shadow: 0 0 4px var(--cr-purple);
+}
+
+/* Partial elixir drop fill for player */
+.player .elixir-drop-fill {
+    background: linear-gradient(to bottom,
+            var(--cr-purple-light) 0%,
+            var(--cr-purple) 100%);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+/* Filled elixir for opponent (red) */
+.opponent .elixir-drop.full {
+    background: linear-gradient(to bottom,
+            #ff6b6b 0%,
+            var(--cr-red) 100%);
+    box-shadow: 0 0 4px var(--cr-red);
+}
+
+/* Partial elixir drop fill for opponent */
+.opponent .elixir-drop-fill {
+    background: linear-gradient(to bottom,
+            #ff6b6b 0%,
+            var(--cr-red) 100%);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+/* Elixir count */
+.elixir-count {
+    min-width: 26px;
+    text-align: center;
+    font-weight: bold;
+    color: white;
+    font-size: 12px;
+    margin-left: 5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Elixir rate indicator */
+.elixir-rate {
+    display: flex;
+    align-items: center;
+    margin-right: 5px;
+}
+
+.elixir-rate-indicator {
+    background: var(--cr-gold-1);
+    color: #000;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 1px 4px;
+    border-radius: 4px;
+    text-shadow: none;
+}
+
+.rate-2x {
+    background: var(--cr-gold-0);
+}
+
+.rate-3x {
+    background: var(--cr-legendary, #ffb700);
+    box-shadow: 0 0 4px var(--cr-gold-0);
+}
+
+/* Animation for when elixir is full */
+.player .elixir-drop.full:nth-child(10) {
+    animation: elixirPulse 1.5s infinite;
+}
+
+@keyframes elixirPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
