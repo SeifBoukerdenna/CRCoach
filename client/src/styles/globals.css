@@ -1,4 +1,4 @@
-/* Global styles and resets */
+/* Global styles and resets for Clash Royale themed app */
 @import './variables.css';
 
 /* ---------- Global Reset & Core BG ---------- */
@@ -15,7 +15,7 @@ body {
     height: 100%;
     font-family: var(--font-family);
     color: #fff;
-    /* iOS-style vertical gradient */
+    /* Clash Royale-style vertical gradient */
     background: linear-gradient(180deg, var(--cr-blue-start) 0%, var(--cr-blue-end) 100%);
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
@@ -50,6 +50,82 @@ body::after {
     animation: dustDrift 40s linear infinite;
     mix-blend-mode: screen;
     opacity: .25;
+}
+
+/* ------------------------------------------------------------------
+   CLASH ROYALE SPECIFIC ELEMENTS
+------------------------------------------------------------------ */
+
+/* Wood texture background for header elements */
+.cr-wood-bg {
+    background: linear-gradient(to bottom, var(--cr-wood-light), var(--cr-wood-dark));
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Arena style background with blue gradients */
+.cr-arena-bg {
+    background: linear-gradient(to bottom, var(--cr-arena-blue-light), var(--cr-arena-blue-dark));
+}
+
+/* Card rarity indicators */
+.cr-legendary {
+    background: linear-gradient(to bottom, #ffeb8b, var(--cr-legendary));
+    box-shadow: 0 0 8px var(--cr-legendary);
+}
+
+.cr-epic {
+    background: linear-gradient(to bottom, #d6abff, var(--cr-epic));
+    box-shadow: 0 0 8px var(--cr-epic);
+}
+
+.cr-rare {
+    background: linear-gradient(to bottom, #ffcc80, var(--cr-rare));
+}
+
+.cr-common {
+    background: linear-gradient(to bottom, #e0e0e0, var(--cr-common));
+}
+
+/* Clash Royale button styles */
+.cr-button {
+    padding: 12px 24px;
+    border-radius: var(--radius-md);
+    border: none;
+    font-family: var(--font-family);
+    font-weight: bold;
+    font-size: 16px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.15s, filter 0.15s;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3), 0 6px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    position: relative;
+}
+
+.cr-button:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.cr-button:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.cr-button-blue {
+    background: linear-gradient(to bottom, var(--cr-blue-start), var(--cr-blue-3));
+    color: white;
+}
+
+.cr-button-gold {
+    background: linear-gradient(to bottom, var(--cr-gold-0), var(--cr-gold-2));
+    color: #5a4211;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.cr-button-red {
+    background: linear-gradient(to bottom, #ff7e7e, var(--cr-red));
+    color: white;
 }
 
 /* ------------------------------------------------------------------
@@ -162,6 +238,34 @@ body::after {
     }
 }
 
+/* Card entrance animation */
+@keyframes cardEntrance {
+    0% {
+        opacity: 0;
+        transform: scale(0.8) translateY(30px);
+    }
+
+    70% {
+        transform: scale(1.05) translateY(-5px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Gold shine effect */
+@keyframes goldShine {
+    0% {
+        background-position: -100% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
 /* ------------------------------------------------------------------
    UTILITY CLASSES
 ------------------------------------------------------------------ */
@@ -187,6 +291,11 @@ body::after {
 
 .text-shadow {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.gold-text {
+    color: var(--cr-gold-0);
+    text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
 }
 
 .flex {

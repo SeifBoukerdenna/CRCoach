@@ -4,23 +4,61 @@
 @import './variables.css';
 @import './globals.css';
 
-/* ---------- Flex Layout ---------- */
-.layout {
-  display: flex;
-  gap: 42px;
+/* ---------- Three-Column Layout ---------- */
+.cr-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  gap: 20px;
   height: 100vh;
-  padding: 42px;
-  align-items: stretch;
-  justify-content: center;
+  padding: 20px;
   position: relative;
   z-index: 1;
   /* floats above background effects */
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.cr-column {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+}
+
+.cr-column-header {
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.2));
+  padding: 12px 16px;
+  border-bottom: 4px solid var(--cr-gold-1);
+  position: relative;
+  z-index: 2;
+}
+
+.cr-column-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cr-column-title h2 {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--cr-gold-0);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.cr-title-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 /* ------------------------------------------------------------------
-   CARD SHELL
+   COLUMN STYLING
 ------------------------------------------------------------------ */
-.card-shell {
+.cr-column {
   position: relative;
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -32,9 +70,9 @@
     0 10px 18px rgba(0, 0, 0, .45);
 }
 
-/* Brass bolts */
-.card-shell::before,
-.card-shell::after {
+/* Brass bolts in corners */
+.cr-column::before,
+.cr-column::after {
   content: "";
   position: absolute;
   width: 14px;
@@ -42,36 +80,45 @@
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, #fff 0 12%, var(--cr-gold-0) 30%, var(--cr-gold-1) 60%, var(--cr-gold-2) 100%);
   box-shadow: 0 0 0 2px rgba(0, 0, 0, .35), 0 2px 3px rgba(0, 0, 0, .6);
+  z-index: 10;
 }
 
-.card-shell::before {
+.cr-column::before {
   top: -7px;
-  left: -7px
+  left: -7px;
 }
 
-.card-shell::after {
+.cr-column::after {
   bottom: -7px;
-  right: -7px
+  right: -7px;
 }
 
 /* ------------------------------------------------------------------
    VIDEO PANEL
 ------------------------------------------------------------------ */
+.cr-video-column {
+  background-color: #000;
+  flex: 1;
+}
+
 .video-container {
-  flex: 0 1 400px;
-  /* narrower than sidebar by request */
-  max-width: 400px;
-  aspect-ratio: 16/9;
+  flex: 1;
   display: flex;
+  position: relative;
+  background-color: #000;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .video-element {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #000
+  background: #000;
+  max-height: 100%;
 }
 
+/* Add subtle inner highlight */
 .video-container::after {
   content: "";
   position: absolute;
@@ -102,69 +149,73 @@
   font-size: clamp(26px, 3vw, 36px);
   color: var(--cr-gold-0);
   letter-spacing: 1px;
-  text-shadow: 0 2px 4px #000
+  text-shadow: 0 2px 4px #000;
 }
 
 /* ------------------------------------------------------------------
-   SIDEBAR
+   CONTROLS COLUMN
 ------------------------------------------------------------------ */
-.sidebar {
-  flex: 0 1 520px;
-  min-width: 520px;
-  padding: 40px 44px;
+.cr-controls-column {
+  flex: 0 0 auto;
+}
+
+.cr-controls-content {
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 24px;
+  flex: 1;
 }
 
 /* ---------- Status Pills with soft wobble ---------- */
-.pills {
+.cr-pills {
   display: flex;
   justify-content: center;
-  gap: 30px
+  gap: 15px;
 }
 
-.pill {
-  padding: 10px 34px;
+.cr-pill {
+  padding: 8px 24px;
   border-radius: 999px;
-  font-size: 22px;
+  font-size: 20px;
   letter-spacing: .4px;
   text-shadow: 0 1px 2px #000;
   box-shadow: 0 5px 0 rgba(0, 0, 0, .25);
   animation: wobble 6s ease-in-out infinite;
 }
 
-.pill-live {
-  background: var(--cr-red)
+.cr-pill-live {
+  background: var(--cr-red);
 }
 
-.pill-off {
-  background: #5576c3
+.cr-pill-off {
+  background: #5576c3;
 }
 
-.pill-timer {
+.cr-pill-timer {
   background: var(--cr-gold-0);
-  color: #533400
+  color: #533400;
 }
 
 /* ---------- Session Code ---------- */
-.code-label {
-  font-size: 26px;
+.cr-code-label {
+  font-size: 22px;
   text-align: center;
   color: var(--cr-gold-0);
   text-shadow: 0 2px 4px #000;
+  margin-top: 10px;
 }
 
 .code-slot-wrapper {
   display: flex;
   justify-content: space-between;
-  gap: 16px
+  gap: 12px;
 }
 
 .code-slot {
-  width: 20%;
+  width: 22%;
   aspect-ratio: 1/1.1;
-  font-size: 52px;
+  font-size: 42px;
   font-weight: 900;
   text-align: center;
   background: linear-gradient(180deg, var(--cr-blue-4), var(--cr-blue-3));
@@ -178,13 +229,13 @@
 
 .code-slot:focus {
   outline: none;
-  border-color: var(--cr-gold-0)
+  border-color: var(--cr-gold-0);
 }
 
 .code-display {
-  font-size: 66px;
+  font-size: 54px;
   font-weight: 900;
-  letter-spacing: 20px;
+  letter-spacing: 16px;
   padding: 20px 0;
   border-radius: 18px;
   background: linear-gradient(180deg, var(--cr-blue-4), var(--cr-blue-3));
@@ -194,13 +245,63 @@
   text-align: center;
 }
 
+/* ---------- Quality Button ---------- */
+.cr-quality-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 10px 15px;
+  font-family: var(--font-family);
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cr-quality-button:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.cr-quality-pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  position: relative;
+
+}
+
+.cr-quality-pip[data-quality="low"] {
+  background-color: var(--cr-blue-start);
+}
+
+.cr-quality-pip[data-quality="medium"] {
+  background-color: var(--cr-gold-1);
+}
+
+.cr-quality-pip[data-quality="high"] {
+  background-color: var(--cr-purple);
+}
+
+.cr-chevron-right {
+  width: 6px;
+  height: 12px;
+  border-right: 2px solid rgba(255, 255, 255, 0.6);
+  border-top: 2px solid rgba(255, 255, 255, 0.6);
+  transform: rotate(45deg);
+  margin-left: auto;
+}
+
 /* ---------- Connect / Stop Button ---------- */
 .connect-btn {
-  padding: 28px 0;
+  padding: 24px 0;
   width: 100%;
   border: none;
   border-radius: 20px;
-  font-size: 32px;
+  font-size: 28px;
+  font-weight: 800;
   letter-spacing: 1px;
   text-transform: uppercase;
   font-family: var(--font-family);
@@ -208,6 +309,8 @@
   transition: transform .12s ease, filter .15s ease;
   box-shadow: 0 8px 0 rgba(0, 0, 0, .3), inset 0 1px 3px rgba(255, 255, 255, .18);
   position: relative;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 /* Breathing glow */
@@ -225,15 +328,15 @@
 
 .connect-btn.connected::after {
   animation: none;
-  opacity: 0
+  opacity: 0;
 }
 
 .connect-btn:not(:disabled):hover {
-  filter: brightness(1.08)
+  filter: brightness(1.08);
 }
 
 .connect-btn:not(:disabled):active {
-  transform: translateY(4px)
+  transform: translateY(4px);
 }
 
 .connect-btn {
@@ -250,14 +353,15 @@
 
 .connect-btn:disabled {
   opacity: .65;
-  cursor: not-allowed
+  cursor: not-allowed;
 }
 
 /* loader circle */
 .cr-loader {
-  width: 32px;
-  height: 32px;
-  margin-right: 16px;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  margin-right: 12px;
   vertical-align: middle;
   border-radius: 50%;
   border: 4px solid rgba(255, 255, 255, .25);
@@ -268,36 +372,48 @@
 /* ---------- Metrics ---------- */
 .metrics {
   margin-top: auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
 }
 
 .metric-item {
-  flex: 1 1 46%;
-  padding: 16px;
+  padding: 12px;
   border-radius: 16px;
   background: linear-gradient(180deg, var(--cr-blue-4), var(--cr-blue-3));
-  font-size: 22px;
+  font-size: 18px;
   text-align: center;
   text-shadow: 0 1px 2px #000;
   box-shadow: inset 0 3px 7px rgba(0, 0, 0, .45);
 }
 
 .metric-item.res {
-  color: var(--cr-purple)
+  color: var(--cr-purple);
 }
 
 .metric-item.fps {
-  color: var(--cr-gold-0)
+  color: var(--cr-gold-0);
 }
 
 .metric-item.rtt {
-  color: var(--cr-green)
+  color: var(--cr-green);
 }
 
 .metric-item.quality {
-  color: var(--cr-gold-0)
+  color: var(--cr-gold-0);
+}
+
+/* Quality indicator colors */
+.quality-low {
+  color: var(--cr-blue-start);
+}
+
+.quality-medium {
+  color: var(--cr-gold-0);
+}
+
+.quality-high {
+  color: var(--cr-purple);
 }
 
 /* ---------- Elixir Loader ---------- */
@@ -328,8 +444,8 @@
 }
 
 /* ---------- Settings Button ---------- */
-.settings-button {
-  margin-top: 20px;
+.cr-settings-button {
+  margin-top: auto;
   background: transparent;
   border: none;
   color: var(--cr-gold-0);
@@ -346,27 +462,40 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.settings-button:hover {
+.cr-settings-button:hover {
   transform: rotate(30deg);
   background-color: rgba(0, 0, 0, 0.3);
 }
 
-.settings-button:active {
+.cr-settings-button:active {
   transform: rotate(30deg) scale(0.95);
 }
 
-/* ---------- Responsive ---------- */
-@media(max-width:900px) {
-  .layout {
+/* ------------------------------------------------------------------
+   RESPONSIVE LAYOUT
+------------------------------------------------------------------ */
+@media (max-width: 1200px) {
+  .cr-layout {
+    display: flex;
     flex-direction: column;
-    gap: 28px;
-    padding: 28px
+    height: auto;
+    min-height: 100vh;
   }
 
-  .video-container,
-  .sidebar {
-    width: 94vw;
-    max-width: none;
-    min-width: 300px
+  .cr-controls-content {
+    padding: 16px;
+  }
+
+  .cr-feedback-column {
+    order: 3;
+  }
+
+  .cr-video-column {
+    order: 1;
+    height: 50vh;
+  }
+
+  .cr-controls-column {
+    order: 2;
   }
 }

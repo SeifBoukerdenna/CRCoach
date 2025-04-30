@@ -1,4 +1,4 @@
-/* CSS Variables for theming */
+/* CSS Variables for Clash Royale themed app */
 
 :root {
     /* ---------- Color Palette ---------- */
@@ -18,6 +18,16 @@
     --cr-purple: #a34cff;
     --cr-purple-light: #b773ff;
 
+    /* Additional Clash Royale colors */
+    --cr-arena-blue-light: #29abe2;
+    --cr-arena-blue-dark: #0071bc;
+    --cr-wood-light: #d4a257;
+    --cr-wood-dark: #8c5e28;
+    --cr-legendary: #ebac00;
+    --cr-epic: #b92cff;
+    --cr-rare: #ff9c00;
+    --cr-common: #9c9c9c;
+
     /* ---------- Spacing ---------- */
     --spacing-xs: 4px;
     --spacing-sm: 8px;
@@ -35,8 +45,14 @@
     --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
 
+    /* Clash Royale specific shadows */
+    --cr-card-shadow: 0 4px 0 rgba(0, 0, 0, 0.3), 0 6px 10px rgba(0, 0, 0, 0.25);
+    --cr-inner-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+    --cr-gold-glow: 0 0 15px rgba(255, 196, 0, 0.5);
+    --cr-blue-glow: 0 0 15px rgba(47, 140, 255, 0.5);
+
     /* ---------- Typography ---------- */
-    --font-family: 'Bangers', 'Arial Black', sans-serif;
+    --font-family: 'Supercell-Magic', 'Bangers', 'Arial Black', sans-serif;
     --font-size-xs: 12px;
     --font-size-sm: 14px;
     --font-size-md: 16px;
@@ -54,7 +70,7 @@
     --header-height: 64px;
     --footer-height: 48px;
     --sidebar-width: 320px;
-    --max-content-width: 1200px;
+    --max-content-width: 1800px;
     --card-padding: 20px;
 
     /* ---------- Z-index Layers ---------- */
@@ -67,7 +83,7 @@
     --z-toast: 50;
 }
 
-/* Dark theme variations (can be applied later) */
+/* Dark theme variations */
 .theme-dark {
     --cr-blue-start: #1a5aa0;
     --cr-blue-end: #001533;
@@ -95,4 +111,13 @@
         --sidebar-width: 100%;
         --card-padding: 16px;
     }
+}
+
+/* Font face definition for Supercell-Magic font */
+@font-face {
+    font-family: 'Supercell-Magic';
+    src: url('/assets/fonts/Supercell-Magic.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
 }

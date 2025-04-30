@@ -1,0 +1,137 @@
+/* FeedbackItem component styles */
+.cr-feedback-item {
+    border-radius: 12px;
+    background: linear-gradient(145deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.3));
+    border: 2px solid transparent;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+    animation: feedbackEntrance 0.5s ease-out forwards;
+    transform-origin: top center;
+}
+
+/* Item header */
+.cr-feedback-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.cr-feedback-item-type {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cr-feedback-item-type-label {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.cr-feedback-item-time {
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+/* Item content */
+.cr-feedback-item-content {
+    padding: 14px 15px;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+/* Feedback type icons */
+.cr-feedback-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* Type-specific styles */
+.cr-feedback-elixir {
+    border-color: var(--cr-purple-light);
+}
+
+.cr-feedback-elixir .cr-feedback-item-type-label {
+    color: var(--cr-purple-light);
+}
+
+.cr-feedback-card {
+    border-color: #3498db;
+}
+
+.cr-feedback-card .cr-feedback-item-type-label {
+    color: #3498db;
+}
+
+.cr-feedback-placement {
+    border-color: #2ecc71;
+}
+
+.cr-feedback-placement .cr-feedback-item-type-label {
+    color: #2ecc71;
+}
+
+.cr-feedback-defense {
+    border-color: #3498db;
+}
+
+.cr-feedback-defense .cr-feedback-item-type-label {
+    color: #3498db;
+}
+
+.cr-feedback-attack {
+    border-color: #e74c3c;
+}
+
+.cr-feedback-attack .cr-feedback-item-type-label {
+    color: #e74c3c;
+}
+
+.cr-feedback-general {
+    border-color: #9b59b6;
+}
+
+.cr-feedback-general .cr-feedback-item-type-label {
+    color: #9b59b6;
+}
+
+/* Animations */
+@keyframes feedbackEntrance {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Special glow effect for important feedback */
+.cr-feedback-elixir::after,
+.cr-feedback-attack::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center,
+            rgba(255, 255, 255, 0.1) 0%,
+            rgba(255, 255, 255, 0) 70%);
+    pointer-events: none;
+    opacity: 0;
+    animation: feedbackGlow 3s ease-in-out infinite;
+}
+
+@keyframes feedbackGlow {
+
+    0%,
+    100% {
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
