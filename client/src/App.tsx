@@ -53,6 +53,7 @@ const AppContent: React.FC = () => {
   // Mock game data state
   const [gameData, setGameData] = useState({
     opponentCards: generateRandomDeck(),
+    playerCards: generateRandomDeck(),
     opponentElixir: 5,
     elixirRate: "normal" as "normal" | "2x" | "3x",
     opponentName: generateRandomOpponentName(),
@@ -127,6 +128,7 @@ const AppContent: React.FC = () => {
     if (!isConnected) {
       setGameData({
         opponentCards: generateRandomDeck(),
+        playerCards: generateRandomDeck(),
         opponentElixir: 5,
         elixirRate: "normal",
         opponentName: generateRandomOpponentName(),
@@ -184,6 +186,7 @@ const AppContent: React.FC = () => {
           LoadingIcon={ElixirLoader}
           gameData={{
             opponentCards: gameData.opponentCards,
+            playerCards: gameData.playerCards,
             opponentElixir: gameData.opponentElixir,
             elixirRate: gameData.elixirRate,
             opponentName: gameData.opponentName,

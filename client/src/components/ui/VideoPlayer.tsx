@@ -17,6 +17,7 @@ interface VideoPlayerProps {
     /** Game data for overlay */
     gameData?: {
         opponentCards: string[];
+        playerCards?: string[]; // Added player cards
         opponentElixir: number;
         elixirRate: "normal" | "2x" | "3x";
         opponentName: string;
@@ -87,8 +88,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         opponentElixir={gameData.opponentElixir}
                         currentElixirRate={gameData.elixirRate}
                         opponentCards={gameData.opponentCards}
-                        opponentName={gameData.opponentName}
-                        gameTime={gameData.gameTime}
+                        playerCards={gameData.playerCards || ["hogrider", "musketeer", "valkyrie", "skeletons", "zap", "fireball", "log", "infernotower"]}
                         currentCard={gameData.currentCard}
                     />
                 )}

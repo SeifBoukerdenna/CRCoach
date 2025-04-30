@@ -1,0 +1,175 @@
+/* CardList Component Styles */
+.card-list-container {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-list-container.vertical {
+    height: 100%;
+    /* max-width: 50px; */
+    padding: 2px;
+}
+
+.card-list-title {
+    color: var(--cr-gold-0);
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Horizontal card list */
+.card-list.horizontal {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Vertical card list */
+.card-list.vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    height: 100%;
+    align-items: center;
+    justify-content: space-around;
+}
+
+/* Card styles */
+.card-item {
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    transition: transform 0.2s;
+}
+
+/* Card sizes - Horizontal */
+.card-list.horizontal.size-tiny .card-item {
+    width: 24px;
+    height: 30px;
+}
+
+.card-list.horizontal.size-small .card-item {
+    width: 30px;
+    height: 36px;
+}
+
+.card-list.horizontal.size-medium .card-item {
+    width: 40px;
+    height: 48px;
+}
+
+.card-list.horizontal.size-large .card-item {
+    width: 50px;
+    height: 60px;
+}
+
+/* Card sizes - Vertical */
+.card-list.vertical.size-tiny .card-item {
+    width: 24px;
+    height: 30px;
+}
+
+.card-list.vertical.size-small .card-item {
+    width: 36px;
+    height: 44px;
+}
+
+.card-list.vertical.size-medium .card-item {
+    width: 40px;
+    height: 48px;
+}
+
+.card-list.vertical.size-large .card-item {
+    width: 50px;
+    height: 60px;
+}
+
+/* Card rarity backgrounds */
+.card-item.common {
+    background: linear-gradient(to bottom, #a0a0a0, #707070);
+    border: 1px solid #b0b0b0;
+}
+
+.card-item.rare {
+    background: linear-gradient(to bottom, #F5A623, #C87C24);
+    border: 1px solid #F5A623;
+}
+
+.card-item.epic {
+    background: linear-gradient(to bottom, #9B59B6, #7D3C98);
+    border: 1px solid #9B59B6;
+}
+
+.card-item.legendary {
+    background: linear-gradient(to bottom, #F1C40F, #CB9B0A);
+    border: 1px solid #F1C40F;
+}
+
+/* Card cost (elixir) */
+.card-cost {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    background: linear-gradient(to bottom, #b066ff, #7a3df7);
+    color: white;
+    border-radius: 50%;
+    font-size: 8px;
+    font-weight: bold;
+    width: 12px;
+    height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.size-tiny .card-cost {
+    font-size: 7px;
+    width: 10px;
+    height: 10px;
+}
+
+/* Card image placeholder */
+.card-image {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-placeholder {
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: 0 1px 2px black;
+}
+
+.size-tiny .card-placeholder {
+    font-size: 10px;
+}
+
+/* Card name (only shown in vertical mode) */
+.card-name {
+    font-size: 8px;
+    color: white;
+    text-align: center;
+    margin-top: -12px;
+    text-shadow: 0 1px 1px black;
+}
+
+/* Highlighted card (current) */
+.card-item.highlighted {
+    transform: scale(1.05);
+    box-shadow: 0 0 4px 1px var(--cr-gold-0);
+    z-index: 1;
+}

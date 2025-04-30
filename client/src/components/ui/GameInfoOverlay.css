@@ -1,16 +1,17 @@
 /* Game Info Overlay styles */
 .game-info-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    padding: 10px;
-    z-index: 10;
+    inset: 0;
     pointer-events: none;
     /* Allow clicks to pass through to video */
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+/* Side layout for cards and elixir */
+.game-info-overlay.side-layout {
+    flex-direction: row;
 }
 
 /* Opponent header with name and time */
@@ -41,17 +42,90 @@
     padding: 2px 6px;
 }
 
-/* Elixir section */
+/* Elixir section (top center) */
 .opponent-elixir-section {
-    width: 100%;
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    max-width: 300px;
     display: flex;
     justify-content: center;
+    z-index: 10;
 }
 
 /* Card cycle section */
 .opponent-card-cycle-section {
     align-self: flex-end;
     width: 100%;
+}
+
+/* Player's cards container (left side) */
+.player-cards-container {
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    z-index: 5;
+    padding: 10px 0;
+}
+
+/* Opponent's elixir count (right side) */
+.opponent-elixir-count {
+    position: absolute;
+    right: 20px;
+    top: 0;
+    bottom: 0;
+    width: 75px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 5;
+}
+
+/* Elixir display on right side */
+.elixir-display {
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid var(--cr-purple);
+}
+
+.elixir-icon {
+    width: 30px;
+    height: 40px;
+    background: radial-gradient(circle at center, var(--cr-purple-light) 30%, var(--cr-purple) 100%);
+    border-radius: 50% 50% 4px 4px;
+    position: relative;
+    box-shadow: 0 0 10px rgba(177, 84, 255, 0.5);
+}
+
+.elixir-icon::after {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: 10px;
+    width: 10px;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+}
+
+.elixir-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--cr-purple-light);
+    text-shadow: 0 0 8px var(--cr-purple);
 }
 
 /* Add a subtle glow effect when elixir is at max */

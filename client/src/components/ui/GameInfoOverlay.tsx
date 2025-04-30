@@ -1,6 +1,6 @@
 import React from "react";
 import { ElixirBar } from "./ElixirBar";
-import { CardCycle } from "./CardCycle";
+import { CardList } from "./CardList"; // New vertical card list component
 import "./GameInfoOverlay.css";
 
 interface GameInfoOverlayProps {
@@ -8,43 +8,54 @@ interface GameInfoOverlayProps {
     opponentElixir?: number;
     currentElixirRate?: "normal" | "2x" | "3x";
     opponentCards?: string[];
-    opponentName?: string;
-    gameTime?: string;
+    playerCards?: string[]; // Added player's cards
     currentCard?: number;
 }
 
 /**
  * Component that overlays game information on top of the video display
+ * with vertical card layouts on the sides
  */
 const GameInfoOverlay: React.FC<GameInfoOverlayProps> = ({
     isConnected,
     opponentElixir = 5.5,
     currentElixirRate = "normal",
-    opponentCards = ["knight", "archers", "fireball", "minipekka", "goblinbarrel", "princess", "log", "infernotower"],
-    opponentName = "Opponent",
-    gameTime = "01:45",
-    currentCard = 0
+    // opponentCards = ["knight", "archers", "fireball", "minipekka", "goblinbarrel", "princess", "log", "infernotower"],
+    playerCards = ["hogrider", "musketeer", "valkyrie", "skeletons", "zap", "fireball", "log", "infernotower"],
+    // currentCard = 0
 }) => {
     if (!isConnected) {
         return null;
     }
 
     return (
-        <div className="game-info-overlay">
-            {/* Top section with opponent name and time */}
-            <div className="opponent-header">
-                <div className="opponent-name">{opponentName}</div>
-                <div className="game-time">{gameTime}</div>
+        <div className="game-info-overlay side-layout">
+            {/* Left side - Player's cards vertical list */}
+            <div className="player-cards-container">
+                <CardList
+                    cards={playerCards}
+                    vertical={true}
+                    showTitle={false}
+                    cardSize="small"
+                />
             </div>
 
-            {/* Opponent's elixir bar */}
+            {/* Top center - Opponent's elixir bar */}
             <div className="opponent-elixir-section">
-                <ElixirBar elixir={opponentElixir} maxElixir={10} elixirRate={currentElixirRate} isOpponent={true} />
+                <ElixirBar
+                    elixir={opponentElixir}
+                    maxElixir={10}
+                    elixirRate={currentElixirRate}
+                    isOpponent={true}
+                />
             </div>
 
-            {/* Opponent's card cycle */}
-            <div className="opponent-card-cycle-section">
-                <CardCycle cards={opponentCards} currentCard={currentCard} />
+            {/* Right side - Opponent's elixir count */}
+            <div className="opponent-elixir-count">
+                <div className="elixir-display">
+                    <div className="elixir-icon"></div>
+                    <span className="elixir-value">{Math.floor(opponentElixir * 10) / 10}</span>
+                </div>
             </div>
         </div>
     );
