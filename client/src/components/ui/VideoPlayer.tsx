@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import GameInfoOverlay from "./GameInfoOverlay";
+import ImprovedGameInfoOverlay from "./GameInfoOverlay";
+import "./ImprovedElixirDisplay.css";
 
 interface VideoPlayerProps {
     /** Reference to the video element */
@@ -17,7 +18,7 @@ interface VideoPlayerProps {
     /** Game data for overlay */
     gameData?: {
         opponentCards: string[];
-        playerCards?: string[]; // Added player cards
+        playerCards?: string[];
         opponentElixir: number;
         elixirRate: "normal" | "2x" | "3x";
         opponentName: string;
@@ -28,7 +29,7 @@ interface VideoPlayerProps {
 
 /**
  * VideoPlayer component displays the broadcast video stream
- * with loading and waiting states
+ * with loading and waiting states, and the enhanced game overlay
  */
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     videoRef,
@@ -83,13 +84,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                 {/* Game info overlay - shown only when connected */}
                 {isConnected && gameData && (
-                    <GameInfoOverlay
+                    <ImprovedGameInfoOverlay
                         isConnected={isConnected}
                         opponentElixir={gameData.opponentElixir}
                         currentElixirRate={gameData.elixirRate}
-                        opponentCards={gameData.opponentCards}
                         playerCards={gameData.playerCards || ["hogrider", "musketeer", "valkyrie", "skeletons", "zap", "fireball", "log", "infernotower"]}
                         currentCard={gameData.currentCard}
+                        opponentName={gameData.opponentName}
+                        gameTime={gameData.gameTime}
                     />
                 )}
             </div>
