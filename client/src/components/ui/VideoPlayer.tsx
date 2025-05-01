@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import ImprovedGameInfoOverlay from "./GameInfoOverlay";
+import ImprovedGameInfoOverlay from "./gameInfoOverlay/GameInfoOverlay";
 import "./ImprovedElixirDisplay.css";
 
 interface VideoPlayerProps {

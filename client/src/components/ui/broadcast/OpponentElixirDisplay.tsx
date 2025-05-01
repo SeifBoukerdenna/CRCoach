@@ -1,6 +1,6 @@
 import React from 'react';
-import './ImprovedElixirDisplay.css';
-import "./ImprovedCardDisplay.css"
+import '../ImprovedElixirDisplay.css';
+import "../ImprovedCardDisplay.css"
 
 interface OpponentElixirDisplayProps {
     elixir: number;

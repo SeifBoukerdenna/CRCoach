@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import FeedbackItem from "./FeedbackItem";
 import "./FeedbackPanel.css";
-import { WizardIcon } from "../../assets/icons";
+import { WizardIcon } from "../../../assets/icons";
 
 // Feedback type definition
 export interface Feedback {

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { StreamQuality } from "../../types/broadcast";
-import QualitySelector from "./QualitySelector";
+import { StreamQuality } from "../../../types/broadcast";
 import "./Settings.css";
 
 // Settings props interface
@@ -28,14 +27,13 @@ export const Settings: React.FC<SettingsProps> = ({
     isOpen,
     onClose,
     quality,
-    onQualityChange,
     isConnected,
     showDebugInfo = false,
     className = "",
 }) => {
     // Local state for settings tabs
-    const [activeTab, setActiveTab] = useState<"quality" | "connection" | "about">(
-        "quality"
+    const [activeTab, setActiveTab] = useState<"connection" | "about">(
+        "about"
     );
 
     // If not open, don't render
@@ -62,12 +60,6 @@ export const Settings: React.FC<SettingsProps> = ({
 
             <div className="settings-tabs">
                 <button
-                    className={`settings-tab ${activeTab === "quality" ? "active" : ""}`}
-                    onClick={() => setActiveTab("quality")}
-                >
-                    Quality
-                </button>
-                <button
                     className={`settings-tab ${activeTab === "connection" ? "active" : ""}`}
                     onClick={() => setActiveTab("connection")}
                 >
@@ -82,16 +74,6 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
 
             <div className="settings-content">
-                {activeTab === "quality" && (
-                    <div className="settings-section">
-                        <QualitySelector
-                            currentQuality={quality}
-                            onChange={onQualityChange}
-                            isConnected={isConnected}
-                        />
-                    </div>
-                )}
-
                 {activeTab === "connection" && (
                     <div className="settings-section">
                         <h3 className="settings-subtitle">Connection Settings</h3>

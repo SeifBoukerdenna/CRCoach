@@ -1,7 +1,7 @@
 import React from "react";
-import "./ImprovedElixirDisplay.css";
-import "./ImprovedCardDisplay.css";
-import OpponentElixirDisplay from "./OpponentElixirDisplay";
+import "../ImprovedElixirDisplay.css";
+import "../ImprovedCardDisplay.css";
+import OpponentElixirDisplay from "../broadcast/OpponentElixirDisplay";
 
 // Card data mapping for demonstration
 const cardData: Record<string, { name: string; rarity: string; elixir: number }> = {

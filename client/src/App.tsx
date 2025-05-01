@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import { BroadcastProvider, useBroadcast } from "./context/BroadcastContext";
 import { SettingsProvider, useSettings } from "./context/SettingsContext";
 import VideoPlayer from "./components/ui/VideoPlayer";
-import BroadcastControls from "./components/ui/BroadcastControls";
+import BroadcastControls from "./components/ui/broadcast/BroadcastControls";
 import SessionCodeInput from "./components/ui/SessionCodeInput";
 import Metrics from "./components/ui/Metrics";
-import Settings from "./components/ui/Settings";
-import FeedbackPanel from "./components/ui/FeedbackPanel";
+import Settings from "./components/ui/settings/Settings";
+import FeedbackPanel from "./components/ui/feedback/FeedbackPanel";
 import {
   ClashRoyaleCrown,
   ElixirLoader,
@@ -211,9 +211,6 @@ const AppContent: React.FC = () => {
             <span className={`cr-pill ${isConnected ? "cr-pill-live" : "cr-pill-off"}`}>
               {isConnected ? "LIVE" : "OFFLINE"}
             </span>
-            <span className="cr-pill cr-pill-timer">
-              <BroadcastControls.Timer status={status} />
-            </span>
           </div>
 
           {/* Session code label */}
@@ -225,19 +222,6 @@ const AppContent: React.FC = () => {
             initialCode={sessionCode}
             onChange={(code) => handleCodeChange(code)}
           />
-
-          {/* Quality selector button (before broadcast) */}
-          {!isConnected && (
-            <button
-              className="cr-quality-button"
-              onClick={openSettings}
-              title="Stream Quality Settings"
-            >
-              <div className="cr-quality-pip" data-quality={quality}></div>
-              <span>Quality: {quality.charAt(0).toUpperCase() + quality.slice(1)}</span>
-              <i className="cr-chevron-right"></i>
-            </button>
-          )}
 
           {/* Connect/Disconnect button */}
           <BroadcastControls

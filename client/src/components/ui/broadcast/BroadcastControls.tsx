@@ -1,6 +1,6 @@
 import React from "react";
-import { ConnectionStatus } from "../../types/broadcast";
-import useTimer from "../../hooks/useTimer";
+import { ConnectionStatus } from "../../../types/broadcast";
+import useTimer from "../../../hooks/useTimer";
 
 // Timer subcomponent
 interface TimerProps {
@@ -43,7 +43,7 @@ interface BroadcastControlsComponent
 /**
  * BroadcastControls component provides connection controls and timer
  */
-export const BroadcastControls: BroadcastControlsComponent = ({
+const BroadcastControls: BroadcastControlsComponent = ({
     status,
     connecting = false,
     codeReady = false,
