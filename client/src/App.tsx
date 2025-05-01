@@ -2,9 +2,6 @@ import React, { useEffect, useState } from "react";
 import { BroadcastProvider, useBroadcast } from "./context/BroadcastContext";
 import { SettingsProvider, useSettings } from "./context/SettingsContext";
 import VideoPlayer from "./components/ui/VideoPlayer";
-import BroadcastControls from "./components/ui/broadcast/BroadcastControls";
-import SessionCodeInput from "./components/ui/SessionCodeInput";
-import Metrics from "./components/ui/Metrics";
 import Settings from "./components/ui/settings/Settings";
 import FeedbackPanel from "./components/ui/feedback/FeedbackPanel";
 import {
@@ -12,8 +9,8 @@ import {
   ElixirLoader,
   SmallCrownIcon,
   SwordIcon,
-  ShieldIcon
 } from "./assets/icons";
+import CollapsibleConnectionPanel from "./components/ui/collapsibleConnectionPanel/CollapsibleConnectionPanel";
 import {
   generateRandomDeck,
   generateRandomElixirRate,
@@ -28,17 +25,8 @@ import "./styles/App.css";
 const AppContent: React.FC = () => {
   // Get broadcast context
   const {
-    status,
     isConnected,
-    isConnecting,
-    isCodeValid,
-    sessionCode,
-    stats,
     videoRef,
-    setSessionCode,
-    connect,
-    disconnect,
-    reset,
   } = useBroadcast();
 
   // Get settings context
@@ -46,7 +34,6 @@ const AppContent: React.FC = () => {
     quality,
     setQuality,
     isSettingsOpen,
-    openSettings,
     closeSettings,
   } = useSettings();
 
@@ -138,26 +125,6 @@ const AppContent: React.FC = () => {
     }
   }, [isConnected]);
 
-  // Handle connect/disconnect button click
-  const handleConnectClick = async () => {
-    if (isConnected) {
-      disconnect();
-    } else {
-      if (status === "invalid") {
-        reset();
-      }
-      await connect();
-    }
-  };
-
-  // Handle session code change
-  const handleCodeChange = (code: string) => {
-    if (status === "invalid") {
-      reset();
-    }
-    setSessionCode(code);
-  };
-
   return (
     <main className="cr-layout">
       {/* Left Column - Feedback Panel */}
@@ -196,62 +163,8 @@ const AppContent: React.FC = () => {
         />
       </section>
 
-      {/* Right Column - Controls */}
-      <section className="cr-column cr-controls-column">
-        <div className="cr-column-header">
-          <div className="cr-column-title">
-            <ShieldIcon width={24} height={24} className="cr-title-icon" />
-            <h2>CONNECTION</h2>
-          </div>
-        </div>
-
-        <div className="cr-controls-content">
-          {/* Status indicators */}
-          <div className="cr-pills">
-            <span className={`cr-pill ${isConnected ? "cr-pill-live" : "cr-pill-off"}`}>
-              {isConnected ? "LIVE" : "OFFLINE"}
-            </span>
-          </div>
-
-          {/* Session code label */}
-          <div className="cr-code-label">SESSION CODE</div>
-
-          {/* Session code input */}
-          <SessionCodeInput
-            isConnected={isConnected}
-            initialCode={sessionCode}
-            onChange={(code) => handleCodeChange(code)}
-          />
-
-          {/* Connect/Disconnect button */}
-          <BroadcastControls
-            status={status}
-            connecting={isConnecting}
-            codeReady={isCodeValid}
-            onConnect={handleConnectClick}
-          />
-
-          {/* Metrics display */}
-          <Metrics
-            resolution={stats.resolution}
-            fps={stats.fps}
-            rtt={stats.rtt}
-            quality={stats.quality}
-          />
-
-          {/* Settings button */}
-          <button
-            className="cr-settings-button"
-            onClick={openSettings}
-            title="Open Settings"
-          >
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-              <path d="M12 15.5c1.93 0 3.5-1.57 3.5-3.5S13.93 8.5 12 8.5 8.5 10.07 8.5 12s1.57 3.5 3.5 3.5zm0-5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5z" />
-              <path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />
-            </svg>
-          </button>
-        </div>
-      </section>
+      {/* Right Column - Collapsible Connection Panel */}
+      <CollapsibleConnectionPanel />
 
       {/* Settings modal */}
       <Settings
