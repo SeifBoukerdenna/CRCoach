@@ -6,7 +6,8 @@
     width: 42px;
     height: 52px;
     border-radius: 6px;
-    margin-bottom: 8px;
+    margin: 0 auto 8px auto;
+    /* Centers horizontally */
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
     transition: transform 0.2s;
     overflow: hidden;
@@ -52,8 +53,8 @@
 /* Elixir Cost Badge */
 .cr-card-elixir {
     position: absolute;
-    top: -6px;
-    right: -6px;
+    top: -2px;
+    right: -2px;
     width: 16px;
     height: 16px;
     background: linear-gradient(to bottom, var(--cr-purple-light), var(--cr-purple));
@@ -85,6 +86,11 @@
     border: 2px solid var(--cr-gold-1);
     box-shadow: 0 0 15px rgba(255, 201, 7, 0.3), inset 0 0 8px rgba(0, 0, 0, 0.5);
     z-index: 10;
+}
+
+/* Card Hover Effect */
+.cr-card-enhanced:hover {
+    transform: scale(1.03);
 }
 
 /* Card List Title */
