@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { BroadcastProvider, useBroadcast } from "./context/BroadcastContext";
 import { SettingsProvider, useSettings } from "./context/SettingsContext";
+import { LayoutProvider } from "./context/LayoutContext";
 import VideoPlayer from "./components/ui/VideoPlayer";
 import Settings from "./components/ui/settings/Settings";
-import FeedbackPanel from "./components/ui/feedback/FeedbackPanel";
 import {
   ClashRoyaleCrown,
   ElixirLoader,
-  SmallCrownIcon,
-  SwordIcon,
+  SwordIcon
 } from "./assets/icons";
-import CollapsibleConnectionPanel from "./components/ui/collapsibleConnectionPanel/CollapsibleConnectionPanel";
+
 import {
   generateRandomDeck,
   generateRandomElixirRate,
@@ -18,6 +17,9 @@ import {
   formatGameTime
 } from "./utils/mockGameData";
 import "./styles/App.css";
+import "./styles/CollapsiblePanels.css";
+import CollapsibleConnectionPanel from "./components/ui/collapsibleConnectionPanel/CollapsibleConnectionPanel";
+import CollapsibleFeedbackPanel from "./components/ui/collapsibleFeedbackPanel/CollapsibleFeedbackPanel";
 
 /**
  * Main application content component
@@ -127,16 +129,8 @@ const AppContent: React.FC = () => {
 
   return (
     <main className="cr-layout">
-      {/* Left Column - Feedback Panel */}
-      <section className="cr-column cr-feedback-column">
-        <div className="cr-column-header">
-          <div className="cr-column-title">
-            <SmallCrownIcon width={24} height={24} className="cr-title-icon" />
-            <h2>TRAINER FEEDBACK</h2>
-          </div>
-        </div>
-        <FeedbackPanel isConnected={isConnected} />
-      </section>
+      {/* Left Column - Collapsible Feedback Panel */}
+      <CollapsibleFeedbackPanel isConnected={isConnected} />
 
       {/* Middle Column - Video Player */}
       <section className="cr-column cr-video-column">
@@ -185,7 +179,9 @@ export const App: React.FC = () => {
   return (
     <SettingsProvider>
       <BroadcastProvider>
-        <AppContent />
+        <LayoutProvider>
+          <AppContent />
+        </LayoutProvider>
       </BroadcastProvider>
     </SettingsProvider>
   );

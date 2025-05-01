@@ -13,9 +13,9 @@
   padding: 16px;
   position: relative;
   z-index: 1;
-  /* floats above background effects */
   max-width: 1800px;
   margin: 0 auto;
+  transition: grid-template-columns 0.3s ease;
 }
 
 .cr-column {

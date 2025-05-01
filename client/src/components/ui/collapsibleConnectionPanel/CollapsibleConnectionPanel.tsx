@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { useBroadcast } from '../../../context/BroadcastContext';
 import { ShieldIcon } from '../../../assets/icons';
 import { useSettings } from '../../../context/SettingsContext';
 import BroadcastControls from '../broadcast/BroadcastControls';
 import Metrics from '../Metrics';
 import SessionCodeInput from '../SessionCodeInput';
-import "./CollapsibleConnectionPanel.css"
+import { useLayoutContext } from '../../../context/LayoutContext';
+import CollapseButton from '../../core/CollapseButton';
 
 /**
- * CollapsibleConnectionPanel component styled to match the original design
+ * CollapsibleConnectionPanel component with Clash Royale-styled toggle button
  */
-export const CollapsibleConnectionPanel = () => {
+export const CollapsibleConnectionPanel: React.FC = () => {
     // Get broadcast context
     const {
         status,
@@ -28,12 +29,12 @@ export const CollapsibleConnectionPanel = () => {
     // Get settings context
     const { openSettings } = useSettings();
 
-    // Track collapsed state
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    // Get layout context
+    const { isRightCollapsed, setIsRightCollapsed } = useLayoutContext();
 
     // Function to toggle expanded/collapsed state
     const togglePanel = () => {
-        setIsCollapsed(!isCollapsed);
+        setIsRightCollapsed(!isRightCollapsed);
     };
 
     // Function to handle connect/disconnect
@@ -56,46 +57,30 @@ export const CollapsibleConnectionPanel = () => {
         setSessionCode(code);
     };
 
-    // Update grid layout when collapsed/expanded
-    useEffect(() => {
-        const layout = document.querySelector('.cr-layout');
-        if (layout && layout instanceof HTMLElement) {
-            if (isCollapsed) {
-                layout.style.gridTemplateColumns = '1fr 1.8fr 60px';
-            } else {
-                layout.style.gridTemplateColumns = '1fr 1.8fr 1fr';
-            }
-        }
-    }, [isCollapsed]);
-
     return (
-        <section className={`cr-column cr-controls-column ${isCollapsed ? 'collapsed' : ''}`}>
+        <section className={`cr-column cr-controls-column ${isRightCollapsed ? 'collapsed' : ''}`}>
             <div className="cr-column-header">
                 <div className="cr-column-title">
-                    {!isCollapsed && <ShieldIcon width={24} height={24} className="cr-title-icon" />}
-                    {!isCollapsed && <h2>CONNECTION</h2>}
+                    <ShieldIcon width={24} height={24} className="cr-title-icon" />
+                    {!isRightCollapsed && <h2>CONNECTION</h2>}
                 </div>
 
-                {/* Toggle button - positioned at right side of header */}
-                <button
-                    className="panel-toggle-btn"
+                {/* Stylized Clash Royale Toggle Button */}
+                <CollapseButton
+                    isCollapsed={isRightCollapsed}
                     onClick={togglePanel}
-                    aria-label={isCollapsed ? "Expand connection panel" : "Collapse connection panel"}
-                >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        {isCollapsed ? (
-                            <path d="M6 12l4-4-4-4 1-1 5 5-5 5z" />
-                        ) : (
-                            <path d="M10 12l-4-4 4-4-1-1-5 5 5 5z" />
-                        )}
-                    </svg>
-                </button>
+                    label="connection"
+                />
             </div>
 
-            {isCollapsed ? (
+            {isRightCollapsed ? (
                 <div className="collapsed-controls">
                     {/* Live status indicator */}
-                    <div className={`status-indicator ${isConnected ? 'live' : 'offline'}`}>
+                    <div
+                        className={`status-indicator ${isConnected ? 'live' : 'offline'}`}
+                        role="status"
+                        aria-label={isConnected ? "Live connection" : "Offline"}
+                    >
                         {isConnected ? 'LIVE' : 'OFF'}
                     </div>
 
@@ -107,13 +92,13 @@ export const CollapsibleConnectionPanel = () => {
                         aria-label={isConnected ? "Stop connection" : "Start connection"}
                     >
                         {isConnecting ? (
-                            <span className="mini-loader" />
+                            <span className="mini-loader" aria-hidden="true" />
                         ) : isConnected ? (
-                            <svg viewBox="0 0 24 24" width="20" height="20">
+                            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                                 <rect x="6" y="6" width="12" height="12" rx="1" />
                             </svg>
                         ) : (
-                            <svg viewBox="0 0 24 24" width="20" height="20">
+                            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                             </svg>
                         )}
@@ -125,13 +110,13 @@ export const CollapsibleConnectionPanel = () => {
                         onClick={openSettings}
                         aria-label="Open settings"
                     >
-                        <svg viewBox="0 0 24 24" width="20" height="20">
+                        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                             <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
                         </svg>
                     </button>
                 </div>
             ) : (
-                <div className="cr-controls-content">
+                <div id="connection-panel-content" className="cr-controls-content">
                     {/* Status indicator (LIVE or OFFLINE) */}
                     <div className="cr-pills">
                         <span className={`cr-pill ${isConnected ? "cr-pill-live" : "cr-pill-off"}`}>
