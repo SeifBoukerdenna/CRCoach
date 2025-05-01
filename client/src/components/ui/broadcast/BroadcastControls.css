@@ -1,0 +1,182 @@
+/* Clash Royale styled connect/disconnect button */
+
+.cr-connect-btn {
+    width: 100%;
+    border: none;
+    position: relative;
+    padding: 26px 0;
+    border-radius: 16px;
+    font-family: var(--font-family);
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.15s ease, filter 0.15s ease;
+    box-shadow: 0 8px 0 rgba(0, 0, 0, 0.3),
+        inset 0 1px 3px rgba(255, 255, 255, 0.18);
+    margin: 10px 0;
+}
+
+/* Button content with proper vertical centering */
+.cr-button-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 20px;
+}
+
+/* Connnect button styling (golden) */
+.cr-connect-btn {
+    background: linear-gradient(0deg, #d19200 0%, #ffc907 50%, #ffe36b 100%);
+    color: #052244;
+    text-shadow:
+        0 2px 0 rgba(255, 255, 255, 0.3),
+        0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Hover effect */
+.cr-connect-btn:not(:disabled):hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 0 rgba(0, 0, 0, 0.3),
+        inset 0 1px 3px rgba(255, 255, 255, 0.18);
+}
+
+/* Active/press effect */
+.cr-connect-btn:not(:disabled):active {
+    transform: translateY(4px);
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3),
+        inset 0 1px 3px rgba(255, 255, 255, 0.18);
+    transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+
+/* Connected/Stop button styling (red) */
+.cr-connect-btn.connected {
+    background: linear-gradient(0deg, #b52020 0%, #e43737 55%, #ff5b5b 100%);
+    color: #fff;
+    text-shadow: 0 2px 3px rgba(0, 0, 0, 0.55);
+}
+
+/* Disabled state */
+.cr-connect-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Glow effect */
+.cr-button-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%,
+            rgba(255, 255, 255, 0.4) 0%,
+            rgba(255, 255, 255, 0) 70%);
+    z-index: 1;
+    opacity: 0.7;
+}
+
+.cr-connect-btn:not(:disabled):hover .cr-button-glow {
+    opacity: 1;
+}
+
+/* Connected button glow */
+.cr-connect-btn.connected .cr-button-glow {
+    background: radial-gradient(circle at 50% 0%,
+            rgba(255, 255, 255, 0.3) 0%,
+            rgba(255, 255, 255, 0) 60%);
+    opacity: 0.5;
+}
+
+/* Button icon */
+.cr-button-icon {
+    width: 28px;
+    height: 28px;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* Loading state */
+.cr-connect-btn.connecting {
+    cursor: wait;
+}
+
+.cr-loader-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.cr-button-loader {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: cr-spin 1s linear infinite;
+}
+
+@keyframes cr-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* 3D effect border overlay - appears on hover */
+.cr-connect-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    pointer-events: none;
+    background: linear-gradient(to bottom,
+            rgba(255, 255, 255, 0.15) 0%,
+            rgba(255, 255, 255, 0) 50%,
+            rgba(0, 0, 0, 0.15) 100%);
+    z-index: 1;
+}
+
+/* Special gold shine animation on hover */
+.cr-connect-btn:not(.connected):not(:disabled):hover::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.3) 50%,
+            rgba(255, 255, 255, 0) 100%);
+    transform: rotate(45deg);
+    z-index: 1;
+    animation: cr-gold-shine 1s forwards;
+}
+
+@keyframes cr-gold-shine {
+    0% {
+        transform: translateX(-100%) rotate(45deg);
+    }
+
+    100% {
+        transform: translateX(100%) rotate(45deg);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .cr-connect-btn {
+        font-size: 22px;
+        padding: 20px 0;
+    }
+
+    .cr-button-icon {
+        width: 22px;
+        height: 22px;
+    }
+}

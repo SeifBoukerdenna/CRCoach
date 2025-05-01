@@ -1,26 +1,7 @@
 import React from "react";
 import { ConnectionStatus } from "../../../types/broadcast";
-import useTimer from "../../../hooks/useTimer";
+import "./BroadcastControls.css";
 
-// Timer subcomponent
-interface TimerProps {
-    /** Connection status */
-    status: ConnectionStatus;
-    /** Initial time in seconds */
-    initialSeconds?: number;
-}
-
-export const Timer: React.FC<TimerProps> = ({ status, initialSeconds = 0 }) => {
-    const { formattedTime } = useTimer({
-        initialSeconds,
-        autoStart: status === "connected",
-        onTick: undefined,
-    });
-
-    return <>{formattedTime}</>;
-};
-
-// Main controls component
 interface BroadcastControlsProps {
     /** Current connection status */
     status: ConnectionStatus;
@@ -34,16 +15,10 @@ interface BroadcastControlsProps {
     className?: string;
 }
 
-// Extended type for the component with Timer property
-interface BroadcastControlsComponent
-    extends React.FC<BroadcastControlsProps> {
-    Timer: React.FC<TimerProps>;
-}
-
 /**
- * BroadcastControls component provides connection controls and timer
+ * Clash Royale styled broadcast controls button
  */
-const BroadcastControls: BroadcastControlsComponent = ({
+export const BroadcastControls: React.FC<BroadcastControlsProps> = ({
     status,
     connecting = false,
     codeReady = false,
@@ -62,19 +37,45 @@ const BroadcastControls: BroadcastControlsComponent = ({
         return "Connect";
     };
 
+    // Button classes
+    const buttonClasses = [
+        "cr-connect-btn",
+        status === "connected" ? "connected" : "",
+        connecting ? "connecting" : "",
+        className,
+    ].filter(Boolean).join(" ");
+
     return (
         <button
-            className={`connect-btn ${status === "connected" ? "connected" : ""} ${className}`}
+            className={buttonClasses}
             disabled={isDisabled}
             onClick={onConnect}
+            aria-label={getButtonText()}
         >
-            {connecting && <span className="cr-loader" />}
-            {getButtonText()}
+            {connecting ? (
+                <div className="cr-loader-container">
+                    <span className="cr-button-loader" />
+                    <span>{getButtonText()}</span>
+                </div>
+            ) : (
+                <>
+                    <div className="cr-button-glow"></div>
+                    <div className="cr-button-content">
+                        {status === "connected" ? (
+                            <svg viewBox="0 0 24 24" width="24" height="24" className="cr-button-icon">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                            </svg>
+                        ) : (
+                            <svg viewBox="0 0 24 24" width="24" height="24" className="cr-button-icon">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                        )}
+                        <span className="cr-button-text">{getButtonText()}</span>
+                    </div>
+                </>
+            )}
         </button>
     );
 };
-
-// Attach Timer as a property of the component
-BroadcastControls.Timer = Timer;
 
 export default BroadcastControls;

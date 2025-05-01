@@ -1,6 +1,6 @@
-// components/ui/SessionCodeInput.tsx
 import React, { useEffect } from "react";
 import { useSessionCode } from "../../hooks/useSessionCode";
+import "./SessionCodeInput.css";
 
 export interface SessionCodeInputProps {
     isConnected?: boolean;
@@ -26,8 +26,6 @@ export const SessionCodeInput: React.FC<SessionCodeInputProps> = ({
         inputRefs,
     } = useSessionCode({ maxLength, initialValue: initialCode, onChange });
 
-    // 🔥 Fix: remove `reset` from deps so this only runs
-    //    when isConnected truly flips
     useEffect(() => {
         if (!isConnected) {
             reset();
@@ -36,27 +34,36 @@ export const SessionCodeInput: React.FC<SessionCodeInputProps> = ({
     }, [isConnected]);
 
     if (isConnected) {
-        return <div className={`code-display ${className}`}>{code || "— — — —"}</div>;
+        return (
+            <div className={`cr-code-display ${className}`}>
+                {Array.from(code || "0000").map((digit, i) => (
+                    <div key={i} className="cr-code-digit">{digit}</div>
+                ))}
+            </div>
+        );
     }
 
     return (
-        <div className={`code-slot-wrapper ${className}`}>
-            {inputRefs.map((ref, i) => (
-                <input
-                    key={i}
-                    ref={ref}
-                    className="code-slot"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={code[i] || ""}
-                    onChange={(e) => handleDigitChange(i, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(i, e)}
-                    onPaste={(e) => {
-                        e.preventDefault();
-                        handleCodeChange(e.clipboardData.getData("text"));
-                    }}
-                />
+        <div className={`cr-code-slot-wrapper ${className}`}>
+            {Array.from({ length: maxLength }).map((_, i) => (
+                <div key={i} className="cr-code-slot-container">
+                    <input
+                        ref={inputRefs[i]}
+                        className="cr-code-slot"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={code[i] || ""}
+                        onChange={(e) => handleDigitChange(i, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(i, e)}
+                        onPaste={(e) => {
+                            e.preventDefault();
+                            handleCodeChange(e.clipboardData.getData("text"));
+                        }}
+                        aria-label={`Digit ${i + 1} of session code`}
+                    />
+                    <div className="cr-code-slot-border"></div>
+                </div>
             ))}
         </div>
     );
