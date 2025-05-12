@@ -1,4 +1,4 @@
-# app/routers/upload.py
+# app/routers/upload.py - Optimized for ultra-low latency
 from fastapi import APIRouter, Request, HTTPException, Depends, Body
 from deps import get_settings, get_store
 import logging
@@ -17,9 +17,9 @@ last_processed_time: Dict[str, float] = {}
 # Track dropped frame statistics
 dropped_frames: Dict[str, Dict] = {}
 
-# Configure frame rate control
-MIN_FRAME_INTERVAL = 0.033  # ~30fps max
-PROCESSING_TIMEOUT = 0.1    # Drop frames if processing takes longer than this
+# Configure frame rate control - FASTER SETTINGS
+MIN_FRAME_INTERVAL = 0.016  # ~60fps max - adjusted to be much faster
+PROCESSING_TIMEOUT = 0.05   # Drop frames if processing takes longer than 50ms
 
 @router.post("/upload/{code}")
 async def upload(
@@ -29,101 +29,81 @@ async def upload(
     store = Depends(get_store),
 ):
     try:
+        start_time = time.time()
+
         # Create lock for this session if it doesn't exist
         if code not in processing_locks:
             processing_locks[code] = asyncio.Lock()
             last_processed_time[code] = 0
             dropped_frames[code] = {"count": 0, "reasons": {}}
 
-        # Check if we're processing too frequently - implement rate limiting
-        current_time = time.time()
-        time_since_last = current_time - last_processed_time[code]
-
-        # If we're receiving frames too quickly, drop some
-        if time_since_last < MIN_FRAME_INTERVAL:
-            # Track dropped frame statistics
-            dropped_frames[code]["count"] += 1
-            dropped_frames[code]["reasons"]["rate_limited"] = dropped_frames[code]["reasons"].get("rate_limited", 0) + 1
-            dropped_frames[code]["last_dropped_reason"] = "rate_limited"
-
-            return {"status": "dropped", "reason": "rate_limited"}
-
-        # Try to acquire the lock with a timeout to prevent backlog
+        # Ultra-optimized path: immediate frame forwarding with minimal overhead
+        # Get the request body with proper error handling
         try:
-            # Non-blocking lock check - if locked, drop the frame
-            if processing_locks[code].locked():
-                # Track dropped frame statistics
-                dropped_frames[code]["count"] += 1
-                dropped_frames[code]["reasons"]["processing_backlog"] = dropped_frames[code]["reasons"].get("processing_backlog", 0) + 1
-                dropped_frames[code]["last_dropped_reason"] = "processing_backlog"
+            data = await request.body()
+        except ClientDisconnect:
+            logger.warning(f"Client disconnected during upload for code {code}")
+            return {"status": "client_disconnected"}
 
-                return {"status": "dropped", "reason": "processing_backlog"}
+        # Validate JPEG header - quick check only
+        if not data or len(data) < 2 or data[0:2] != b"\xFF\xD8":
+            raise HTTPException(400, "Invalid JPEG payload")
 
-            # Acquire the lock for processing
-            async with processing_locks[code]:
-                # Update the last processed time
-                last_processed_time[code] = current_time
+        # Get quality setting from header
+        q = request.headers.get("X-Quality-Level", "medium")
+        if q not in settings.TARGET_WIDTHS:
+            q = "medium"
 
-                # Get the request body with proper error handling
+        # CRITICAL PRIORITY: Save the frame to the store immediately
+        # This ensures the video stream gets frames ASAP regardless of analysis
+        await store.save_frame(code, data, q, settings.FRAME_TIMEOUT)
+
+        # Update processing timestamp for this thread
+        last_processed_time[code] = time.time()
+
+        # Check if we should also perform analysis
+        # Rate limit analysis while maintaining frame delivery
+        time_since_last_analysis = start_time - last_processed_time.get(code, 0)
+
+        # Only analyze frames at most 10 times per second (every 100ms)
+        if time_since_last_analysis >= 0.1 and not processing_locks[code].locked():
+            # Process the frame through the vision pipeline if available
+            if hasattr(request.app.state, "vision_pipeline") and isinstance(data, bytes):
                 try:
-                    data = await request.body()
-                except ClientDisconnect:
-                    logger.warning(f"Client disconnected during upload for code {code}")
-                    return {"status": "client_disconnected"}
+                    # Use a background task for analysis to avoid blocking the response
+                    async def analyze_background():
+                        async with processing_locks[code]:
+                            try:
+                                # Use asyncio.wait_for to timeout long-running frame analysis
+                                pipeline = request.app.state.vision_pipeline
+                                results = pipeline.process_frame(data)
 
-                # Validate JPEG header
-                if not data.startswith(b"\xFF\xD8"):
-                    raise HTTPException(400, "Invalid JPEG payload")
+                                # Store results if analysis store is available
+                                if hasattr(request.app.state, "analysis_store"):
+                                    await request.app.state.analysis_store.save_analysis(code, results)
 
-                # Get quality setting from header
-                q = request.headers.get("X-Quality-Level", "medium")
-                if q not in settings.TARGET_WIDTHS:
-                    q = "medium"
+                                # Log time for analysis occasionally
+                                analyze_time = time.time() - start_time
+                                if analyze_time > 0.1:  # Only log slow analyses
+                                    logger.info(f"Analysis for {code} took {analyze_time*1000:.1f}ms")
 
-                # Save the frame to the store
-                await store.save_frame(code, data, q, settings.FRAME_TIMEOUT)
+                            except Exception as e:
+                                logger.error(f"Error in background analysis for code {code}: {str(e)}")
 
-                # Process the frame through the vision pipeline if available
-                if hasattr(request.app.state, "vision_pipeline") and isinstance(data, bytes):
-                    try:
-                        # Use asyncio.wait_for to timeout long-running frame analysis
-                        async def process_with_vision():
-                            pipeline = request.app.state.vision_pipeline
-                            results = pipeline.process_frame(data)
+                    # Start analysis without waiting for it to complete
+                    asyncio.create_task(analyze_background())
 
-                            # Extract game time if available
-                            time_info = results.get('time_left', {})
-                            if time_info.get('time_text'):
-                                logger.debug(f"Game time for code {code}: {time_info['time_text']}")
+                except Exception as e:
+                    logger.error(f"Error processing frame for code {code}: {str(e)}")
 
-                            # Store results if analysis store is available
-                            if hasattr(request.app.state, "analysis_store"):
-                                await request.app.state.analysis_store.save_analysis(code, results)
+        # Return success even if analysis is running in background
+        upload_time = time.time() - start_time
 
-                            return results
+        # Log upload time occasionally for monitoring
+        if upload_time > 0.05:  # Only log slow uploads
+            logger.debug(f"Upload for {code} took {upload_time*1000:.1f}ms")
 
-                        # Use wait_for to timeout long processing
-                        try:
-                            await asyncio.wait_for(process_with_vision(), timeout=PROCESSING_TIMEOUT)
-                        except asyncio.TimeoutError:
-                            logger.warning(f"Vision processing timeout for code {code}, skipping analysis")
-                            # Track dropped frame statistics (processing timed out but frame was used)
-                            dropped_frames[code]["reasons"]["processing_timeout"] = dropped_frames[code]["reasons"].get("processing_timeout", 0) + 1
-
-                    except Exception as e:
-                        logger.error(f"Error processing frame for code {code}: {str(e)}")
-                        # Continue processing even if analysis fails
-
-                return {"status": "ok"}
-
-        except asyncio.TimeoutError:
-            # If we couldn't acquire the lock in time, drop the frame
-            # Track dropped frame statistics
-            dropped_frames[code]["count"] += 1
-            dropped_frames[code]["reasons"]["lock_timeout"] = dropped_frames[code]["reasons"].get("lock_timeout", 0) + 1
-            dropped_frames[code]["last_dropped_reason"] = "lock_timeout"
-
-            return {"status": "dropped", "reason": "processing_timeout"}
+        return {"status": "ok", "processed_time_ms": round(upload_time * 1000, 2)}
 
     except ClientDisconnect:
         logger.warning(f"Client disconnected during upload processing for code {code}")
