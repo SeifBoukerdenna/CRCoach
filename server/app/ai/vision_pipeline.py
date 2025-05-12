@@ -1,4 +1,4 @@
-# app/ai/vision_pipeline.py
+# app/ai/vision_pipeline.py - Updated with processing optimizations
 import cv2
 import numpy as np
 import re
@@ -8,7 +8,8 @@ import subprocess
 import tempfile
 from datetime import datetime
 import traceback
-from collections import Counter
+from collections import Counter, deque
+import time
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
@@ -19,6 +20,7 @@ class GameVisionPipeline:
     """
     Vision pipeline for Clash Royale frames.
     Enhanced timer detection with JSON response format.
+    Optimized for performance with frame skipping.
     """
 
     def __init__(self, config=None):
@@ -26,6 +28,14 @@ class GameVisionPipeline:
         self.debug = self.config.get('debug', False)
         self.last_time_value = None
         self.time_confidence_history = []  # Track confidence of readings
+
+        # Throttling and performance tracking
+        self.processing_times = deque(maxlen=10)  # Track last 10 processing times
+        self.last_full_process_time = 0  # When we last did full processing
+        self.min_processing_interval = 0.1  # Only do full processing every 100ms
+        self.cached_results = None  # Cache last results for throttling
+        self.frame_count = 0  # Count frames received
+        self.process_count = 0  # Count frames fully processed
 
         # Tesseract config for timer reading
         self.tsconfig = "--psm 13 -c tessedit_char_blacklist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -42,14 +52,28 @@ class GameVisionPipeline:
         self.analyzers = {
             'time_left': self.analyze_time_left,
         }
-        logger.info("Vision pipeline ready")
+        logger.info("Vision pipeline ready with performance optimizations")
 
     def process_frame(self, frame_data):
         """
         In: raw bytes or cv2 ndarray.
         Out: dict with 'time_left' analysis (or error details).
+        Includes optimizations to throttle processing when under high load.
         """
         try:
+            self.frame_count += 1
+            current_time = time.time()
+
+            # Quick check if we should throttle processing
+            # If we've processed recently and have cached results, return cached
+            if (self.cached_results and
+                current_time - self.last_full_process_time < self.min_processing_interval):
+                # Throttle by returning cached results
+                return self.cached_results
+
+            start_time = time.time()
+
+            # Convert frame data to cv2 format
             frame = (cv2.imdecode(np.frombuffer(frame_data, np.uint8), cv2.IMREAD_COLOR)
                      if isinstance(frame_data, (bytes, bytearray))
                      else frame_data)
@@ -57,16 +81,47 @@ class GameVisionPipeline:
             if frame is None or frame.size == 0:
                 return {'error': 'Invalid frame'}
 
+            # Process frame
             results = {}
             try:
+                # Full processing
                 results['time_left'] = self.analyzers['time_left'](frame)
+                self.process_count += 1
             except Exception as e:
                 logger.error("Time-left analyzer failed: %s", e)
                 logger.error(traceback.format_exc())
                 results['time_left'] = {'error': str(e)}
 
+            # Update processing metrics
+            end_time = time.time()
+            processing_time = end_time - start_time
+            self.processing_times.append(processing_time)
+
+            # Update throttling variables
+            self.last_full_process_time = current_time
+            self.cached_results = results.copy()
+
+            # Adaptive throttling - adjust min interval based on recent processing times
+            if len(self.processing_times) > 5:
+                avg_time = sum(self.processing_times) / len(self.processing_times)
+                # If processing is taking a long time, increase throttling
+                if avg_time > 0.05:  # 50ms threshold
+                    self.min_processing_interval = min(0.3, avg_time * 2)  # Cap at 300ms
+                else:
+                    # Processing is fast, reduce throttling
+                    self.min_processing_interval = max(0.05, avg_time * 2)  # Floor at 50ms
+
+            # Log processing stats occasionally
+            if self.process_count % 30 == 0:
+                logger.info(
+                    f"Vision stats: processed {self.process_count}/{self.frame_count} frames "
+                    f"({self.process_count/self.frame_count:.1%}), "
+                    f"avg time: {sum(self.processing_times)/len(self.processing_times)*1000:.1f}ms, "
+                    f"throttle: {self.min_processing_interval*1000:.1f}ms"
+                )
+
             if self.debug:
-                logger.debug("Frame results: %s", results)
+                logger.debug(f"Frame results: {results}, took {processing_time*1000:.1f}ms")
 
             return results
 
@@ -160,33 +215,37 @@ class GameVisionPipeline:
             cv2.imwrite(f"debug_images/digits_binary_{timestamp}.png", digits_binary)
             cv2.imwrite(f"debug_images/digits_otsu_{timestamp}.png", digits_otsu)
 
-        # Try OCR on different processed images
-        best_result = None
-        for processed_digits in [digits, digits_binary, digits_otsu]:
-            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as t:
-                cv2.imwrite(t.name, processed_digits)
-                try:
-                    txt = subprocess.check_output([
-                        "tesseract", t.name, "stdout",
-                        "--psm", "13",
-                        "-c", "tessedit_char_blacklist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
-                    ], stderr=subprocess.DEVNULL).decode().strip()
-                    os.unlink(t.name)
-
-                    # Check for timer text with validation
-                    validated_result = self._validate_timer_text(txt)
-                    if validated_result:
-                        best_result = validated_result
-                        if debug:
-                            print(f"Found timer: {best_result}")
+        # Use a single temp file to avoid file I/O overhead
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as t:
+            try:
+                # Try different images, but limit OCR attempts for performance
+                for idx, processed_digits in enumerate([digits_binary, digits_otsu]):
+                    if idx > 0 and not debug:
+                        # In non-debug mode, only try the first method for performance
                         break
-                except Exception as e:
-                    if debug:
-                        print(f"OCR failed: {str(e)}")
-                    os.unlink(t.name)
 
-        if best_result:
-            return best_result, is_overtime
+                    cv2.imwrite(t.name, processed_digits)
+                    try:
+                        txt = subprocess.check_output([
+                            "tesseract", t.name, "stdout",
+                            "--psm", "13",
+                            "-c", "tessedit_char_blacklist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+                        ], stderr=subprocess.DEVNULL, timeout=0.1).decode().strip()
+
+                        # Check for timer text with validation
+                        validated_result = self._validate_timer_text(txt)
+                        if validated_result:
+                            return validated_result, is_overtime
+
+                    except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as e:
+                        # Tesseract timed out or failed, continue with next method
+                        if debug:
+                            print(f"OCR attempt {idx+1} failed: {str(e)}")
+                        continue
+            finally:
+                # Make sure we clean up the temp file
+                os.unlink(t.name)
+
         return None
 
     def _validate_timer_text(self, text):
@@ -242,14 +301,22 @@ class GameVisionPipeline:
     def analyze_time_left(self, frame):
         """
         Extract Clash Royale timer and return in the expected format.
+        Optimized for performance.
         """
         try:
             h, w = frame.shape[:2]
 
+            # Make the ROI extraction more efficient by using a smaller portion
             # Precise ROI for timer area (top right corner)
-            roi_x1, roi_x2 = int(w * 0.60), int(w * 1.0)
-            roi_y1, roi_y2 = 0, int(h * 0.18)
+            roi_x1, roi_x2 = int(w * 0.75), w  # More focused area
+            roi_y1, roi_y2 = 0, int(h * 0.15)  # Slightly smaller area
             roi = frame[roi_y1:roi_y2, roi_x1:roi_x2]
+
+            # Resize ROI for faster processing if it's large
+            if roi.shape[1] > 320:  # If width > 320
+                scale = 320 / roi.shape[1]
+                roi = cv2.resize(roi, (320, int(roi.shape[0] * scale)),
+                                interpolation=cv2.INTER_AREA)
 
             # Extract timer using the integrated method
             result = self._read_timer(roi, debug=self.debug)

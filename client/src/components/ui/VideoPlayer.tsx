@@ -3,6 +3,8 @@ import ImprovedGameInfoOverlay from "./gameInfoOverlay/GameInfoOverlay";
 import { useBroadcast } from "../../context/BroadcastContext";
 import "./ImprovedElixirDisplay.css";
 import GameTimerDisplay from "./gameTimerDisplay/GameTimerDisplay";
+import StreamMetrics from "./performance/streamMetrics/StreamMetrics";
+
 
 interface VideoPlayerProps {
     /** Reference to the video element */
@@ -106,6 +108,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         opponentName={gameData.opponentName}
                         gameTime={gameData.gameTime}
                     />
+                )}
+
+                {/* Stream Metrics - only show when connected */}
+                {isConnected && (
+                    <StreamMetrics />
                 )}
             </div>
 

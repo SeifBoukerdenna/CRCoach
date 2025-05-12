@@ -1,0 +1,144 @@
+/* StreamMetrics.css */
+.stream-metrics {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    width: 280px;
+    background: linear-gradient(0deg, rgba(0, 13, 38, 0.85), rgba(0, 21, 61, 0.85));
+    border: 2px solid var(--cr-gold-1);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    color: white;
+    font-family: var(--font-family);
+    z-index: 100;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(4px);
+    overflow: hidden;
+}
+
+.stream-metrics.collapsed {
+    height: 40px;
+}
+
+.stream-metrics.expanded {
+    max-height: 80vh;
+}
+
+.stream-metrics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1));
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 201, 7, 0.3);
+    user-select: none;
+}
+
+.metrics-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--cr-gold-0);
+}
+
+.health-indicator {
+    font-size: 12px;
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 10px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.health-indicator.excellent {
+    background-color: #2ecc71;
+}
+
+.health-indicator.good {
+    background-color: #27ae60;
+}
+
+.health-indicator.fair {
+    background-color: #f39c12;
+}
+
+.health-indicator.poor {
+    background-color: #e74c3c;
+}
+
+.health-indicator.unknown {
+    background-color: #7f8c8d;
+}
+
+.expand-toggle {
+    color: var(--cr-gold-0);
+    font-size: 10px;
+    padding: 0 4px;
+}
+
+.stream-metrics-body {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.metrics-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    align-items: center;
+}
+
+.metric-label {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.metric-value {
+    font-weight: bold;
+    color: white;
+}
+
+.metric-value.timer {
+    font-family: monospace;
+    font-size: 14px;
+    color: var(--cr-gold-0);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.overtime-badge {
+    background-color: var(--cr-red);
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    color: white;
+}
+
+.drop-reason {
+    font-size: 10px;
+    margin-left: 4px;
+    opacity: 0.7;
+    font-style: italic;
+}
+
+.metrics-updated {
+    margin-top: 10px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+}
+
+/* Animation for connecting spinner */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .stream-metrics {
+        bottom: 8px;
+        right: 8px;
+        width: 240px;
+    }
+}
