@@ -27,10 +27,7 @@ TEST_CASES = {
     "IMG_0992.PNG": ("0:19", 19, False),
     "IMG_0986.PNG": ("2:04", 124, False),
     "IMG_0985.PNG": ("2:39", 159, False),
-
-    # Overtime cases (if you have any)
-    # "IMG_OVERTIME1.PNG": ("0:30", 30, True),
-    # "IMG_OVERTIME2.PNG": ("0:15", 15, True),
+    "IMG_1002.PNG": ("0:15", 15, False),
 }
 
 @pytest.fixture(scope="module")

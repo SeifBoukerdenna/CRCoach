@@ -1,5 +1,6 @@
 # app/services/connection_manager.py
 import asyncio
+from time import time  # Add missing import
 from typing import Dict, Set
 from aiortc import RTCPeerConnection
 from track import FrameTrack
@@ -26,9 +27,9 @@ class ConnectionManager:
         """Close PCs when frames stale or no viewers."""
         try:
             while True:
-                await asyncio.sleep(self.settings.watchdog_interval)
+                await asyncio.sleep(self.settings.WATCHDOG_INTERVAL)  # Fix: Use WATCHDOG_INTERVAL
                 last = await FrameTrack.store.get_time(code)
-                stale = (time() - last) > self.settings.frame_timeout
+                stale = (time() - last) > self.settings.FRAME_TIMEOUT  # Fix: Use FRAME_TIMEOUT
                 empty = not self.pcs_by_code.get(code)
                 if stale or empty:
                     for pc in list(self.pcs_by_code.get(code, [])):

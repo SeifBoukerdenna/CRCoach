@@ -38,8 +38,8 @@ async def lifespan(app: FastAPI):
         # Set up analysis services
         app.state.analysis_store = AnalysisStore(expiration=120.0)  # Store results for 2 minutes
         app.state.vision_pipeline = GameVisionPipeline(config={
-            'debug': True,
-            'save_debug_images': True,
+            'debug': False,
+            'save_debug_images': False,
         })
 
         # Start background task for cleanup

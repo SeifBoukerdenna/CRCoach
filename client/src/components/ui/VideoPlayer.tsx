@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import ImprovedGameInfoOverlay from "./gameInfoOverlay/GameInfoOverlay";
+import { useBroadcast } from "../../context/BroadcastContext";
 import "./ImprovedElixirDisplay.css";
+import GameTimerDisplay from "./gameTimerDisplay/GameTimerDisplay";
 
 interface VideoPlayerProps {
     /** Reference to the video element */
@@ -40,6 +42,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     className = "",
     gameData,
 }) => {
+    // Get session code from broadcast context
+    const { sessionCode } = useBroadcast();
+
     // Track if we have active video
     const [hasVideo, setHasVideo] = useState(false);
 
@@ -81,6 +86,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             {/* Video element */}
             <div className="video-wrapper">
                 <video ref={videoRef} className="video-element" />
+
+                {/* Game timer display - shown when connected */}
+                {isConnected && sessionCode && (
+                    <GameTimerDisplay
+                        sessionCode={sessionCode}
+                        className="video-overlay-timer"
+                    />
+                )}
 
                 {/* Game info overlay - shown only when connected */}
                 {isConnected && gameData && (
