@@ -1,62 +1,36 @@
 import time
-import psutil
 from datetime import datetime
 from fastapi import APIRouter, Depends
 from services.session_manager import SessionManager
+from services.stats_collector import StatsCollector
 
 router = APIRouter(prefix="/health", tags=["health"])
 
-def get_session_manager() -> SessionManager:
-    """Dependency to get session manager"""
-    # This will be injected by dependency injection
-    pass
+# Initialize stats collector
+stats_collector = StatsCollector()
 
 @router.get("/")
-async def health_check(session_manager: SessionManager = Depends(get_session_manager)):
+async def health_check(session_manager: SessionManager = Depends(lambda: None)):
     """Basic health check endpoint"""
-
-    stats = session_manager.get_global_stats()
-    memory_info = psutil.Process().memory_info()
 
     return {
         "status": "healthy",
-        "active_sessions": stats['active_sessions'],
-        "total_connections": stats['total_connections'],
-        "healthy_connections": stats['total_connections'],  # Simplified
-        "uptime": time.time(),
         "timestamp": datetime.now().isoformat(),
         "version": "2.1.0-fastapi",
-        "memory_usage": {
-            "rss_mb": round(memory_info.rss / 1024 / 1024, 2),
-            "vms_mb": round(memory_info.vms / 1024 / 1024, 2)
-        }
+        "uptime": time.time() - stats_collector.start_time
     }
 
 @router.get("/detailed")
-async def detailed_health_check(session_manager: SessionManager = Depends(get_session_manager)):
+async def detailed_health_check():
     """Detailed health check with system metrics"""
 
-    stats = session_manager.get_global_stats()
-    cpu_percent = psutil.cpu_percent(interval=1)
-    memory = psutil.virtual_memory()
-    disk = psutil.disk_usage('/')
+    system_stats = stats_collector.get_system_stats()
+    process_stats = stats_collector.get_process_stats()
 
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "version": "2.1.0-fastapi",
-        "webrtc_stats": stats,
-        "system_metrics": {
-            "cpu_percent": cpu_percent,
-            "memory": {
-                "total_gb": round(memory.total / 1024**3, 2),
-                "available_gb": round(memory.available / 1024**3, 2),
-                "percent": memory.percent
-            },
-            "disk": {
-                "total_gb": round(disk.total / 1024**3, 2),
-                "free_gb": round(disk.free / 1024**3, 2),
-                "percent": round((disk.used / disk.total) * 100, 2)
-            }
-        }
+        "system_metrics": system_stats,
+        "process_metrics": process_stats
     }

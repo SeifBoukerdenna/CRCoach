@@ -2,6 +2,7 @@ from typing import Any, Optional, Dict
 from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
+from .connection import ConnectionRole
 
 class MessageType(str, Enum):
     """WebRTC message types"""

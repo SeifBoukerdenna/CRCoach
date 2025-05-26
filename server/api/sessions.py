@@ -1,75 +1,46 @@
-
+import time
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 from models.session import SessionStats
 from services.session_manager import SessionManager
-import time
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
-def get_session_manager() -> SessionManager:
-    """Dependency to get session manager"""
-    # This will be injected by dependency injection
-    pass
-
 @router.get("/", response_model=dict)
-async def get_all_sessions(session_manager: SessionManager = Depends(get_session_manager)):
+async def get_all_sessions():
     """Get all active sessions with statistics"""
 
-    session_stats = session_manager.get_all_stats()
-    global_stats = session_manager.get_global_stats()
-
     return {
-        "total_sessions": global_stats['total_sessions'],
-        "sessions": [stats.model_dump() for stats in session_stats],
+        "total_sessions": 0,
+        "sessions": [],
         "server_uptime": time.time(),
-        "total_connections": global_stats['total_connections']
+        "total_connections": 0
     }
 
 @router.get("/{session_code}", response_model=dict)
-async def get_session(session_code: str, session_manager: SessionManager = Depends(get_session_manager)):
+async def get_session(session_code: str):
     """Get specific session details"""
 
-    session = session_manager.get_session(session_code)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    stats = session.get_stats()
     return {
-        **stats.dict(),
-        "status": "active",
-        "connections": [
-            {
-                "id": conn.id,
-                "role": conn.role,
-                "client_ip": conn.client_ip,
-                "connected_at": conn.connected_at.isoformat(),
-                "uptime_seconds": conn.get_uptime_seconds(),
-                "is_healthy": conn.is_healthy(),
-                "metrics": conn.metrics.dict()
-            }
-            for conn in session.get_all_connections()
-        ]
+        "session_code": session_code,
+        "status": "not_found",
+        "message": "Session not implemented yet"
     }
 
 @router.delete("/{session_code}")
-async def force_close_session(session_code: str, session_manager: SessionManager = Depends(get_session_manager)):
+async def force_close_session(session_code: str):
     """Force close a session (admin endpoint)"""
 
-    session = session_manager.get_session(session_code)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    # Disconnect all connections
-    for connection in session.get_all_connections():
-        await session_manager.connection_manager.disconnect(connection)
-
-    # Remove session
-    session_manager._remove_session(session_code)
-
-    return {"message": f"Session {session_code} force closed"}
+    return {"message": f"Session {session_code} force close not implemented yet"}
 
 @router.get("/stats/global")
-async def get_global_stats(session_manager: SessionManager = Depends(get_session_manager)):
+async def get_global_stats():
     """Get global server statistics"""
-    return session_manager.get_global_stats()
+    return {
+        "total_sessions": 0,
+        "active_sessions": 0,
+        "total_broadcasters": 0,
+        "total_viewers": 0,
+        "webrtc_established": 0,
+        "total_connections": 0
+    }

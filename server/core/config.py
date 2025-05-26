@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import List
 from pydantic_settings import BaseSettings
 
 class WebRTCSettings(BaseSettings):
@@ -30,7 +30,7 @@ class WebRTCSettings(BaseSettings):
     cleanup_interval: int = 120
 
     # Security
-    allowed_origins: list = ["*"]
+    allowed_origins: List[str] = ["*"]
     enable_cors: bool = True
 
     class Config:

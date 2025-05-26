@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 def validate_session_code(session_code: str) -> bool:
     """Validate session code format"""
@@ -7,8 +7,7 @@ def validate_session_code(session_code: str) -> bool:
         return False
 
     # Must be exactly 4 digits
-    return bool(re.match(r'^\d{4}'
-, session_code))
+    return bool(re.match(r'^\d{4}$', session_code))
 
 def validate_role(role: str) -> bool:
     """Validate connection role"""

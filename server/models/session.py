@@ -1,7 +1,8 @@
-from typing import Set, Optional, Dict, List
-from pydantic import BaseModel, Field, Any
+from typing import Set, Optional, Dict, List, Any
+from pydantic import BaseModel, Field
 from datetime import datetime
 from .connection import Connection, ConnectionRole
+
 
 class SessionStats(BaseModel):
     """Session statistics model"""
@@ -46,10 +47,6 @@ class WebRTCSession(BaseModel):
 
     def add_broadcaster(self, connection: Connection) -> bool:
         """Add broadcaster to session"""
-        if self.broadcaster:
-            # Replace existing broadcaster
-            pass
-
         self.broadcaster = connection
         self.update_activity()
         return True

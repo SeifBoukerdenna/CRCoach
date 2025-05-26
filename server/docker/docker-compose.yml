@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  webrtc-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - WEBRTC_DEBUG=true
+      - WEBRTC_HOST=0.0.0.0
+      - WEBRTC_PORT=8080
+      - WEBRTC_MAX_SESSIONS=1000
+      - WEBRTC_MAX_VIEWERS_PER_SESSION=10
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add Redis for scaling across multiple instances
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Optional: Add Nginx for load balancing
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - webrtc-server
+    restart: unless-stopped

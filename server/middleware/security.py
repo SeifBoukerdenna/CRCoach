@@ -2,6 +2,9 @@ import time
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from core.config import settings
+from core.logging import setup_logging
+
+logger = setup_logging(settings.debug)
 
 class SecurityMiddleware(BaseHTTPMiddleware):
     """Security headers and basic protection middleware"""

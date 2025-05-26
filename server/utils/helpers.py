@@ -1,7 +1,7 @@
 import asyncio
 import signal
 from datetime import datetime
-from typing import Callable, Any
+from typing import Callable
 from core.logging import setup_logging
 
 logger = setup_logging()
