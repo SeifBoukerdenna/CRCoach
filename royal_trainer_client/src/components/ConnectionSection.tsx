@@ -159,20 +159,6 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                     >
                         Clear
                     </motion.button>
-                    <motion.button
-                        onClick={() => {
-                            const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
-                            const newDigits = randomCode.split('');
-                            setDigits(newDigits);
-                            onSessionCodeChange(randomCode);
-                        }}
-                        className="px-4 py-2 text-sm text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/10"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        disabled={connectionState === 'live'}
-                    >
-                        Random
-                    </motion.button>
                 </div>
             </div>
 

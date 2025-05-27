@@ -147,14 +147,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
         >
-            {/* Enhanced Video Element - Compact */}
+            {/* Enhanced Video Element - Larger */}
             <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted={isMuted}
                 controls={false}
-                className="w-full h-auto max-h-[65vh] object-contain bg-black cursor-pointer"
+                className="w-full h-auto max-h-[75vh] object-contain bg-black cursor-pointer"
                 onClick={toggleFullscreen}
                 onLoadedMetadata={() => console.log("Video metadata loaded successfully")}
                 onError={() => console.error("Failed to load video")}

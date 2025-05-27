@@ -17,7 +17,9 @@ const App: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>('00:00:00');
-  const [isInferenceEnabled, setIsInferenceEnabled] = useState(false);
+  const [, setIsInferenceEnabled] = useState(false);
+  const [showConnectionLoader, setShowConnectionLoader] = useState(false);
+  const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const {
     videoRef,
@@ -40,6 +42,12 @@ const App: React.FC = () => {
       setConnectionState('connecting');
     } else if (isConnected) {
       setConnectionState('live');
+      // Hide loading screen when connected
+      setShowConnectionLoader(false);
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+        setConnectionTimeout(null);
+      }
       if (!startTime) {
         setStartTime(new Date());
         // Celebration confetti when connected!
@@ -53,8 +61,14 @@ const App: React.FC = () => {
     } else {
       setConnectionState('offline');
       setStartTime(null);
+      // Hide loading screen when offline
+      setShowConnectionLoader(false);
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+        setConnectionTimeout(null);
+      }
     }
-  }, [isConnecting, isConnected, startTime]);
+  }, [isConnecting, isConnected, startTime, connectionTimeout]);
 
   // Update elapsed time
   useEffect(() => {
@@ -76,12 +90,29 @@ const App: React.FC = () => {
     if (sessionCode.length !== 4) return;
 
     setIsConnecting(true);
+    setShowConnectionLoader(true);
+
+    // Set timeout to reset after 6 seconds if no connection
+    const timeout = setTimeout(() => {
+      console.log('Connection timeout - resetting to offline state');
+      setIsConnecting(false);
+      setShowConnectionLoader(false);
+      setConnectionState('offline');
+      // Could also show an error message here
+    }, 6000);
+
+    setConnectionTimeout(timeout);
+
     try {
       await connect(sessionCode);
     } catch (error) {
       console.error('Connection failed:', error);
-    } finally {
       setIsConnecting(false);
+      setShowConnectionLoader(false);
+      if (timeout) {
+        clearTimeout(timeout);
+        setConnectionTimeout(null);
+      }
     }
   };
 
@@ -89,7 +120,21 @@ const App: React.FC = () => {
     disconnect();
     setStartTime(null);
     setElapsedTime('00:00:00');
+    setShowConnectionLoader(false);
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout);
+      setConnectionTimeout(null);
+    }
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+      }
+    };
+  }, [connectionTimeout]);
 
   const handleSessionCodeChange = (code: string) => {
     setSessionCode(code);
@@ -178,8 +223,8 @@ const App: React.FC = () => {
           )}
         </motion.div>
 
-        {/* Main Content Grid - Compact */}
-        <div className="max-w-[1800px] mx-auto px-2">
+        {/* Main Content Grid - Larger video section */}
+        <div className="max-w-[2000px] mx-auto px-2">
           <AnimatePresence mode="wait">
             {connectionState === 'live' ? (
               <motion.div
@@ -188,9 +233,9 @@ const App: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 lg:grid-cols-6 xl:grid-cols-7 gap-4"
+                className="grid grid-cols-1 lg:grid-cols-8 xl:grid-cols-9 gap-4"
               >
-                {/* Left Controls Column */}
+                {/* Left Controls Column - Smaller */}
                 <motion.div
                   className="lg:col-span-2 xl:col-span-2 space-y-4"
                   initial={{ opacity: 0, x: -50 }}
@@ -214,9 +259,9 @@ const App: React.FC = () => {
                   />
                 </motion.div>
 
-                {/* Center Video Column - Compact */}
+                {/* Center Video Column - Much Larger */}
                 <motion.div
-                  className="lg:col-span-4 xl:col-span-3"
+                  className="lg:col-span-4 xl:col-span-5"
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
@@ -228,9 +273,9 @@ const App: React.FC = () => {
                   />
                 </motion.div>
 
-                {/* Right AI Panel Column */}
+                {/* Right AI Panel Column - Smaller */}
                 <motion.div
-                  className="lg:col-span-6 xl:col-span-2"
+                  className="lg:col-span-2 xl:col-span-2"
                   initial={{ opacity: 0, x: 50 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.6 }}
@@ -346,6 +391,198 @@ const App: React.FC = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Beautiful Connection Loading Overlay */}
+      <AnimatePresence>
+        {showConnectionLoader && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex items-center justify-center"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border border-slate-600/50 rounded-3xl p-12 text-center shadow-2xl max-w-md mx-4"
+            >
+              {/* Animated Crown */}
+              <motion.div
+                className="text-8xl mb-8"
+                animate={{
+                  rotateY: [0, 360],
+                  scale: [1, 1.2, 1]
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                👑
+              </motion.div>
+
+              {/* Loading Title */}
+              <motion.h2
+                className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent mb-4"
+                animate={{ opacity: [0.7, 1, 0.7] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              >
+                Connecting to Royal Stream
+              </motion.h2>
+
+              {/* Session Code Display */}
+              <div className="mb-8">
+                <p className="text-white/70 text-lg mb-3">Session Code:</p>
+                <div className="flex justify-center gap-2">
+                  {sessionCode.split('').map((digit, index) => (
+                    <motion.div
+                      key={index}
+                      className="w-12 h-12 bg-gradient-to-br from-yellow-400/20 to-orange-500/20 border-2 border-yellow-400/50 rounded-xl flex items-center justify-center text-2xl font-bold text-yellow-400"
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ delay: index * 0.1, duration: 0.5 }}
+                    >
+                      {digit}
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Centered Spinning Loading Ring */}
+              <div className="relative mb-6 flex justify-center items-center">
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <motion.div
+                    className="absolute w-20 h-20 border-4 border-white/20 rounded-full"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.5 }}
+                  />
+                  <motion.div
+                    className="absolute w-20 h-20 border-4 border-transparent border-t-yellow-400 border-r-orange-500 rounded-full"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  />
+                  <motion.div
+                    className="absolute w-16 h-16 border-4 border-transparent border-b-purple-500 border-l-blue-500 rounded-full"
+                    animate={{ rotate: -360 }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  />
+                  {/* Center dot */}
+                  <motion.div
+                    className="absolute w-2 h-2 bg-yellow-400 rounded-full"
+                    animate={{
+                      scale: [1, 1.5, 1],
+                      opacity: [0.7, 1, 0.7]
+                    }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  />
+                </div>
+              </div>
+
+              {/* Loading Text with Dots */}
+              <motion.div
+                className="text-white/80 text-lg mb-4"
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              >
+                Establishing connection
+                <motion.span
+                  animate={{ opacity: [0, 1, 0] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+                >
+                  .
+                </motion.span>
+                <motion.span
+                  animate={{ opacity: [0, 1, 0] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                >
+                  .
+                </motion.span>
+                <motion.span
+                  animate={{ opacity: [0, 1, 0] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+                >
+                  .
+                </motion.span>
+              </motion.div>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-white/10 rounded-full h-2 mb-4 overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-full"
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 6, ease: "easeOut" }}
+                />
+              </div>
+
+              {/* Status Messages */}
+              <motion.div
+                className="text-sm text-white/60"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1 }}
+              >
+                <motion.p
+                  key="status-1"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  🔗 Connecting to stream server...
+                </motion.p>
+
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 2 }}
+                  className="mt-2"
+                >
+                  🎮 Waiting for broadcast signal...
+                </motion.p>
+
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 4 }}
+                  className="mt-2"
+                >
+                  ⚡ Initializing real-time features...
+                </motion.p>
+              </motion.div>
+
+              {/* Floating Particles Effect */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                {[...Array(12)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-1 h-1 bg-yellow-400/60 rounded-full"
+                    style={{
+                      left: `${Math.random() * 100}%`,
+                      top: `${Math.random() * 100}%`,
+                    }}
+                    animate={{
+                      y: [-20, -40, -20],
+                      opacity: [0, 1, 0],
+                      scale: [0, 1, 0],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      delay: i * 0.3,
+                      ease: "easeInOut",
+                    }}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Enhanced Connection Status Indicator */}
       {connectionState === 'connecting' && (
