@@ -159,23 +159,14 @@ const App: React.FC = () => {
       </div>
 
       <div className="relative z-10 min-h-screen p-3">
-        {/* Compact Header */}
+        {/* Simplified Header */}
         <motion.div
           className="text-center mb-4 pt-4"
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
         >
-          <motion.div
-            className="text-5xl mb-3"
-            animate={{
-              rotateY: [0, 10, -10, 0],
-              scale: [1, 1.05, 1]
-            }}
-            transition={{ duration: 4, repeat: Infinity, repeatDelay: 2 }}
-          >
-            👑
-          </motion.div>
+          <div className="text-5xl mb-3">👑</div>
           <h1 className="text-4xl font-black bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-600 bg-clip-text text-transparent mb-2 tracking-tight">
             Royal Trainer
           </h1>
@@ -183,12 +174,12 @@ const App: React.FC = () => {
           <div className="mt-2 text-sm text-white/70">Real-time AI-powered game insights</div>
         </motion.div>
 
-        {/* Compact Status Bar */}
+        {/* Simplified Status Bar */}
         <motion.div
           className="flex flex-wrap justify-center gap-3 mb-6"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
         >
           <StatusBadge
             icon={connectionState === 'live' ? Wifi : WifiOff}
@@ -223,24 +214,24 @@ const App: React.FC = () => {
           )}
         </motion.div>
 
-        {/* Main Content Grid - Larger video section */}
+        {/* Main Content Grid - Fast loading */}
         <div className="max-w-[2000px] mx-auto px-2">
           <AnimatePresence mode="wait">
             {connectionState === 'live' ? (
               <motion.div
                 key="live-content"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.5 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
                 className="grid grid-cols-1 lg:grid-cols-8 xl:grid-cols-9 gap-4"
               >
-                {/* Left Controls Column - Smaller */}
+                {/* Left Controls Column */}
                 <motion.div
                   className="lg:col-span-2 xl:col-span-2 space-y-4"
-                  initial={{ opacity: 0, x: -50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
                 >
                   <ConnectionSection
                     sessionCode={sessionCode}
@@ -259,12 +250,12 @@ const App: React.FC = () => {
                   />
                 </motion.div>
 
-                {/* Center Video Column - Much Larger */}
+                {/* Center Video Column */}
                 <motion.div
                   className="lg:col-span-4 xl:col-span-5"
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
                 >
                   <VideoStream
                     videoRef={videoRef}
@@ -273,12 +264,12 @@ const App: React.FC = () => {
                   />
                 </motion.div>
 
-                {/* Right AI Panel Column - Smaller */}
+                {/* Right AI Panel Column */}
                 <motion.div
                   className="lg:col-span-2 xl:col-span-2"
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.6 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
                 >
                   <InferencePanel
                     inferenceData={inferenceData}
@@ -294,13 +285,14 @@ const App: React.FC = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
                 className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto"
               >
-                {/* Connection Panel */}
+                {/* Connection Panel - Fast */}
                 <motion.div
-                  initial={{ opacity: 0, x: -50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
                 >
                   <ConnectionSection
                     sessionCode={sessionCode}
@@ -313,23 +305,14 @@ const App: React.FC = () => {
                   />
                 </motion.div>
 
-                {/* Enhanced Placeholder - Compact */}
+                {/* Placeholder - Fast */}
                 <motion.div
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
                   className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 text-center shadow-2xl"
                 >
-                  <motion.div
-                    className="text-5xl mb-4 opacity-60"
-                    animate={{
-                      rotateY: [0, 360],
-                      scale: [1, 1.1, 1]
-                    }}
-                    transition={{ duration: 6, repeat: Infinity }}
-                  >
-                    📱
-                  </motion.div>
+                  <div className="text-5xl mb-4 opacity-60">📱</div>
                   <h3 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent mb-3">
                     Ready to Connect
                   </h3>
@@ -337,7 +320,7 @@ const App: React.FC = () => {
                     Experience next-generation Clash Royale analysis with real-time AI insights
                   </p>
 
-                  {/* Compact Getting Started Guide */}
+                  {/* Simplified Getting Started Guide */}
                   <div className="text-left max-w-md mx-auto">
                     <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                       <Crown className="w-5 h-5 text-yellow-400" />
@@ -350,19 +333,16 @@ const App: React.FC = () => {
                         { step: "3", text: "Note your 4-digit session code", icon: "🔢" },
                         { step: "4", text: "Enter code and click Connect", icon: "🚀" }
                       ].map((item, index) => (
-                        <motion.div
+                        <div
                           key={item.step}
                           className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-xl border border-slate-700/30"
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.7 + index * 0.1 }}
                         >
                           <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 rounded-lg flex items-center justify-center text-sm font-black">
                             {item.step}
                           </div>
                           <div className="text-lg">{item.icon}</div>
                           <div className="text-white/90 text-sm font-medium">{item.text}</div>
-                        </motion.div>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -372,12 +352,12 @@ const App: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* Compact Footer */}
+        {/* Simplified Footer */}
         <motion.div
           className="mt-8 text-center text-white/40 text-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 1.2 }}
+          transition={{ duration: 0.3 }}
         >
           <div className="flex items-center justify-center gap-4 mb-2 text-base">
             <span className="flex items-center gap-2">🏆 Royal Trainer</span>
