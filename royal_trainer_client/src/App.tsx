@@ -1,16 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Wifi, WifiOff, Eye, Zap, Clock } from 'lucide-react';
+import { Crown, Wifi, WifiOff, Clock, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import ConnectionSection from './components/ConnectionSection';
 import VideoStream from './components/VideoStream';
-import InferencePanel from './components/InferencePanel';
 import StatusBadge from './components/StatusBadge';
 import { useWebRTC } from './hooks/useWebRTC';
-import { useInference } from './hooks/useInference';
 import type { ConnectionState } from './types';
-import InferenceControlPanel from './components/inference/InferenceControlPanel';
-
 
 const App: React.FC = () => {
   const [connectionState, setConnectionState] = useState<ConnectionState>('offline');
@@ -18,7 +14,6 @@ const App: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>('00:00:00');
-  const [isInferenceEnabled, setIsInferenceEnabled] = useState(false);
 
   const {
     videoRef,
@@ -28,12 +23,6 @@ const App: React.FC = () => {
     connectionError,
     streamStats
   } = useWebRTC();
-
-  const {
-    inferenceData,
-    isInferenceActive,
-    inferenceStats
-  } = useInference(sessionCode, isConnected);
 
   // Update connection state based on WebRTC status
   useEffect(() => {
@@ -54,7 +43,6 @@ const App: React.FC = () => {
     } else {
       setConnectionState('offline');
       setStartTime(null);
-      setIsInferenceEnabled(false); // Reset inference state when disconnected
     }
   }, [isConnecting, isConnected, startTime]);
 
@@ -91,11 +79,10 @@ const App: React.FC = () => {
     disconnect();
     setStartTime(null);
     setElapsedTime('00:00:00');
-    setIsInferenceEnabled(false);
   };
 
-  const handleInferenceStateChange = (enabled: boolean) => {
-    setIsInferenceEnabled(enabled);
+  const handleSessionCodeChange = (code: string) => {
+    setSessionCode(code);
   };
 
   return (
@@ -125,7 +112,7 @@ const App: React.FC = () => {
           <h1 className="text-5xl font-bold bg-gold-gradient bg-clip-text text-transparent mb-2">
             Royal Trainer
           </h1>
-          <p className="text-xl text-white/90">Live Clash Royale Analysis</p>
+          <p className="text-xl text-white/90">Live Clash Royale Streaming</p>
         </motion.div>
 
         {/* Status Bar */}
@@ -149,14 +136,6 @@ const App: React.FC = () => {
                 variant="info"
               />
 
-              {isInferenceEnabled && isInferenceActive && (
-                <StatusBadge
-                  icon={Eye}
-                  text="AI Active"
-                  variant="inference"
-                />
-              )}
-
               {streamStats && (
                 <StatusBadge
                   icon={Zap}
@@ -169,34 +148,22 @@ const App: React.FC = () => {
         </motion.div>
 
         <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-8">
-          {/* Left Column - Connection & AI Control */}
+          {/* Left Column - Connection */}
           <motion.div
-            className="lg:w-1/3 space-y-6"
+            className="lg:w-1/3"
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            {/* Connection Section */}
             <ConnectionSection
               sessionCode={sessionCode}
-              onSessionCodeChange={setSessionCode}
+              onSessionCodeChange={handleSessionCodeChange}
               connectionState={connectionState}
               onConnect={handleConnect}
               onDisconnect={handleDisconnect}
               isConnecting={isConnecting}
               connectionError={connectionError}
             />
-
-            {/* AI Inference Control Panel */}
-            <AnimatePresence>
-              {connectionState === 'live' && (
-                <InferenceControlPanel
-                  sessionCode={sessionCode}
-                  isConnected={isConnected}
-                  onInferenceStateChange={handleInferenceStateChange}
-                />
-              )}
-            </AnimatePresence>
           </motion.div>
 
           {/* Right Column - Video Stream */}
@@ -260,10 +227,6 @@ const App: React.FC = () => {
                         <div className="w-6 h-6 bg-cr-gold text-cr-brown rounded-full flex items-center justify-center text-xs font-bold mt-0.5">4</div>
                         <div>Enter the code above and click Connect</div>
                       </div>
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-cr-purple text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">5</div>
-                        <div>Enable AI Analysis for real-time insights!</div>
-                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -271,26 +234,6 @@ const App: React.FC = () => {
             </AnimatePresence>
           </motion.div>
         </div>
-
-        {/* Inference Analysis Panel - Full Width */}
-        <AnimatePresence>
-          {connectionState === 'live' && isInferenceEnabled && (
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 50 }}
-              transition={{ duration: 0.5, delay: 0.8 }}
-              className="w-full max-w-6xl mt-8"
-            >
-              <InferencePanel
-                inferenceData={inferenceData}
-                isActive={isInferenceActive}
-                stats={inferenceStats}
-                sessionCode={sessionCode}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Footer Info */}
         <motion.div
@@ -302,45 +245,15 @@ const App: React.FC = () => {
           <div className="flex items-center justify-center gap-4 mb-2">
             <span>🏆 Royal Trainer</span>
             <span>•</span>
-            <span>⚡ Real-time Analysis</span>
+            <span>📱 Live Streaming</span>
             <span>•</span>
-            <span>🧠 AI-Powered</span>
+            <span>⚡ Real-time</span>
           </div>
           <div className="text-xs text-white/30">
-            Professional Clash Royale coaching platform with advanced AI detection
+            Professional Clash Royale streaming platform
           </div>
         </motion.div>
       </div>
-
-      {/* Floating Action Indicators */}
-      <AnimatePresence>
-        {connectionState === 'live' && !isInferenceEnabled && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className="fixed bottom-6 right-6 bg-cr-purple/90 backdrop-blur-xl border-2 border-cr-purple-light rounded-2xl p-4 shadow-2xl max-w-sm"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-cr-purple-light rounded-full flex items-center justify-center">
-                <Eye className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <div className="text-white font-bold text-sm">AI Ready!</div>
-                <div className="text-white/70 text-xs">Click "Start AI Analysis" to begin</div>
-              </div>
-            </div>
-            <div className="mt-2 w-full bg-cr-purple-light/30 rounded-full h-1">
-              <motion.div
-                className="h-1 bg-cr-purple-light rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: '100%' }}
-                transition={{ duration: 3, repeat: Infinity }}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Connection Status Indicator */}
       {connectionState === 'connecting' && (
@@ -353,6 +266,21 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             <span className="text-white font-medium text-sm">Connecting to stream...</span>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Error Display */}
+      {connectionError && (
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 50 }}
+          className="fixed bottom-4 right-4 bg-red-600/90 backdrop-blur-xl border-2 border-red-500 rounded-xl p-4 shadow-xl max-w-sm"
+        >
+          <div className="text-white">
+            <div className="font-bold">Connection Error</div>
+            <div className="text-sm">{connectionError.message}</div>
           </div>
         </motion.div>
       )}

@@ -4,7 +4,7 @@ import { Maximize2, Minimize2, Settings, Zap, Monitor } from 'lucide-react';
 import type { StreamStats } from '../types';
 
 interface VideoStreamProps {
-    videoRef: React.RefObject<HTMLVideoElement | null>; // Fix: Allow null
+    videoRef: React.RefObject<HTMLVideoElement>;
     sessionCode: string;
     streamStats: StreamStats | null;
 }
@@ -22,7 +22,7 @@ const VideoStream: React.FC<VideoStreamProps> = ({
         const video = videoRef.current;
         if (!video) return;
 
-        const handleLoadedData = () => {
+        const handleLoadedMetadata = () => {
             setVideoReady(true);
         };
 
@@ -34,12 +34,12 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             setVideoReady(false);
         };
 
-        video.addEventListener('loadeddata', handleLoadedData);
+        video.addEventListener('loadedmetadata', handleLoadedMetadata);
         video.addEventListener('play', handlePlay);
         video.addEventListener('error', handleError);
 
         return () => {
-            video.removeEventListener('loadeddata', handleLoadedData);
+            video.removeEventListener('loadedmetadata', handleLoadedMetadata);
             video.removeEventListener('play', handlePlay);
             video.removeEventListener('error', handleError);
         };
@@ -88,32 +88,19 @@ const VideoStream: React.FC<VideoStreamProps> = ({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
         >
-            {/* Video Element */}
+            {/* Video Element - Exact same properties as Python viewer */}
             <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
                 controls={false}
-                className="w-full h-auto block bg-black"
+                className="w-full h-auto block bg-black cursor-pointer"
                 style={{ aspectRatio: '16/9' }}
+                onClick={toggleFullscreen}
+                onLoadedMetadata={() => console.log("Video metadata loaded successfully")}
+                onError={() => console.error("Failed to load video")}
             />
-
-            {/* Loading Overlay */}
-            {!videoReady && (
-                <motion.div
-                    className="absolute inset-0 bg-black/80 flex items-center justify-center"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                >
-                    <div className="text-center">
-                        <div className="w-16 h-16 border-4 border-cr-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                        <p className="text-white text-lg font-medium">Connecting to stream...</p>
-                        <p className="text-white/60 text-sm mt-2">Session: {sessionCode}</p>
-                    </div>
-                </motion.div>
-            )}
 
             {/* Video Overlay Controls */}
             <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
@@ -129,6 +116,11 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                         <span className="text-white font-bold text-lg">LIVE</span>
                     </div>
                     <p className="text-white/80 text-sm">Session: {sessionCode}</p>
+                    {videoReady && videoRef.current && (
+                        <p className="text-green-400 text-xs">
+                            {videoRef.current.videoWidth}×{videoRef.current.videoHeight}
+                        </p>
+                    )}
                 </motion.div>
 
                 {/* Control Buttons */}
@@ -209,6 +201,13 @@ const VideoStream: React.FC<VideoStreamProps> = ({
                                 </span>
                             </div>
                         )}
+
+                        <div className="flex justify-between gap-4">
+                            <span className="text-white/70">Status:</span>
+                            <span className="text-green-400 font-medium">
+                                {videoReady ? "Playing" : "Loading"}
+                            </span>
+                        </div>
                     </div>
                 </motion.div>
             )}
