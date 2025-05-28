@@ -1,5 +1,6 @@
 import json
 import uuid
+import time
 from datetime import datetime
 from typing import Tuple, Optional
 from fastapi import WebSocket
@@ -12,7 +13,8 @@ async def send_error(ws: WebSocket, message: str):
         error_msg = {
             'type': 'error',
             'message': message,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'server_timestamp': time.time() * 1000  # Add server timestamp in milliseconds
         }
         await ws.send_text(json.dumps(error_msg))
         print(f"❌ Sent error to client: {message}")
@@ -20,11 +22,17 @@ async def send_error(ws: WebSocket, message: str):
         print(f"❌ Failed to send error message: {e}")
 
 async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManager) -> Tuple[Optional[Session], Optional[str]]:
-    """Handle connection request"""
+    """Handle connection request with latency tracking"""
     session_code = msg.get('sessionCode')
     role = msg.get('role')
+    client_timestamp = msg.get('timestamp', time.time() * 1000)  # Get client timestamp
+    server_receive_time = time.time() * 1000
 
     print(f"🔌 Connection request: session={session_code}, role={role}")
+
+    # Calculate signaling latency (client to server)
+    signaling_latency = server_receive_time - client_timestamp if client_timestamp else 0
+    print(f"📊 Signaling latency: {signaling_latency:.1f}ms")
 
     if not session_code or not role:
         await send_error(ws, 'Missing sessionCode or role')
@@ -42,6 +50,11 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
     current_session = session_manager.create_session(session_code)
     current_session.connection_attempts += 1
 
+    # Store connection timestamp and latency info
+    connection_id = getattr(ws, 'connection_id', 'unknown')
+    ws.connect_time = server_receive_time
+    ws.signaling_latency = signaling_latency
+
     success = False
     if role == 'broadcaster':
         await current_session.add_broadcaster(ws)
@@ -57,63 +70,157 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
             'viewerCount': len(current_session.viewers),
             'maxViewers': current_session.max_viewers,
             'timestamp': datetime.now().isoformat(),
-            'connectionId': getattr(ws, 'connection_id', 'unknown')
+            'connectionId': connection_id,
+            'server_timestamp': time.time() * 1000,
+            'signaling_latency': signaling_latency,
+            'latency_info': {
+                'client_timestamp': client_timestamp,
+                'server_receive_time': server_receive_time,
+                'signaling_latency_ms': signaling_latency
+            }
         }
 
         await ws.send_text(json.dumps(response))
-        print(f"✅ {role} connected to session {session_code} - sent response: {response}")
+        print(f"✅ {role} connected to session {session_code} - signaling latency: {signaling_latency:.1f}ms")
 
     return current_session, role
 
 async def handle_signaling(current_session: Session, ws: WebSocket, msg: dict):
-    """Handle WebRTC signaling messages"""
+    """Handle WebRTC signaling messages with latency tracking"""
     if not current_session:
         await send_error(ws, 'Not in a session')
         return
 
     msg_type = msg.get('type', 'unknown')
     role = getattr(ws, 'role', 'unknown')
+    server_receive_time = time.time() * 1000
+    client_timestamp = msg.get('timestamp', server_receive_time)
+
+    # Add server timestamps and latency info to the message
+    msg['server_receive_time'] = server_receive_time
+    msg['server_forward_time'] = time.time() * 1000
+    msg['signaling_hop_latency'] = server_receive_time - client_timestamp if client_timestamp else 0
 
     print(f"🔄 Handling {msg_type} from {role} in session {current_session.session_code}")
 
-    # Log detailed message info
+    # Log detailed message info with latency
     if msg_type == 'offer':
         sdp = msg.get('sdp', '')
-        print(f"📤 Offer SDP length: {len(sdp)} chars")
+        hop_latency = msg.get('signaling_hop_latency', 0)
+        print(f"📤 Offer SDP length: {len(sdp)} chars, signaling latency: {hop_latency:.1f}ms")
         if 'video' in sdp.lower():
             print("✅ SDP contains video")
         if 'audio' in sdp.lower():
             print("✅ SDP contains audio")
     elif msg_type == 'answer':
         sdp = msg.get('sdp', '')
-        print(f"📤 Answer SDP length: {len(sdp)} chars")
+        hop_latency = msg.get('signaling_hop_latency', 0)
+        print(f"📤 Answer SDP length: {len(sdp)} chars, signaling latency: {hop_latency:.1f}ms")
     elif msg_type == 'ice':
         candidate = msg.get('candidate', '')
-        print(f"🧊 ICE candidate: {candidate[:50]}...")
+        hop_latency = msg.get('signaling_hop_latency', 0)
+        print(f"🧊 ICE candidate: {candidate[:50]}..., signaling latency: {hop_latency:.1f}ms")
 
-    # Forward immediately
+    # Forward immediately with enhanced timing info
     await current_session.broadcast_message(msg, ws)
 
 async def handle_ping(ws: WebSocket):
-    """Handle ping message"""
+    """Handle ping message with enhanced latency tracking"""
     connection_id = getattr(ws, 'connection_id', 'unknown')
+    server_time = time.time() * 1000
+
     pong_msg = {
         'type': 'pong',
         'timestamp': datetime.now().isoformat(),
-        'connectionId': connection_id
+        'connectionId': connection_id,
+        'server_timestamp': server_time,
+        'latency_info': {
+            'server_receive_time': server_time,
+            'server_send_time': time.time() * 1000
+        }
     }
     await ws.send_text(json.dumps(pong_msg))
     print(f"🏓 Pong sent to {connection_id}")
 
+async def handle_frame_timing(ws: WebSocket, msg: dict, session_manager: SessionManager):
+    """Handle frame timing messages for end-to-end latency tracking"""
+    frame_id = msg.get('frameId')
+    capture_timestamp = msg.get('captureTimestamp')
+    display_timestamp = msg.get('displayTimestamp')
+    session_code = msg.get('sessionCode')
+
+    if not all([frame_id, capture_timestamp, display_timestamp, session_code]):
+        print("⚠️ Incomplete frame timing data received")
+        return
+
+    # Calculate end-to-end latency
+    end_to_end_latency = display_timestamp - capture_timestamp
+    server_process_time = time.time() * 1000
+
+    # Store latency data in session
+    current_session = session_manager.get_session(session_code)
+    if current_session:
+        if not hasattr(current_session, 'latency_data'):
+            current_session.latency_data = []
+
+        latency_record = {
+            'frame_id': frame_id,
+            'capture_timestamp': capture_timestamp,
+            'display_timestamp': display_timestamp,
+            'end_to_end_latency': end_to_end_latency,
+            'server_process_time': server_process_time,
+            'role': getattr(ws, 'role', 'unknown')
+        }
+
+        current_session.latency_data.append(latency_record)
+
+        # Keep only last 100 records
+        if len(current_session.latency_data) > 100:
+            current_session.latency_data = current_session.latency_data[-100:]
+
+        # Calculate running average
+        recent_latencies = [record['end_to_end_latency'] for record in current_session.latency_data[-10:]]
+        avg_latency = sum(recent_latencies) / len(recent_latencies) if recent_latencies else 0
+
+        print(f"📊 Frame {frame_id[:8]}... - E2E latency: {end_to_end_latency:.1f}ms, Avg: {avg_latency:.1f}ms")
+
+        # Broadcast latency update to all clients in session
+        latency_update = {
+            'type': 'latency_update',
+            'session_code': session_code,
+            'frame_id': frame_id,
+            'end_to_end_latency': end_to_end_latency,
+            'average_latency': avg_latency,
+            'min_latency': min(recent_latencies) if recent_latencies else 0,
+            'max_latency': max(recent_latencies) if recent_latencies else 0,
+            'total_frames': len(current_session.latency_data),
+            'server_timestamp': server_process_time
+        }
+
+        await current_session.broadcast_message(latency_update, ws, exclude_sender=True)
+
 async def handle_disconnect(current_session: Session, ws: WebSocket, session_manager: SessionManager):
-    """Handle connection cleanup"""
+    """Handle connection cleanup with latency data preservation"""
     if not current_session:
         return
 
     role = getattr(ws, 'role', 'unknown')
     connection_id = getattr(ws, 'connection_id', 'unknown')
+    connect_time = getattr(ws, 'connect_time', time.time() * 1000)
+    disconnect_time = time.time() * 1000
+    session_duration = disconnect_time - connect_time
 
     print(f"🧹 Cleaning up {role} connection {connection_id} from session {current_session.session_code}")
+    print(f"📊 Session duration: {session_duration:.1f}ms")
+
+    # Log final latency stats if available
+    if hasattr(current_session, 'latency_data') and current_session.latency_data:
+        latencies = [record['end_to_end_latency'] for record in current_session.latency_data]
+        avg_latency = sum(latencies) / len(latencies)
+        min_latency = min(latencies)
+        max_latency = max(latencies)
+
+        print(f"📊 Final latency stats - Avg: {avg_latency:.1f}ms, Min: {min_latency:.1f}ms, Max: {max_latency:.1f}ms, Frames: {len(latencies)}")
 
     # Only clean up once
     if role == 'broadcaster' and current_session.broadcaster == ws:
@@ -124,3 +231,31 @@ async def handle_disconnect(current_session: Session, ws: WebSocket, session_man
     # Clean up empty sessions
     if current_session.is_empty():
         session_manager.remove_session(current_session.session_code)
+
+async def get_session_latency_stats(session_code: str, session_manager: SessionManager) -> dict:
+    """Get latency statistics for a session"""
+    current_session = session_manager.get_session(session_code)
+    if not current_session or not hasattr(current_session, 'latency_data'):
+        return {
+            'session_code': session_code,
+            'total_frames': 0,
+            'average_latency': 0,
+            'min_latency': 0,
+            'max_latency': 0,
+            'recent_latencies': []
+        }
+
+    latencies = [record['end_to_end_latency'] for record in current_session.latency_data]
+    recent_latencies = latencies[-20:]  # Last 20 frames
+
+    return {
+        'session_code': session_code,
+        'total_frames': len(latencies),
+        'average_latency': sum(latencies) / len(latencies) if latencies else 0,
+        'min_latency': min(latencies) if latencies else 0,
+        'max_latency': max(latencies) if latencies else 0,
+        'recent_latencies': recent_latencies,
+        'p50_latency': sorted(latencies)[len(latencies)//2] if latencies else 0,
+        'p95_latency': sorted(latencies)[int(len(latencies)*0.95)] if latencies else 0,
+        'p99_latency': sorted(latencies)[int(len(latencies)*0.99)] if latencies else 0
+    }
