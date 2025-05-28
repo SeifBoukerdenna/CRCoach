@@ -1,16 +1,18 @@
+// royal_trainer_client/src/App.tsx - Updated with AI integration
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Wifi, WifiOff, Clock, Zap, Play, Activity } from 'lucide-react';
+import { Crown, Wifi, WifiOff, Clock, Zap, Play, Activity, Brain } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import ConnectionSection from './components/ConnectionSection';
 import VideoStream from './components/VideoStream';
 import StatusBadge from './components/StatusBadge';
 import InferencePanel from './components/InferencePanel';
-import InferenceControlPanel from './components/inference/InferenceControlPanel';
 import LatencyDisplay from './components/LatencyDisplay';
-import { useWebRTC } from './hooks/useWebRTC';
+import { useWebRTCWithFrameCapture } from './hooks/useWebRTCWithFrameCapture';
 import { useInference } from './hooks/useInference';
 import type { ConnectionState } from './types';
+import InferenceControlPanel from './components/inference/InferenceControlPanel';
 
 const App: React.FC = () => {
   const [connectionState, setConnectionState] = useState<ConnectionState>('offline');
@@ -18,7 +20,6 @@ const App: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>('00:00:00');
-  const [, setIsInferenceEnabled] = useState(false);
   const [showConnectionLoader, setShowConnectionLoader] = useState(false);
   const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
   const [showLatencyPanel, setShowLatencyPanel] = useState(false);
@@ -31,8 +32,12 @@ const App: React.FC = () => {
     connectionError,
     streamStats,
     latencyStats,
-    performLatencyTest
-  } = useWebRTC();
+    performLatencyTest,
+    isInferenceEnabled,
+    toggleInference,
+    getFrameStats,
+    isCapturing
+  } = useWebRTCWithFrameCapture();
 
   const {
     inferenceData,
@@ -165,10 +170,10 @@ const App: React.FC = () => {
         >
           <div className="text-5xl mb-3">👑</div>
           <h1 className="text-4xl font-black bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-600 bg-clip-text text-transparent mb-2 tracking-tight">
-            Royal Trainer
+            Royal Trainer AI
           </h1>
-          <p className="text-lg text-white/90 font-medium">Professional Clash Royale Analysis</p>
-          <div className="mt-2 text-sm text-white/70">Real-time AI-powered game insights with latency tracking</div>
+          <p className="text-lg text-white/90 font-medium">YOLOv8 Clash Royale Analysis</p>
+          <div className="mt-2 text-sm text-white/70">Real-time troop detection with advanced AI</div>
         </motion.div>
 
         {/* Status Bar */}
@@ -200,7 +205,7 @@ const App: React.FC = () => {
                     variant="info"
                   />
 
-                  {/* Fixed Latency Badge */}
+                  {/* Enhanced Latency Badge */}
                   <motion.button
                     onClick={() => setShowLatencyPanel(!showLatencyPanel)}
                     className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-bold text-sm uppercase tracking-wider backdrop-blur-xl shadow-lg transition-all duration-150 ${latencyStats.current > 0 && isFinite(latencyStats.current)
@@ -229,12 +234,21 @@ const App: React.FC = () => {
                 </>
               )}
 
+              {/* AI Status Badge */}
+              {isInferenceEnabled && (
+                <StatusBadge
+                  icon={Brain}
+                  text="AI DETECTING"
+                  variant="inference"
+                />
+              )}
 
-              {isInferenceActive && (
+              {/* Frame Capture Status */}
+              {isCapturing && (
                 <StatusBadge
                   icon={Play}
-                  text="AI ACTIVE"
-                  variant="inference"
+                  text="CAPTURING"
+                  variant="info"
                 />
               )}
             </>
@@ -270,10 +284,13 @@ const App: React.FC = () => {
                     connectionError={connectionError}
                   />
 
+                  {/* Enhanced AI Control */}
                   <InferenceControlPanel
                     sessionCode={sessionCode}
                     isConnected={isConnected}
-                    onInferenceStateChange={setIsInferenceEnabled}
+                    isInferenceEnabled={isInferenceEnabled}
+                    onToggleInference={toggleInference}
+                    frameStats={getFrameStats()}
                   />
 
                   {/* Latency Panel */}
@@ -319,7 +336,7 @@ const App: React.FC = () => {
                 >
                   <InferencePanel
                     inferenceData={inferenceData}
-                    isActive={isInferenceActive}
+                    isActive={isInferenceActive || isInferenceEnabled}
                     stats={inferenceStats}
                     sessionCode={sessionCode}
                   />
@@ -356,32 +373,32 @@ const App: React.FC = () => {
                   transition={{ duration: 0.2 }}
                   className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 text-center shadow-2xl"
                 >
-                  <div className="text-5xl mb-4 opacity-60">📱</div>
+                  <div className="text-5xl mb-4 opacity-60">🧠</div>
                   <h3 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent mb-3">
-                    Ready to Connect
+                    AI-Powered Analysis Ready
                   </h3>
                   <p className="text-base text-white/80 mb-6 leading-relaxed">
-                    Experience next-generation Clash Royale analysis with real-time AI insights and latency monitoring
+                    Experience cutting-edge YOLOv8 computer vision for real-time Clash Royale troop detection and analysis
                   </p>
 
                   <div className="text-left max-w-md mx-auto">
                     <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                       <Crown className="w-5 h-5 text-yellow-400" />
-                      Getting Started
+                      AI Features
                     </h4>
                     <div className="space-y-3">
                       {[
-                        { step: "1", text: "Open Royal Trainer iOS app", icon: "📱" },
-                        { step: "2", text: "Start Clash Royale screen recording", icon: "🎮" },
-                        { step: "3", text: "Note your 4-digit session code", icon: "🔢" },
-                        { step: "4", text: "Enter code and click Connect", icon: "🚀" },
-                        { step: "5", text: "Monitor real-time latency metrics", icon: "⚡" }
-                      ].map((item,) => (
+                        { step: "1", text: "Real-time troop detection", icon: "⚔️" },
+                        { step: "2", text: "Building & structure analysis", icon: "🏰" },
+                        { step: "3", text: "Spell & ability tracking", icon: "✨" },
+                        { step: "4", text: "Debug image saving", icon: "💾" },
+                        { step: "5", text: "Performance optimization", icon: "⚡" }
+                      ].map((item) => (
                         <div
                           key={item.step}
                           className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-xl border border-slate-700/30"
                         >
-                          <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 rounded-lg flex items-center justify-center text-sm font-black">
+                          <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-blue-500 text-white rounded-lg flex items-center justify-center text-sm font-black">
                             {item.step}
                           </div>
                           <div className="text-lg">{item.icon}</div>
@@ -391,20 +408,20 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Feature highlights */}
+                  {/* AI Model Info */}
                   <div className="mt-8 pt-6 border-t border-slate-700/50">
                     <div className="grid grid-cols-3 gap-4 text-center">
                       <div>
+                        <div className="text-2xl mb-2">🧠</div>
+                        <div className="text-xs text-white/70">YOLOv8 Model</div>
+                      </div>
+                      <div>
                         <div className="text-2xl mb-2">⚡</div>
-                        <div className="text-xs text-white/70">Real-time Latency</div>
+                        <div className="text-xs text-white/70">Real-time Speed</div>
                       </div>
                       <div>
                         <div className="text-2xl mb-2">🎯</div>
-                        <div className="text-xs text-white/70">AI Detection</div>
-                      </div>
-                      <div>
-                        <div className="text-2xl mb-2">📊</div>
-                        <div className="text-xs text-white/70">Performance Metrics</div>
+                        <div className="text-xs text-white/70">High Accuracy</div>
                       </div>
                     </div>
                   </div>
@@ -422,16 +439,16 @@ const App: React.FC = () => {
           transition={{ duration: 0.3 }}
         >
           <div className="flex items-center justify-center gap-4 mb-2 text-base">
-            <span className="flex items-center gap-2">🏆 Royal Trainer</span>
+            <span className="flex items-center gap-2">🏆 Royal Trainer AI</span>
             <span>•</span>
-            <span className="flex items-center gap-2">🎯 AI Analysis</span>
+            <span className="flex items-center gap-2">🧠 YOLOv8 Detection</span>
             <span>•</span>
-            <span className="flex items-center gap-2">⚡ Real-time</span>
+            <span className="flex items-center gap-2">⚡ Real-time Analysis</span>
             <span>•</span>
-            <span className="flex items-center gap-2">📊 Latency Tracking</span>
+            <span className="flex items-center gap-2">📊 Debug Mode</span>
           </div>
           <div className="text-xs text-white/30">
-            Professional Clash Royale streaming and analysis platform with end-to-end latency monitoring
+            Advanced AI-powered Clash Royale analysis with computer vision and deep learning
           </div>
         </motion.div>
       </div>
@@ -464,15 +481,15 @@ const App: React.FC = () => {
                   ease: "easeInOut"
                 }}
               >
-                👑
+                🧠
               </motion.div>
 
               <motion.h2
-                className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent mb-4"
+                className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-500 bg-clip-text text-transparent mb-4"
                 animate={{ opacity: [0.7, 1, 0.7] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
               >
-                Connecting to Royal Stream
+                Connecting AI Stream
               </motion.h2>
 
               <div className="mb-8">
@@ -481,7 +498,7 @@ const App: React.FC = () => {
                   {sessionCode.split('').map((digit, index) => (
                     <motion.div
                       key={index}
-                      className="w-12 h-12 bg-gradient-to-br from-yellow-400/20 to-orange-500/20 border-2 border-yellow-400/50 rounded-xl flex items-center justify-center text-2xl font-bold text-yellow-400"
+                      className="w-12 h-12 bg-gradient-to-br from-purple-400/20 to-blue-500/20 border-2 border-purple-400/50 rounded-xl flex items-center justify-center text-2xl font-bold text-purple-400"
                       initial={{ scale: 0, rotate: -180 }}
                       animate={{ scale: 1, rotate: 0 }}
                       transition={{ delay: index * 0.1, duration: 0.5 }}
@@ -501,7 +518,7 @@ const App: React.FC = () => {
                     transition={{ delay: 0.5 }}
                   />
                   <motion.div
-                    className="absolute w-20 h-20 border-4 border-transparent border-t-yellow-400 border-r-orange-500 rounded-full"
+                    className="absolute w-20 h-20 border-4 border-transparent border-t-purple-400 border-r-blue-500 rounded-full"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   />
@@ -513,27 +530,12 @@ const App: React.FC = () => {
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 1, repeat: Infinity }}
               >
-                Establishing connection & latency tracking
+                Initializing AI detection system
               </motion.div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Connection Status Indicator */}
-      {connectionState === 'connecting' && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          className="fixed top-6 right-6 bg-gradient-to-r from-orange-500 to-red-500 backdrop-blur-xl border border-orange-400/50 rounded-2xl p-4 shadow-2xl z-50"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
-            <span className="text-white font-semibold">Establishing connection...</span>
-          </div>
-        </motion.div>
-      )}
 
       {/* Error Display */}
       {connectionError && (

@@ -1,3 +1,5 @@
+// royal_trainer_client/src/hooks/useInference.ts - Optimized WebSocket-first approach
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { InferenceData, InferenceStats } from "../types";
 
@@ -14,6 +16,7 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
   });
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [lastInferenceTime, setLastInferenceTime] = useState<number>(0);
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -34,13 +37,11 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
     const now = Date.now();
     const history = statsHistoryRef.current;
 
-    // Add new data point
     history.inferenceTimes.push(newInferenceData.inference_time);
     history.detectionCounts.push(newInferenceData.detections.length);
     history.timestamps.push(now);
     history.frameCount++;
 
-    // Keep only last 200 data points (about 10 seconds at 20fps)
     const maxHistory = 200;
     if (history.inferenceTimes.length > maxHistory) {
       history.inferenceTimes = history.inferenceTimes.slice(-maxHistory);
@@ -48,14 +49,12 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
       history.timestamps = history.timestamps.slice(-maxHistory);
     }
 
-    // Calculate average inference time
     const avgInferenceTime =
       history.inferenceTimes.length > 0
         ? history.inferenceTimes.reduce((a, b) => a + b, 0) /
           history.inferenceTimes.length
         : 0;
 
-    // Calculate detections per second over last 5 seconds
     const fiveSecondsAgo = now - 5000;
     const recentData = history.timestamps
       .map((timestamp, index) => ({
@@ -71,7 +70,6 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
 
     const totalDetections = history.detectionCounts.reduce((a, b) => a + b, 0);
 
-    // Calculate accuracy (percentage of frames with detections)
     const framesWithDetections = history.detectionCounts.filter(
       (count) => count > 0
     ).length;
@@ -80,7 +78,6 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
         ? (framesWithDetections / history.detectionCounts.length) * 100
         : 0;
 
-    // Calculate inference FPS
     const tenSecondsAgo = now - 10000;
     const recentInferences = history.timestamps.filter(
       (t) => t > tenSecondsAgo
@@ -98,7 +95,7 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
     setLastInferenceTime(now);
   }, []);
 
-  const connectWebSocket = useCallback(() => {
+  const connectInferenceWebSocket = useCallback(() => {
     if (
       !sessionCode ||
       !isConnected ||
@@ -108,7 +105,6 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
     }
 
     try {
-      // Clean up existing connection
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
@@ -123,11 +119,17 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
 
       ws.onopen = () => {
         console.log("Inference WebSocket connected successfully");
-        setIsInferenceActive(true);
+        setIsWebSocketConnected(true);
         setConnectionAttempts(0);
 
-        // Send initial ping to confirm connection
-        ws.send(JSON.stringify({ type: "ping" }));
+        // Stop polling since WebSocket is connected
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+          console.log("Stopped HTTP polling - WebSocket active");
+        }
+
+        ws.send(JSON.stringify({ type: "status_request" }));
       };
 
       ws.onmessage = (event) => {
@@ -138,12 +140,11 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
             setInferenceData(data.data);
             updateStats(data.data);
             setIsInferenceActive(true);
+            console.log("Received inference update via WebSocket");
+          } else if (data.type === "status_update") {
+            setIsInferenceActive(data.inference_enabled);
           } else if (data.type === "pong") {
-            // Connection confirmed
             console.log("WebSocket connection confirmed");
-          } else if (data.type === "no_data") {
-            // Server has no inference data yet, but connection is working
-            setIsInferenceActive(true);
           } else if (data.type === "error") {
             console.error("WebSocket error from server:", data.message);
           }
@@ -154,11 +155,10 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
 
       ws.onclose = (event) => {
         console.log("Inference WebSocket closed:", event.code, event.reason);
-        setIsInferenceActive(false);
+        setIsWebSocketConnected(false);
         wsRef.current = null;
 
-        // Attempt to reconnect if it wasn't a clean close and we're still connected
-        if (isConnected && event.code !== 1000 && connectionAttempts < 5) {
+        if (isConnected && event.code !== 1000 && connectionAttempts < 3) {
           const backoffDelay = Math.min(
             1000 * Math.pow(2, connectionAttempts),
             10000
@@ -171,83 +171,118 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
 
           reconnectTimeoutRef.current = setTimeout(() => {
             setConnectionAttempts((prev) => prev + 1);
-            connectWebSocket();
+            connectInferenceWebSocket();
           }, backoffDelay);
+        } else {
+          console.log(
+            "WebSocket connection failed, falling back to HTTP polling"
+          );
+          startPollingFallback();
         }
       };
 
       ws.onerror = (error) => {
         console.error("Inference WebSocket error:", error);
-        setIsInferenceActive(false);
+        setIsWebSocketConnected(false);
       };
     } catch (error) {
       console.error("Failed to create inference WebSocket:", error);
-      setIsInferenceActive(false);
+      setIsWebSocketConnected(false);
+      startPollingFallback();
     }
   }, [sessionCode, isConnected, updateStats, connectionAttempts]);
 
-  const pollInference = useCallback(async () => {
-    if (!sessionCode || !isConnected) return;
+  const startPollingFallback = useCallback(() => {
+    if (pollIntervalRef.current || isWebSocketConnected) {
+      return;
+    }
 
-    try {
-      const response = await fetch(`/api/inference/${sessionCode}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
-        signal: AbortSignal.timeout(5000), // 5 second timeout
-      });
+    console.log("Starting HTTP polling fallback for inference data");
 
-      if (response.ok) {
-        const data: InferenceData = await response.json();
-        setInferenceData(data);
-        updateStats(data);
-        setIsInferenceActive(true);
-      } else if (response.status === 404) {
-        // No inference data available yet, but that's okay
-        setInferenceData(null);
-        setIsInferenceActive(false);
-      } else if (response.status === 501) {
-        // Inference service not available
-        console.warn("Inference service not available on server");
-        setIsInferenceActive(false);
-      } else {
-        console.warn(`Inference polling failed: ${response.status}`);
-        setIsInferenceActive(false);
+    const pollInference = async () => {
+      if (!sessionCode || !isConnected || isWebSocketConnected) {
+        return;
       }
-    } catch (error) {
-      if (error instanceof Error && error.name !== "AbortError") {
-        console.warn("Inference polling error:", error.message);
+
+      try {
+        const response = await fetch(`/api/inference/${sessionCode}/status`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(5000),
+        });
+
+        if (response.ok) {
+          const statusData = await response.json();
+          setIsInferenceActive(statusData.inference_enabled);
+
+          // Only poll for data if inference is enabled
+          if (statusData.inference_enabled) {
+            try {
+              const dataResponse = await fetch(
+                `/api/inference/${sessionCode}`,
+                {
+                  method: "GET",
+                  headers: { Accept: "application/json" },
+                  signal: AbortSignal.timeout(5000),
+                }
+              );
+
+              if (dataResponse.ok) {
+                const inferenceData = await dataResponse.json();
+                setInferenceData(inferenceData);
+                updateStats(inferenceData);
+              }
+            } catch (dataError) {
+              // Inference data endpoint returning 404 is normal when no recent data exists
+              if (
+                dataError instanceof Error &&
+                !dataError.message.includes("404")
+              ) {
+                console.warn(
+                  "Failed to fetch inference data:",
+                  dataError.message
+                );
+              }
+            }
+          }
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.warn("Inference status polling error:", error.message);
+        }
       }
+    };
+
+    pollInference(); // Initial poll
+    pollIntervalRef.current = setInterval(pollInference, 3000); // Poll every 3 seconds
+  }, [sessionCode, isConnected, isWebSocketConnected, updateStats]);
+
+  const checkStaleData = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastInference = now - lastInferenceTime;
+
+    if (timeSinceLastInference > 10000 && isInferenceActive) {
+      console.log("Inference data is stale, updating status");
       setIsInferenceActive(false);
     }
-  }, [sessionCode, isConnected, updateStats]);
+  }, [lastInferenceTime, isInferenceActive]);
 
   // Check for stale inference data
   useEffect(() => {
-    const checkStaleData = setInterval(() => {
-      const now = Date.now();
-      const timeSinceLastInference = now - lastInferenceTime;
+    const checkInterval = setInterval(checkStaleData, 5000);
+    return () => clearInterval(checkInterval);
+  }, [checkStaleData]);
 
-      // If no inference data for 5 seconds, mark as inactive
-      if (timeSinceLastInference > 5000 && isInferenceActive) {
-        console.log("Inference data is stale, marking as inactive");
-        setIsInferenceActive(false);
-      }
-    }, 1000);
-
-    return () => clearInterval(checkStaleData);
-  }, [lastInferenceTime, isInferenceActive]);
-
-  // Main connection effect
+  // Main connection effect - prioritize WebSocket
   useEffect(() => {
     if (isConnected && sessionCode) {
       console.log("Starting inference monitoring for session:", sessionCode);
 
-      // Reset stats for new session
+      // Reset state for new session
       setInferenceData(null);
       setIsInferenceActive(false);
       setConnectionAttempts(0);
+      setIsWebSocketConnected(false);
       statsHistoryRef.current = {
         inferenceTimes: [],
         detectionCounts: [],
@@ -255,47 +290,15 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
         frameCount: 0,
       };
 
-      // Try WebSocket first
-      connectWebSocket();
-
-      // Start polling as backup after a delay
-      const fallbackTimer = setTimeout(() => {
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-          console.log(
-            "WebSocket unavailable, starting inference polling fallback"
-          );
-          pollIntervalRef.current = setInterval(pollInference, 200); // 5fps polling as backup
-        }
-      }, 3000);
-
-      return () => {
-        clearTimeout(fallbackTimer);
-
-        // Cleanup WebSocket
-        if (wsRef.current) {
-          wsRef.current.close(1000, "Component unmounting");
-          wsRef.current = null;
-        }
-
-        // Cleanup polling
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-
-        // Cleanup reconnect timeout
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-          reconnectTimeoutRef.current = null;
-        }
-      };
+      // Always try WebSocket first
+      connectInferenceWebSocket();
     } else {
-      // Cleanup when disconnected
       console.log("Cleaning up inference monitoring");
 
       setInferenceData(null);
       setIsInferenceActive(false);
       setConnectionAttempts(0);
+      setIsWebSocketConnected(false);
       setInferenceStats({
         avgInferenceTime: 0,
         detectionsPerSecond: 0,
@@ -325,7 +328,7 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
         reconnectTimeoutRef.current = null;
       }
     }
-  }, [isConnected, sessionCode, connectWebSocket, pollInference]);
+  }, [isConnected, sessionCode, connectInferenceWebSocket]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -342,13 +345,26 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
     };
   }, []);
 
+  // Send periodic ping to maintain WebSocket connection
+  useEffect(() => {
+    if (!isWebSocketConnected) return;
+
+    const pingInterval = setInterval(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "ping" }));
+      }
+    }, 30000);
+
+    return () => clearInterval(pingInterval);
+  }, [isWebSocketConnected]);
+
   return {
     inferenceData,
     isInferenceActive,
     inferenceStats: {
       ...inferenceStats,
       connectionAttempts,
-      isWebSocketConnected: wsRef.current?.readyState === WebSocket.OPEN,
+      isWebSocketConnected,
       frameCount: statsHistoryRef.current.frameCount,
     },
   };

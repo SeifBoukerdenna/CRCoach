@@ -1,3 +1,7 @@
+"""
+server/handlers/websocket_handlers.py - Updated with frame capture integration
+"""
+
 import json
 import uuid
 import time
@@ -6,6 +10,8 @@ from typing import Tuple, Optional
 from fastapi import WebSocket
 from models.session import Session
 from services.session_manager import SessionManager
+from services.frame_capture import get_frame_capture_service
+from api.inference_routes import session_inference_states
 
 async def send_error(ws: WebSocket, message: str):
     """Send error message to client"""
@@ -14,7 +20,7 @@ async def send_error(ws: WebSocket, message: str):
             'type': 'error',
             'message': message,
             'timestamp': datetime.now().isoformat(),
-            'server_timestamp': time.time() * 1000  # Add server timestamp in milliseconds
+            'server_timestamp': time.time() * 1000
         }
         await ws.send_text(json.dumps(error_msg))
         print(f"❌ Sent error to client: {message}")
@@ -22,15 +28,14 @@ async def send_error(ws: WebSocket, message: str):
         print(f"❌ Failed to send error message: {e}")
 
 async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManager) -> Tuple[Optional[Session], Optional[str]]:
-    """Handle connection request with latency tracking"""
+    """Handle connection request with frame capture integration"""
     session_code = msg.get('sessionCode')
     role = msg.get('role')
-    client_timestamp = msg.get('timestamp', time.time() * 1000)  # Get client timestamp
+    client_timestamp = msg.get('timestamp', time.time() * 1000)
     server_receive_time = time.time() * 1000
 
     print(f"🔌 Connection request: session={session_code}, role={role}")
 
-    # Calculate signaling latency (client to server)
     signaling_latency = server_receive_time - client_timestamp if client_timestamp else 0
     print(f"📊 Signaling latency: {signaling_latency:.1f}ms")
 
@@ -46,11 +51,9 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
         await send_error(ws, 'Role must be broadcaster or viewer')
         return None, None
 
-    # Create session if it doesn't exist
     current_session = session_manager.create_session(session_code)
     current_session.connection_attempts += 1
 
-    # Store connection timestamp and latency info
     connection_id = getattr(ws, 'connection_id', 'unknown')
     ws.connect_time = server_receive_time
     ws.signaling_latency = signaling_latency
@@ -59,6 +62,12 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
     if role == 'broadcaster':
         await current_session.add_broadcaster(ws)
         success = True
+
+        # If inference is enabled, start frame capture
+        if session_inference_states.get(session_code, False):
+            frame_capture_service = get_frame_capture_service()
+            await frame_capture_service.start_capture(session_code, fps=5.0)  # 5 FPS for inference
+
     elif role == 'viewer':
         success = await current_session.add_viewer(ws)
 
@@ -73,6 +82,7 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
             'connectionId': connection_id,
             'server_timestamp': time.time() * 1000,
             'signaling_latency': signaling_latency,
+            'inference_enabled': session_inference_states.get(session_code, False),
             'latency_info': {
                 'client_timestamp': client_timestamp,
                 'server_receive_time': server_receive_time,
@@ -96,14 +106,12 @@ async def handle_signaling(current_session: Session, ws: WebSocket, msg: dict):
     server_receive_time = time.time() * 1000
     client_timestamp = msg.get('timestamp', server_receive_time)
 
-    # Add server timestamps and latency info to the message
     msg['server_receive_time'] = server_receive_time
     msg['server_forward_time'] = time.time() * 1000
     msg['signaling_hop_latency'] = server_receive_time - client_timestamp if client_timestamp else 0
 
     print(f"🔄 Handling {msg_type} from {role} in session {current_session.session_code}")
 
-    # Log detailed message info with latency
     if msg_type == 'offer':
         sdp = msg.get('sdp', '')
         hop_latency = msg.get('signaling_hop_latency', 0)
@@ -121,8 +129,22 @@ async def handle_signaling(current_session: Session, ws: WebSocket, msg: dict):
         hop_latency = msg.get('signaling_hop_latency', 0)
         print(f"🧊 ICE candidate: {candidate[:50]}..., signaling latency: {hop_latency:.1f}ms")
 
-    # Forward immediately with enhanced timing info
     await current_session.broadcast_message(msg, ws)
+
+async def handle_frame_data(ws: WebSocket, msg: dict):
+    """Handle frame data for inference"""
+    session_code = msg.get('sessionCode')
+    frame_data = msg.get('frameData')  # base64 encoded frame
+
+    if not session_code or not frame_data:
+        print("⚠️ Incomplete frame data received")
+        return
+
+    # Update frame capture service with latest frame
+    frame_capture_service = get_frame_capture_service()
+    await frame_capture_service.update_frame(session_code, frame_data)
+
+    print(f"🎞️ Frame data updated for session {session_code}")
 
 async def handle_ping(ws: WebSocket):
     """Handle ping message with enhanced latency tracking"""
@@ -153,11 +175,9 @@ async def handle_frame_timing(ws: WebSocket, msg: dict, session_manager: Session
         print("⚠️ Incomplete frame timing data received")
         return
 
-    # Calculate end-to-end latency
     end_to_end_latency = display_timestamp - capture_timestamp
     server_process_time = time.time() * 1000
 
-    # Store latency data in session
     current_session = session_manager.get_session(session_code)
     if current_session:
         if not hasattr(current_session, 'latency_data'):
@@ -174,17 +194,14 @@ async def handle_frame_timing(ws: WebSocket, msg: dict, session_manager: Session
 
         current_session.latency_data.append(latency_record)
 
-        # Keep only last 100 records
         if len(current_session.latency_data) > 100:
             current_session.latency_data = current_session.latency_data[-100:]
 
-        # Calculate running average
         recent_latencies = [record['end_to_end_latency'] for record in current_session.latency_data[-10:]]
         avg_latency = sum(recent_latencies) / len(recent_latencies) if recent_latencies else 0
 
         print(f"📊 Frame {frame_id[:8]}... - E2E latency: {end_to_end_latency:.1f}ms, Avg: {avg_latency:.1f}ms")
 
-        # Broadcast latency update to all clients in session
         latency_update = {
             'type': 'latency_update',
             'session_code': session_code,
@@ -200,7 +217,7 @@ async def handle_frame_timing(ws: WebSocket, msg: dict, session_manager: Session
         await current_session.broadcast_message(latency_update, ws, exclude_sender=True)
 
 async def handle_disconnect(current_session: Session, ws: WebSocket, session_manager: SessionManager):
-    """Handle connection cleanup with latency data preservation"""
+    """Handle connection cleanup with frame capture cleanup"""
     if not current_session:
         return
 
@@ -213,7 +230,11 @@ async def handle_disconnect(current_session: Session, ws: WebSocket, session_man
     print(f"🧹 Cleaning up {role} connection {connection_id} from session {current_session.session_code}")
     print(f"📊 Session duration: {session_duration:.1f}ms")
 
-    # Log final latency stats if available
+    # Stop frame capture if broadcaster disconnects
+    if role == 'broadcaster':
+        frame_capture_service = get_frame_capture_service()
+        await frame_capture_service.stop_capture(current_session.session_code)
+
     if hasattr(current_session, 'latency_data') and current_session.latency_data:
         latencies = [record['end_to_end_latency'] for record in current_session.latency_data]
         avg_latency = sum(latencies) / len(latencies)
@@ -222,13 +243,11 @@ async def handle_disconnect(current_session: Session, ws: WebSocket, session_man
 
         print(f"📊 Final latency stats - Avg: {avg_latency:.1f}ms, Min: {min_latency:.1f}ms, Max: {max_latency:.1f}ms, Frames: {len(latencies)}")
 
-    # Only clean up once
     if role == 'broadcaster' and current_session.broadcaster == ws:
         await current_session.remove_broadcaster()
     elif role == 'viewer' and ws in current_session.viewers:
         await current_session.remove_viewer(ws)
 
-    # Clean up empty sessions
     if current_session.is_empty():
         session_manager.remove_session(current_session.session_code)
 
@@ -246,7 +265,7 @@ async def get_session_latency_stats(session_code: str, session_manager: SessionM
         }
 
     latencies = [record['end_to_end_latency'] for record in current_session.latency_data]
-    recent_latencies = latencies[-20:]  # Last 20 frames
+    recent_latencies = latencies[-20:]
 
     return {
         'session_code': session_code,

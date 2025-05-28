@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// vite.config.ts
+// vite.config.ts - Updated with API proxy for inference endpoints
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -9,15 +9,29 @@ export default defineConfig({
     proxy: {
       // 🔄 WebSocket → FastAPI
       "/ws": {
-        target: "http://localhost:8080", // ← HTTP, not WS
+        target: "http://localhost:8080",
         ws: true,
         changeOrigin: true,
-        secure: false, // ← dev-only
+        secure: false,
+      },
+
+      // 🧠 API endpoints for inference (NEW)
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+        secure: false,
+        ws: true,
       },
 
       // REST endpoints (unchanged)
-      "/health": { target: "http://localhost:8080", changeOrigin: true },
-      "/static": { target: "http://localhost:8080", changeOrigin: true },
+      "/health": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/static": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
 });

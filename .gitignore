@@ -4,7 +4,7 @@ server/__pycache__
 server/app/__pycache__
 server/routers/__pycache__
 server/services/__pycache__
-
+server/debug_outputs
 model
 
 **/__pycache__/
