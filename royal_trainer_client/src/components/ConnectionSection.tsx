@@ -1,6 +1,8 @@
+// royal_trainer_client/src/components/ConnectionSection.tsx - Compact version for sidebar
+
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, WifiOff, AlertCircle, Crown, Smartphone, Zap } from 'lucide-react';
+import { Wifi, AlertCircle, Crown, Smartphone, Zap, Square } from 'lucide-react';
 import type { ConnectionError, ConnectionState } from '../types';
 
 interface ConnectionSectionProps {
@@ -89,29 +91,26 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
 
     return (
         <motion.div
-            className="bg-gradient-to-br from-slate-800/90 via-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-2xl"
+            className="bg-gradient-to-br from-slate-800/90 via-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4 shadow-2xl"
             whileHover={{ scale: 1.01 }}
             transition={{ duration: 0.1 }}
         >
-            {/* Header */}
-            <div className="text-center mb-6">
-                <div className="flex items-center justify-center gap-3 mb-4">
-                    <Crown className="w-7 h-7 text-yellow-400" />
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                        Connect to Stream
-                    </h2>
+            {/* Compact Header */}
+            <div className="text-center mb-4">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                    <Crown className="w-5 h-5 text-yellow-400" />
+                    <h3 className="text-lg font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                        Connect
+                    </h3>
                 </div>
-                <p className="text-white/80 text-base">Enter your 4-digit session code</p>
+                <p className="text-white/70 text-sm">Enter 4-digit session code</p>
             </div>
 
-            {/* Code Input */}
-            <div className="mb-6">
-                <div className="flex justify-center gap-3 mb-4">
+            {/* Compact Code Input */}
+            <div className="mb-4">
+                <div className="flex justify-center gap-2 mb-3">
                     {digits.map((digit, index) => (
-                        <div
-                            key={index}
-                            className="relative"
-                        >
+                        <div key={index} className="relative">
                             <input
                                 id={`digit-${index}`}
                                 type="text"
@@ -121,8 +120,8 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                                 onPaste={handlePaste}
                                 onFocus={() => setFocusedIndex(index)}
                                 onBlur={() => setFocusedIndex(null)}
-                                className={`w-12 h-12 text-2xl font-bold text-center bg-slate-700/50 border-2 rounded-xl text-white focus:outline-none transition-colors duration-150 ${focusedIndex === index
-                                    ? 'border-yellow-400 bg-slate-600/50'
+                                className={`w-10 h-10 text-lg font-bold text-center bg-slate-700/50 border-2 rounded-lg text-white focus:outline-none transition-all duration-150 ${focusedIndex === index
+                                    ? 'border-yellow-400 bg-slate-600/50 scale-110'
                                     : digit
                                         ? 'border-green-500 bg-slate-600/30'
                                         : 'border-slate-600 hover:border-slate-500'
@@ -134,18 +133,18 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                     ))}
                 </div>
 
-                {/* Helper buttons */}
-                <div className="flex justify-center gap-4">
+                {/* Quick Action Buttons */}
+                <div className="flex justify-center gap-2 mb-3">
                     <button
                         onClick={clearCode}
-                        className="px-4 py-2 text-sm text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+                        className="px-3 py-1 text-xs text-white/60 hover:text-white transition-colors rounded-lg hover:bg-white/10"
                         disabled={connectionState === 'live'}
                     >
                         Clear
                     </button>
                     <button
                         onClick={generateRandomCode}
-                        className="px-4 py-2 text-sm text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+                        className="px-3 py-1 text-xs text-white/60 hover:text-white transition-colors rounded-lg hover:bg-white/10"
                         disabled={connectionState === 'live'}
                     >
                         Random
@@ -154,57 +153,72 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
             </div>
 
             {/* Connection Button */}
-            <div className="flex flex-col gap-3">
+            <div className="space-y-3">
                 {connectionState !== 'live' ? (
-                    <button
+                    <motion.button
                         onClick={onConnect}
                         disabled={sessionCode.length !== 4 || isConnecting}
-                        className={`w-full py-3 px-4 rounded-xl font-bold text-base transition-all duration-150 flex items-center justify-center gap-2 border-2 shadow-lg ${sessionCode.length === 4 && !isConnecting
+                        className={`w-full py-3 px-4 rounded-lg font-bold text-sm transition-all duration-150 flex items-center justify-center gap-2 border-2 shadow-lg ${sessionCode.length === 4 && !isConnecting
                             ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 border-yellow-400 hover:shadow-xl hover:scale-105 active:scale-95'
                             : 'bg-slate-700 text-slate-400 cursor-not-allowed border-slate-600'
                             }`}
+                        whileHover={sessionCode.length === 4 && !isConnecting ? { scale: 1.02 } : {}}
+                        whileTap={sessionCode.length === 4 && !isConnecting ? { scale: 0.98 } : {}}
                     >
                         {isConnecting ? (
                             <>
-                                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                                 Connecting...
                             </>
                         ) : (
                             <>
-                                <Wifi className="w-5 h-5" />
-                                Connect
+                                <Wifi className="w-4 h-4" />
+                                Connect Stream
                             </>
                         )}
-                    </button>
+                    </motion.button>
                 ) : (
-                    <button
+                    <motion.button
                         onClick={onDisconnect}
-                        className="w-full py-3 px-4 rounded-xl font-bold text-base bg-gradient-to-r from-red-600 to-red-700 text-white border-2 border-red-500 shadow-lg hover:shadow-xl transition-all duration-150 flex items-center justify-center gap-2"
+                        className="w-full py-3 px-4 rounded-lg font-bold text-sm bg-gradient-to-r from-red-600 to-red-700 text-white border-2 border-red-500 shadow-lg hover:shadow-xl transition-all duration-150 flex items-center justify-center gap-2"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                     >
-                        <WifiOff className="w-5 h-5" />
+                        <Square className="w-4 h-4" />
                         Disconnect
-                    </button>
+                    </motion.button>
                 )}
+            </div>
+
+            {/* Status Indicator */}
+            <div className="mt-3 flex items-center justify-center gap-2 text-xs">
+                <div className={`w-2 h-2 rounded-full transition-all ${connectionState === 'live' ? 'bg-green-500 animate-pulse' :
+                    connectionState === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+                        'bg-gray-500'
+                    }`} />
+                <span className="text-white/60">
+                    <span className="capitalize font-medium text-white/80">{connectionState}</span>
+                </span>
             </div>
 
             {/* Error Display */}
             <AnimatePresence>
                 {connectionError && (
                     <motion.div
-                        initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -20, scale: 0.9 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.9 }}
                         transition={{ duration: 0.2 }}
-                        className="mt-6 p-4 bg-red-900/30 border border-red-500/50 rounded-2xl backdrop-blur-sm"
+                        className="mt-3 p-3 bg-red-900/30 border border-red-500/50 rounded-lg backdrop-blur-sm"
                     >
-                        <div className="flex items-start gap-3">
-                            <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <p className="text-red-300 font-semibold">{connectionError.message}</p>
+                        <div className="flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                                <p className="text-red-300 font-semibold text-sm">{connectionError.message}</p>
                                 {connectionError.code && (
-                                    <p className="text-red-400/70 text-sm mt-1">Error Code: {connectionError.code}</p>
+                                    <p className="text-red-400/70 text-xs mt-1">Error: {connectionError.code}</p>
                                 )}
-                                <p className="text-red-400/50 text-xs mt-2">
+                                <p className="text-red-400/50 text-xs mt-1">
                                     {connectionError.timestamp.toLocaleTimeString()}
                                 </p>
                             </div>
@@ -213,52 +227,52 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                 )}
             </AnimatePresence>
 
-            {/* Instructions */}
+            {/* Quick Guide - Only when offline */}
             {connectionState === 'offline' && (
-                <div className="mt-6 p-4 bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-xl backdrop-blur-sm">
-                    <h4 className="font-bold text-blue-300 mb-3 flex items-center gap-2 text-base">
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    transition={{ delay: 0.3 }}
+                    className="mt-4 p-3 bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-lg backdrop-blur-sm"
+                >
+                    <h4 className="font-bold text-blue-300 mb-2 flex items-center gap-2 text-sm">
                         <Smartphone className="w-4 h-4" />
-                        Quick Start Guide
+                        Quick Start
                     </h4>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                         {[
-                            { icon: "📱", text: "Open Royal Trainer app" },
-                            { icon: "🎮", text: "Start broadcasting gameplay" },
-                            { icon: "🔢", text: "Note the 4-digit code" },
-                            { icon: "🚀", text: "Enter code and Connect" }
-                        ].map((step, index) => (
-                            <div
+                            { icon: "📱", text: "Open Royal Trainer app", step: "1" },
+                            { icon: "🎮", text: "Start broadcasting", step: "2" },
+                            { icon: "🔢", text: "Get 4-digit code", step: "3" },
+                            { icon: "🚀", text: "Connect here", step: "4" }
+                        ].map((item, index) => (
+                            <motion.div
                                 key={index}
-                                className="flex items-center gap-2 text-white/80 text-sm"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.4 + index * 0.1 }}
+                                className="flex items-center gap-2 text-white/70 text-xs"
                             >
-                                <span className="text-base">{step.icon}</span>
-                                <span>{step.text}</span>
-                            </div>
+                                <div className="w-5 h-5 bg-gradient-to-r from-purple-400 to-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                    {item.step}
+                                </div>
+                                <span className="text-sm">{item.icon}</span>
+                                <span className="text-sm">{item.text}</span>
+                            </motion.div>
                         ))}
                     </div>
 
-                    <div className="mt-4 p-3 bg-black/20 rounded-lg border border-yellow-500/30">
-                        <div className="flex items-center gap-2 text-yellow-400 text-sm font-medium mb-1">
-                            <Zap className="w-4 h-4" />
+                    <div className="mt-3 p-2 bg-black/20 rounded-lg border border-yellow-500/30">
+                        <div className="flex items-center gap-2 text-yellow-400 text-xs font-medium mb-1">
+                            <Zap className="w-3 h-3" />
                             Pro Tip
                         </div>
-                        <p className="text-white/70 text-sm">
-                            Make sure both devices are on the same network for optimal performance
+                        <p className="text-white/60 text-xs">
+                            Use same WiFi network for best performance
                         </p>
                     </div>
-                </div>
+                </motion.div>
             )}
-
-            {/* Connection Status Indicator */}
-            <div className="mt-6 flex items-center justify-center gap-2 text-sm">
-                <div className={`w-2 h-2 rounded-full ${connectionState === 'live' ? 'bg-green-500 animate-pulse' :
-                    connectionState === 'connecting' ? 'bg-yellow-500 animate-pulse' :
-                        'bg-gray-500'
-                    }`} />
-                <span className="text-white/60">
-                    Status: <span className="capitalize font-medium">{connectionState}</span>
-                </span>
-            </div>
         </motion.div>
     );
 };

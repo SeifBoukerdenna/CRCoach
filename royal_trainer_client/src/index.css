@@ -3,7 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-
 /* Custom CSS Variables for Clash Royale Theme */
 :root {
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -14,6 +13,19 @@ body {
   margin: 0;
   min-height: 100vh;
   background: linear-gradient(135deg, #0072ce 0%, #001f3f 100%);
+  overflow-x: hidden;
+}
+
+/* Prevent horizontal scrolling globally */
+html {
+  overflow-x: hidden;
+}
+
+/* Full height layout utility */
+.h-screen-safe {
+  height: 100vh;
+  height: 100dvh;
+  /* Dynamic viewport height for mobile */
 }
 
 /* Custom animations */
@@ -39,6 +51,18 @@ body {
   }
 }
 
+@keyframes pulse-slow {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
 /* Custom utility classes */
 .animate-float {
   animation: float 3s ease-in-out infinite;
@@ -48,9 +72,14 @@ body {
   animation: glow 2s ease-in-out infinite alternate;
 }
 
-/* Custom scrollbar */
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+/* Enhanced scrollbar styles */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -59,10 +88,338 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(177, 84, 255, 0.5);
+  background: linear-gradient(135deg, rgba(177, 84, 255, 0.6), rgba(255, 215, 0, 0.6));
   border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(177, 84, 255, 0.8), rgba(255, 215, 0, 0.8));
+}
+
+::-webkit-scrollbar-corner {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Custom scrollbar for specific containers */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(177, 84, 255, 0.5);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(177, 84, 255, 0.7);
+}
+
+/* Thin scrollbar for compact areas */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(177, 84, 255, 0.4);
+  border-radius: 2px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(177, 84, 255, 0.6);
+}
+
+/* Enhanced range slider styles */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  outline: none;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.slider:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #b154ff, #ffd700);
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.slider::-webkit-slider-thumb:active {
+  transform: scale(0.95);
+}
+
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #b154ff, #ffd700);
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.slider::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+/* Video container optimizations */
+.video-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.75rem;
+}
+
+.video-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+/* Backdrop blur utilities for better performance */
+.backdrop-blur-xs {
+  backdrop-filter: blur(2px);
+}
+
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+
+.backdrop-blur-md {
+  backdrop-filter: blur(8px);
+}
+
+.backdrop-blur-lg {
+  backdrop-filter: blur(12px);
+}
+
+.backdrop-blur-xl {
+  backdrop-filter: blur(16px);
+}
+
+/* Grid layout helpers */
+.grid-responsive {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.grid-inference {
+  display: grid;
+  grid-template-columns: 2fr 5fr 5fr;
+  gap: 1rem;
+  height: 100%;
+}
+
+@media (max-width: 1024px) {
+  .grid-inference {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+  }
+}
+
+/* Layout containers */
+.layout-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.content-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.main-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.panel-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Text selection improvements */
+::selection {
+  background-color: rgba(177, 84, 255, 0.3);
+  color: white;
+}
+
+::-moz-selection {
+  background-color: rgba(177, 84, 255, 0.3);
+  color: white;
+}
+
+/* Focus improvements for accessibility */
+*:focus {
+  outline: 2px solid rgba(177, 84, 255, 0.5);
+  outline-offset: 2px;
+}
+
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid rgba(255, 215, 0, 0.5);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions for layout changes */
+.transition-layout {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Loading states */
+.loading-shimmer {
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      rgba(255, 255, 255, 0.1) 100%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* Status indicators */
+.status-indicator {
+  position: relative;
+}
+
+.status-indicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.status-indicator:hover::before {
+  opacity: 1;
+}
+
+/* Performance optimizations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .sidebar {
+    order: -1;
+  }
+
+  .grid-inference {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    gap: 0.5rem;
+  }
+
+  .content-area {
+    padding: 0.5rem;
+  }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
+  .crisp-edges {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

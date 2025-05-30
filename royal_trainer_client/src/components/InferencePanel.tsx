@@ -1,28 +1,25 @@
+// royal_trainer_client/src/components/InferencePanel.tsx - Enhanced for new layout
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Brain,
     ChevronUp,
-    Wifi,
-    WifiOff,
-    Signal,
-    Settings,
-    RefreshCw,
     Target,
     Eye,
-    Filter
+    Filter,
+    Download,
+    Maximize2,
+    Camera,
+    BarChart3,
 } from 'lucide-react';
 
 // Import all the decoupled components
 import DetectionCard from './inference/DetectionCard';
-import DetectionFilters from './inference/DetectionFilters';
-import PerformanceDashboard from './inference/PerformanceDashboard';
-
 import DetectionSummary from './inference/DetectionSummary';
 import PerformanceInsights from './inference/PerformanceInsights';
 import OfflineState from './inference/OfflineState';
 import type { Detection, InferenceData, InferenceStats } from '../types';
-import AnnotatedFrameViewer from './inference/AnnotatedFrameViewer';
 
 interface ExtendedInferenceStats extends InferenceStats {
     connectionAttempts?: number;
@@ -57,17 +54,16 @@ const InferencePanel: React.FC<InferencePanelProps> = ({
 }) => {
     // Panel State
     const [isExpanded, setIsExpanded] = useState(true);
-    const [showAnnotatedFrame, setShowAnnotatedFrame] = useState(false);
-    const [showAdvancedStats, setShowAdvancedStats] = useState(false);
-    const [autoRefresh, setAutoRefresh] = useState(true);
+    const [autoRefresh,] = useState(true);
+    const [activeTab, setActiveTab] = useState<'detections' | 'frame' | 'stats'>('detections');
 
     // Detection Management
     const [selectedDetection, setSelectedDetection] = useState<Detection | null>(null);
     const [detectionFilters, setDetectionFilters] = useState<ClassFilter[]>([]);
     const [confidenceThreshold, setConfidenceThreshold] = useState(0.5);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortBy, setSortBy] = useState<'confidence' | 'size' | 'class'>('confidence');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const [sortBy,] = useState<'confidence' | 'size' | 'class'>('confidence');
+    const [sortOrder,] = useState<'asc' | 'desc'>('desc');
 
     // Performance Tracking
     const [performanceHistory, setPerformanceHistory] = useState<{
@@ -162,12 +158,6 @@ const InferencePanel: React.FC<InferencePanelProps> = ({
         return 'HTTP Polling';
     }, [isActive, stats.isWebSocketConnected]);
 
-    const formatTimeAgo = useCallback((timestamp: number) => {
-        const secondsAgo = Math.round((Date.now() - timestamp) / 1000);
-        if (secondsAgo < 60) return `${secondsAgo}s ago`;
-        if (secondsAgo < 3600) return `${Math.round(secondsAgo / 60)}m ago`;
-        return `${Math.round(secondsAgo / 3600)}h ago`;
-    }, []);
 
     // Action handlers
     const downloadAnnotatedFrame = useCallback(() => {
@@ -251,16 +241,6 @@ const InferencePanel: React.FC<InferencePanelProps> = ({
         }
     }, [inferenceData, sessionCode]);
 
-    const toggleClassFilter = useCallback((className: string) => {
-        setDetectionFilters(prev =>
-            prev.map(filter =>
-                filter.name === className
-                    ? { ...filter, enabled: !filter.enabled }
-                    : filter
-            )
-        );
-    }, []);
-
     const resetFilters = useCallback(() => {
         setDetectionFilters(prev => prev.map(filter => ({ ...filter, enabled: true })));
         setConfidenceThreshold(0.5);
@@ -332,53 +312,34 @@ const InferencePanel: React.FC<InferencePanelProps> = ({
 
     return (
         <motion.div
-            className="bg-gradient-to-br from-cr-navy/95 to-cr-purple/25 backdrop-blur-xl border-4 border-cr-purple rounded-3xl overflow-hidden shadow-2xl"
+            className="bg-gradient-to-br from-cr-navy/95 to-cr-purple/25 backdrop-blur-xl border-2 border-cr-purple/40 rounded-2xl overflow-hidden shadow-2xl h-full flex flex-col"
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
         >
-            {/* Header */}
-            <div
-                className="p-6 border-b border-cr-purple/30 cursor-pointer hover:bg-white/5 transition-colors"
-                onClick={() => setIsExpanded(!isExpanded)}
-            >
+            {/* Compact Header */}
+            <div className="p-4 border-b border-cr-purple/30 bg-gradient-to-r from-cr-purple/20 to-cr-gold/10">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         <div className="relative">
-                            <Brain className="w-8 h-8 text-cr-purple" />
+                            <Brain className="w-6 h-6 text-cr-purple" />
                             {isActive && (
                                 <motion.div
-                                    className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full"
+                                    className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full"
                                     animate={{ scale: [1, 1.2, 1] }}
                                     transition={{ duration: 2, repeat: Infinity }}
                                 />
                             )}
                         </div>
                         <div>
-                            <h3 className="text-2xl font-bold text-cr-purple flex items-center gap-3">
-                                AI Analysis
-                                <div className="flex items-center gap-1">
-                                    <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-500' : 'bg-gray-500'}`} />
-                                    {stats.isWebSocketConnected ? (
-                                        <Wifi className="w-4 h-4 text-green-400" />
-                                    ) : isActive ? (
-                                        <Signal className="w-4 h-4 text-yellow-400" />
-                                    ) : (
-                                        <WifiOff className="w-4 h-4 text-gray-400" />
-                                    )}
-                                </div>
-                            </h3>
-                            <div className="flex items-center gap-4 text-sm">
-                                <span className={`flex items-center gap-1 ${getConnectionStatusColor()}`}>
-                                    <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                            <h3 className="text-lg font-bold text-cr-purple">AI Analysis</h3>
+                            <div className="flex items-center gap-2 text-xs">
+                                <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-500' : 'bg-gray-500'}`} />
+                                <span className={`${getConnectionStatusColor()}`}>
                                     {getConnectionStatusText()}
                                 </span>
                                 {isActive && inferenceData && (
                                     <>
-                                        <span className="text-white/60">•</span>
-                                        <span className="text-white/70">
-                                            {formatTimeAgo(lastUpdateRef.current)}
-                                        </span>
                                         <span className="text-white/60">•</span>
                                         <span className="text-cr-gold font-medium">
                                             Session {sessionCode}
@@ -389,93 +350,47 @@ const InferencePanel: React.FC<InferencePanelProps> = ({
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
                         {/* Quick Stats */}
                         {isActive && inferenceData && (
-                            <div className="flex gap-6">
-                                <motion.div
-                                    className="text-center"
-                                    whileHover={{ scale: 1.05 }}
-                                >
-                                    <div className="text-3xl font-bold text-cr-gold">
+                            <div className="flex gap-4 mr-4">
+                                <div className="text-center">
+                                    <div className="text-xl font-bold text-cr-gold">
                                         {filteredDetections.length}
                                     </div>
-                                    <div className="text-xs text-white/60 uppercase tracking-wider">
-                                        Objects
-                                    </div>
-                                </motion.div>
-                                <motion.div
-                                    className="text-center"
-                                    whileHover={{ scale: 1.05 }}
-                                >
-                                    <div className="text-3xl font-bold text-green-400">
+                                    <div className="text-xs text-white/60">Objects</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-xl font-bold text-green-400">
                                         {Math.round(inferenceData.inference_time)}
                                     </div>
-                                    <div className="text-xs text-white/60 uppercase tracking-wider">ms</div>
-                                </motion.div>
+                                    <div className="text-xs text-white/60">ms</div>
+                                </div>
                                 {stats.inferenceFPS && (
-                                    <motion.div
-                                        className="text-center"
-                                        whileHover={{ scale: 1.05 }}
-                                    >
-                                        <div className="text-3xl font-bold text-cr-purple">
+                                    <div className="text-center">
+                                        <div className="text-xl font-bold text-cr-purple">
                                             {stats.inferenceFPS.toFixed(1)}
                                         </div>
-                                        <div className="text-xs text-white/60 uppercase tracking-wider">FPS</div>
-                                    </motion.div>
-                                )}
-                                <motion.div
-                                    className="text-center"
-                                    whileHover={{ scale: 1.05 }}
-                                >
-                                    <div className="text-3xl font-bold text-white">
-                                        {Math.round(stats.accuracy || 0)}
+                                        <div className="text-xs text-white/60">FPS</div>
                                     </div>
-                                    <div className="text-xs text-white/60 uppercase tracking-wider">%</div>
-                                </motion.div>
+                                )}
                             </div>
                         )}
 
-                        {/* Controls */}
-                        <div className="flex items-center gap-2">
-                            {isActive && (
-                                <motion.button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setAutoRefresh(!autoRefresh);
-                                    }}
-                                    className={`p-2 rounded-lg border transition-colors ${autoRefresh
-                                        ? 'bg-green-500/20 border-green-500/40 text-green-400'
-                                        : 'bg-white/10 border-white/20 text-white/70'
-                                        }`}
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.9 }}
-                                    title={autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
-                                >
-                                    <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
-                                </motion.button>
-                            )}
-
-                            <motion.button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowAdvancedStats(!showAdvancedStats);
-                                }}
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                title="Advanced Statistics"
-                            >
-                                <Settings className="w-5 h-5 text-white/70" />
-                            </motion.button>
-
+                        <motion.button
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            title="Toggle Panel"
+                        >
                             <motion.div
                                 animate={{ rotate: isExpanded ? 180 : 0 }}
                                 transition={{ duration: 0.3 }}
                             >
-                                <ChevronUp className="w-6 h-6 text-white/70" />
+                                <ChevronUp className="w-4 h-4 text-white/70" />
                             </motion.div>
-                        </div>
+                        </motion.button>
                     </div>
                 </div>
             </div>
@@ -488,145 +403,247 @@ const InferencePanel: React.FC<InferencePanelProps> = ({
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.3 }}
+                        className="flex-1 flex flex-col min-h-0"
                     >
                         {isActive && inferenceData ? (
-                            <div className="p-6 space-y-6">
-                                {/* Performance Dashboard */}
-                                <PerformanceDashboard
-                                    stats={stats}
-                                    currentInferenceTime={inferenceData.inference_time}
-                                    currentDetectionCount={inferenceData.detections.length}
-                                    showAdvanced={showAdvancedStats}
-                                    performanceMetrics={performanceMetrics}
-                                />
-
-                                {/* Detection Filters */}
-                                {inferenceData.detections.length > 0 && (
-                                    <DetectionFilters
-                                        filters={detectionFilters}
-                                        onToggleFilter={toggleClassFilter}
-                                        onResetFilters={resetFilters}
-                                        searchQuery={searchQuery}
-                                        onSearchChange={setSearchQuery}
-                                        confidenceThreshold={confidenceThreshold}
-                                        onConfidenceChange={setConfidenceThreshold}
-                                        sortBy={sortBy}
-                                        onSortByChange={setSortBy}
-                                        sortOrder={sortOrder}
-                                        onSortOrderChange={setSortOrder}
-                                    />
-                                )}
-
-                                {/* Current Detections */}
-                                {filteredDetections.length > 0 ? (
-                                    <div>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h4 className="text-xl font-bold text-white flex items-center gap-2">
-                                                <Target className="w-6 h-6 text-cr-gold" />
-                                                Live Detections ({filteredDetections.length}/{inferenceData.detections.length})
-                                            </h4>
-
-                                            <div className="flex items-center gap-4">
-                                                <span className="text-sm text-white/60">
-                                                    Image: {inferenceData.image_shape?.width || 'Unknown'}×{inferenceData.image_shape?.height || 'Unknown'}
-                                                </span>
-                                                <div className="flex items-center gap-1">
-                                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                                    <span className="text-xs text-green-400">Real-time</span>
-                                                </div>
+                            <div className="flex-1 flex flex-col p-4 space-y-4 min-h-0">
+                                {/* Compact Performance Dashboard */}
+                                <div className="bg-black/20 rounded-xl p-3 border border-cr-purple/20">
+                                    <div className="grid grid-cols-4 gap-3">
+                                        <div className="text-center">
+                                            <div className="text-lg font-bold text-green-400">
+                                                {Math.round(stats.avgInferenceTime || 0)}ms
                                             </div>
+                                            <div className="text-xs text-white/60">Avg Time</div>
                                         </div>
-
-                                        <div className="grid gap-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
-                                            {filteredDetections.map((detection, index) => (
-                                                <DetectionCard
-                                                    key={`${detection.class}-${detection.bbox.x1}-${detection.bbox.y1}-${index}`}
-                                                    detection={detection}
-                                                    index={index}
-                                                    isSelected={selectedDetection === detection}
-                                                    onSelect={setSelectedDetection}
-                                                    imageShape={inferenceData.image_shape}
-                                                />
-                                            ))}
+                                        <div className="text-center">
+                                            <div className="text-lg font-bold text-cr-gold">
+                                                {stats.detectionsPerSecond.toFixed(1)}/s
+                                            </div>
+                                            <div className="text-xs text-white/60">Rate</div>
                                         </div>
-
-                                        {/* Detection Summary */}
-                                        <DetectionSummary detections={filteredDetections} />
+                                        <div className="text-center">
+                                            <div className="text-lg font-bold text-cr-purple">
+                                                {(stats.inferenceFPS || 0).toFixed(1)}
+                                            </div>
+                                            <div className="text-xs text-white/60">FPS</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-lg font-bold text-white">
+                                                {Math.round(stats.accuracy || 0)}%
+                                            </div>
+                                            <div className="text-xs text-white/60">Accuracy</div>
+                                        </div>
                                     </div>
-                                ) : inferenceData.detections.length > 0 ? (
-                                    <motion.div
-                                        className="text-center py-8"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                    >
-                                        <Filter className="w-16 h-16 text-white/30 mx-auto mb-4" />
-                                        <h4 className="text-xl font-bold text-white/60 mb-2">No Objects Match Filters</h4>
-                                        <p className="text-white/40 text-lg">
-                                            {inferenceData.detections.length} objects detected but filtered out
-                                        </p>
+                                </div>
+
+                                {/* Tab Navigation */}
+                                <div className="flex gap-1 bg-black/20 rounded-lg p-1">
+                                    {[
+                                        { id: 'detections', label: 'Detections', icon: Target },
+                                        { id: 'frame', label: 'Frame', icon: Eye },
+                                        { id: 'stats', label: 'Stats', icon: BarChart3 }
+                                    ].map(({ id, label, icon: Icon }) => (
                                         <motion.button
-                                            onClick={resetFilters}
-                                            className="mt-4 px-4 py-2 bg-cr-purple rounded-lg text-white hover:bg-cr-purple/80 transition-colors"
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
+                                            key={id}
+                                            onClick={() => setActiveTab(id as any)}
+                                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === id
+                                                ? 'bg-cr-purple text-white'
+                                                : 'text-white/70 hover:bg-white/10'
+                                                }`}
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
                                         >
-                                            Reset Filters
+                                            <Icon className="w-4 h-4" />
+                                            {label}
                                         </motion.button>
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        className="text-center py-12"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                    >
-                                        <Eye className="w-20 h-20 text-white/20 mx-auto mb-6" />
-                                        <h4 className="text-xl font-bold text-white/60 mb-2">No Objects Detected</h4>
-                                        <p className="text-white/40 text-lg">AI is actively scanning for game elements</p>
-                                        <div className="mt-6 flex items-center justify-center gap-6 text-sm text-white/30">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                                <span>Inference Active</span>
-                                            </div>
-                                            <span>•</span>
-                                            <span>Confidence Threshold: {Math.round(confidenceThreshold * 100)}%</span>
-                                            <span>•</span>
-                                            <span>Processing: {Math.round(inferenceData.inference_time)}ms</span>
-                                        </div>
-                                    </motion.div>
-                                )}
+                                    ))}
+                                </div>
 
-                                {/* Annotated Frame Section */}
-                                {inferenceData.annotated_frame && (
-                                    <AnnotatedFrameViewer
-                                        annotatedFrame={inferenceData.annotated_frame}
-                                        detectionCount={inferenceData.detections.length}
-                                        inferenceTime={inferenceData.inference_time}
-                                        sessionCode={sessionCode}
-                                        isVisible={showAnnotatedFrame}
-                                        onToggleVisibility={() => setShowAnnotatedFrame(!showAnnotatedFrame)}
-                                        onDownload={downloadAnnotatedFrame}
-                                        onFullscreen={openAnnotatedFrameFullscreen}
-                                    />
-                                )}
+                                {/* Tab Content */}
+                                <div className="flex-1 min-h-0">
+                                    <AnimatePresence mode="wait">
+                                        {activeTab === 'detections' && (
+                                            <motion.div
+                                                key="detections"
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="h-full flex flex-col"
+                                            >
+                                                {/* Quick Filters */}
+                                                <div className="mb-3">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-sm font-bold text-white">
+                                                            Live Detections ({filteredDetections.length}/{inferenceData.detections.length})
+                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-white/60">
+                                                                Confidence: {Math.round(confidenceThreshold * 100)}%
+                                                            </span>
+                                                            <input
+                                                                type="range"
+                                                                min="0"
+                                                                max="1"
+                                                                step="0.05"
+                                                                value={confidenceThreshold}
+                                                                onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
+                                                                className="w-16 h-1 bg-black/30 rounded-lg appearance-none cursor-pointer slider"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-                                {/* Performance Insights */}
-                                <PerformanceInsights
-                                    inferenceTime={inferenceData.inference_time}
-                                    inferenceFPS={stats.inferenceFPS || 0}
-                                    accuracy={stats.accuracy || 0}
-                                    isWebSocketConnected={stats.isWebSocketConnected || false}
-                                    connectionAttempts={stats.connectionAttempts || 0}
-                                    uptime={performanceMetrics.uptime}
-                                    totalFrames={performanceMetrics.totalFrames}
-                                    minInferenceTime={performanceMetrics.minInferenceTime}
-                                    maxInferenceTime={performanceMetrics.maxInferenceTime}
-                                />
+                                                {/* Detections List */}
+                                                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                                    {filteredDetections.length > 0 ? (
+                                                        filteredDetections.map((detection, index) => (
+                                                            <DetectionCard
+                                                                key={`${detection.class}-${detection.bbox.x1}-${detection.bbox.y1}-${index}`}
+                                                                detection={detection}
+                                                                index={index}
+                                                                isSelected={selectedDetection === detection}
+                                                                onSelect={setSelectedDetection}
+                                                                imageShape={inferenceData.image_shape}
+                                                            />
+                                                        ))
+                                                    ) : inferenceData.detections.length > 0 ? (
+                                                        <div className="text-center py-8">
+                                                            <Filter className="w-12 h-12 text-white/30 mx-auto mb-3" />
+                                                            <h4 className="text-lg font-bold text-white/60 mb-2">No Objects Match Filters</h4>
+                                                            <p className="text-white/40">
+                                                                {inferenceData.detections.length} objects detected but filtered out
+                                                            </p>
+                                                            <motion.button
+                                                                onClick={resetFilters}
+                                                                className="mt-3 px-3 py-2 bg-cr-purple rounded-lg text-white hover:bg-cr-purple/80 transition-colors"
+                                                                whileHover={{ scale: 1.05 }}
+                                                                whileTap={{ scale: 0.95 }}
+                                                            >
+                                                                Reset Filters
+                                                            </motion.button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-center py-8">
+                                                            <Eye className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                                                            <h4 className="text-lg font-bold text-white/60 mb-2">No Objects Detected</h4>
+                                                            <p className="text-white/40">AI is actively scanning for game elements</p>
+                                                            <div className="mt-4 flex items-center justify-center gap-4 text-sm text-white/30">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                                                    <span>Inference Active</span>
+                                                                </div>
+                                                                <span>•</span>
+                                                                <span>Processing: {Math.round(inferenceData.inference_time)}ms</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Detection Summary */}
+                                                {filteredDetections.length > 0 && (
+                                                    <DetectionSummary detections={filteredDetections} />
+                                                )}
+                                            </motion.div>
+                                        )}
+
+                                        {activeTab === 'frame' && (
+                                            <motion.div
+                                                key="frame"
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="h-full flex flex-col"
+                                            >
+                                                {inferenceData.annotated_frame ? (
+                                                    <div className="h-full flex flex-col">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                                                                <Camera className="w-5 h-5 text-cr-gold" />
+                                                                Annotated Frame
+                                                            </h4>
+                                                            <div className="flex items-center gap-2">
+                                                                <motion.button
+                                                                    onClick={downloadAnnotatedFrame}
+                                                                    className="px-3 py-1 bg-cr-purple/20 border border-cr-purple/40 rounded-lg text-white text-sm font-medium hover:bg-cr-purple/30 transition-colors flex items-center gap-2"
+                                                                    whileHover={{ scale: 1.05 }}
+                                                                    whileTap={{ scale: 0.95 }}
+                                                                >
+                                                                    <Download className="w-3 h-3" />
+                                                                    Save
+                                                                </motion.button>
+                                                                <motion.button
+                                                                    onClick={openAnnotatedFrameFullscreen}
+                                                                    className="px-3 py-1 bg-cr-gold/20 border border-cr-gold/40 rounded-lg text-white text-sm font-medium hover:bg-cr-gold/30 transition-colors flex items-center gap-2"
+                                                                    whileHover={{ scale: 1.05 }}
+                                                                    whileTap={{ scale: 0.95 }}
+                                                                >
+                                                                    <Maximize2 className="w-3 h-3" />
+                                                                    Expand
+                                                                </motion.button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex-1 rounded-xl overflow-hidden border border-cr-purple/30">
+                                                            <img
+                                                                src={`data:image/jpeg;base64,${inferenceData.annotated_frame}`}
+                                                                alt="Annotated frame with AI detections"
+                                                                className="w-full h-full object-contain bg-black cursor-pointer"
+                                                                onClick={openAnnotatedFrameFullscreen}
+                                                                onLoad={() => console.log('Annotated frame loaded successfully')}
+                                                                onError={() => console.error('Failed to load annotated frame')}
+                                                            />
+                                                        </div>
+
+                                                        <div className="mt-3 text-center">
+                                                            <div className="text-sm text-white/60">
+                                                                {inferenceData.detections.length} detections • {Math.round(inferenceData.inference_time)}ms • {new Date().toLocaleTimeString()}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-full flex items-center justify-center">
+                                                        <div className="text-center">
+                                                            <Camera className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                                                            <h4 className="text-lg font-bold text-white/60 mb-2">No Frame Available</h4>
+                                                            <p className="text-white/40">Waiting for annotated frame data</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </motion.div>
+                                        )}
+
+                                        {activeTab === 'stats' && (
+                                            <motion.div
+                                                key="stats"
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="h-full overflow-y-auto custom-scrollbar"
+                                            >
+                                                <PerformanceInsights
+                                                    inferenceTime={inferenceData.inference_time}
+                                                    inferenceFPS={stats.inferenceFPS || 0}
+                                                    accuracy={stats.accuracy || 0}
+                                                    isWebSocketConnected={stats.isWebSocketConnected || false}
+                                                    connectionAttempts={stats.connectionAttempts || 0}
+                                                    uptime={performanceMetrics.uptime}
+                                                    totalFrames={performanceMetrics.totalFrames}
+                                                    minInferenceTime={performanceMetrics.minInferenceTime}
+                                                    maxInferenceTime={performanceMetrics.maxInferenceTime}
+                                                />
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
                             </div>
                         ) : (
-                            <OfflineState
-                                sessionCode={sessionCode}
-                                connectionStatus={getConnectionStatusText()}
-                            />
+                            <div className="p-6">
+                                <OfflineState
+                                    sessionCode={sessionCode}
+                                    connectionStatus={getConnectionStatusText()}
+                                />
+                            </div>
                         )}
                     </motion.div>
                 )}
@@ -634,21 +651,38 @@ const InferencePanel: React.FC<InferencePanelProps> = ({
 
             {/* Custom Styles */}
             <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(177, 84, 255, 0.5);
-          border-radius: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(177, 84, 255, 0.7);
-        }
-      `}</style>
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 3px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: rgba(177, 84, 255, 0.5);
+                    border-radius: 3px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: rgba(177, 84, 255, 0.7);
+                }
+                .slider::-webkit-slider-thumb {
+                    appearance: none;
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 50%;
+                    background: #b154ff;
+                    cursor: pointer;
+                    border: 2px solid #ffffff;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+                .slider::-webkit-slider-track {
+                    width: 100%;
+                    height: 4px;
+                    cursor: pointer;
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 2px;
+                }
+            `}</style>
         </motion.div>
     );
 };
