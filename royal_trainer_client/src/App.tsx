@@ -309,7 +309,7 @@ const App: React.FC = () => {
 
                   {/* Left Sidebar - Fixed width, no horizontal scroll */}
                   <motion.div
-                    className="col-span-3 max-w-xs space-y-3 overflow-y-auto thin-scrollbar"
+                    className="col-span-3 w-full max-w-sm space-y-3 overflow-y-auto overflow-x-hidden thin-scrollbar"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3 }}
@@ -331,48 +331,6 @@ const App: React.FC = () => {
                       onToggleInference={toggleInference}
                       frameStats={getFrameStats()}
                     />
-
-                    {/* Detection History Panel */}
-                    {detectionHistory.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-3"
-                      >
-                        <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                          <Target className="w-4 h-4 text-purple-400" />
-                          Detection History ({detectionHistory.length})
-                        </h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto thin-scrollbar">
-                          {detectionHistory.slice(0, 10).map((item) => (
-                            <motion.button
-                              key={item.id}
-                              onClick={() => setSelectedHistoryItem(item)}
-                              className={`w-full p-2 rounded-lg text-left transition-all ${selectedHistoryItem?.id === item.id
-                                ? 'bg-purple-600/30 border border-purple-500/50'
-                                : 'bg-slate-700/30 hover:bg-slate-600/30 border border-transparent'
-                                }`}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <div className="text-xs text-white/80">
-                                    {item.detections.length} objects
-                                  </div>
-                                  <div className="text-xs text-white/60">
-                                    {new Date(item.timestamp).toLocaleTimeString()}
-                                  </div>
-                                </div>
-                                <div className="text-xs text-green-400">
-                                  {Math.round(item.inferenceTime)}ms
-                                </div>
-                              </div>
-                            </motion.button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
 
                     {/* Advanced Controls Toggle */}
                     <motion.button
@@ -493,40 +451,47 @@ const App: React.FC = () => {
                         <div className="grid grid-cols-4 gap-4 h-full">
                           {/* Performance Stats */}
                           <div className="col-span-2 space-y-4">
-                            <h4 className="text-lg font-bold text-white flex items-center gap-2">
-                              <BarChart3 className="w-5 h-5 text-blue-400" />
-                              Performance Stats
-                            </h4>
-
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
-                                <div className="text-2xl font-bold text-green-400">
-                                  {Math.round(inferenceStats.avgInferenceTime || 0)}ms
+                            {/* Detection History Panel */}
+                            {detectionHistory.length > 0 && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-3"
+                              >
+                                <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                                  <Target className="w-4 h-4 text-purple-400" />
+                                  Detection History ({detectionHistory.length})
+                                </h4>
+                                <div className="space-y-2 max-h-48 overflow-y-auto thin-scrollbar">
+                                  {detectionHistory.slice(0, 10).map((item) => (
+                                    <motion.button
+                                      key={item.id}
+                                      onClick={() => setSelectedHistoryItem(item)}
+                                      className={`w-full p-2 rounded-lg text-left transition-all ${(selectedHistoryItem as DetectionHistoryItem | null)?.id === item.id
+                                        ? 'bg-purple-600/30 border border-purple-500/50'
+                                        : 'bg-slate-700/30 hover:bg-slate-600/30 border border-transparent'
+                                        }`}
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                    >
+                                      <div className="flex justify-between items-start">
+                                        <div>
+                                          <div className="text-xs text-white/80">
+                                            {item.detections.length} objects
+                                          </div>
+                                          <div className="text-xs text-white/60">
+                                            {new Date(item.timestamp).toLocaleTimeString()}
+                                          </div>
+                                        </div>
+                                        <div className="text-xs text-green-400">
+                                          {Math.round(item.inferenceTime)}ms
+                                        </div>
+                                      </div>
+                                    </motion.button>
+                                  ))}
                                 </div>
-                                <div className="text-sm text-white/60">Avg Processing</div>
-                              </div>
-
-                              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
-                                <div className="text-2xl font-bold text-purple-400">
-                                  {(inferenceStats.inferenceFPS || 0).toFixed(1)}
-                                </div>
-                                <div className="text-sm text-white/60">Inference FPS</div>
-                              </div>
-
-                              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
-                                <div className="text-2xl font-bold text-yellow-400">
-                                  {inferenceStats.detectionsPerSecond.toFixed(1)}/s
-                                </div>
-                                <div className="text-sm text-white/60">Detection Rate</div>
-                              </div>
-
-                              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
-                                <div className="text-2xl font-bold text-white">
-                                  {Math.round(inferenceStats.accuracy || 0)}%
-                                </div>
-                                <div className="text-sm text-white/60">Accuracy</div>
-                              </div>
-                            </div>
+                              </motion.div>
+                            )}
                           </div>
 
                           {/* Connection Stats */}
