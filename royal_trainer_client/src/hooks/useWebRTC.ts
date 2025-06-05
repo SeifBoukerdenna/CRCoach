@@ -1,6 +1,5 @@
 /**
- * Enhanced WebRTC hook with stats-based latency tracking
- * Uses actual WebRTC timestamps for accurate measurements
+ * Enhanced WebRTC hook with proper multiple viewer support
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -70,10 +69,11 @@ export const useWebRTC = () => {
   const latencyTestIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const sessionCodeRef = useRef<string>("");
+  const connectionIdRef = useRef<string>("");
 
   // WebRTC stats tracking
   const previousStatsRef = useRef<WebRTCFrameStats | null>(null);
-  const frameTrackingRef = useRef<Map<number, number>>(new Map()); // frameNumber -> receiveTime
+  const frameTrackingRef = useRef<Map<number, number>>(new Map());
 
   /*─────────────────────────────────── helpers */
   const log = (msg: string, t: string = "info") => {
@@ -99,36 +99,30 @@ export const useWebRTC = () => {
         return;
       }
 
-      // Check if we have new frames
       const newFramesReceived =
         currentStats.framesReceived - prevStats.framesReceived;
       const newFramesDecoded =
         currentStats.framesDecoded - prevStats.framesDecoded;
 
       if (newFramesReceived > 0 || newFramesDecoded > 0) {
-        // Calculate frame timing based on WebRTC stats
         const frameId = `webrtc_${currentStats.framesReceived}_${currentStats.timestamp}`;
 
-        // Method 1: Use lastPacketReceivedTimestamp as proxy for capture time
         let estimatedCaptureTime: number;
 
         if (
           currentStats.lastPacketReceivedTimestamp &&
           currentStats.lastPacketReceivedTimestamp > 0
         ) {
-          // Convert WebRTC timestamp (usually in seconds) to milliseconds
           estimatedCaptureTime =
             currentStats.lastPacketReceivedTimestamp * 1000;
         } else {
-          // Fallback: Use frame reception timing with network compensation
           const networkDelay = streamStats?.networkLatency || 50;
-          const encodingDelay = 30; // Typical encoding delay
+          const encodingDelay = 30;
           estimatedCaptureTime = displayTime - networkDelay - encodingDelay;
         }
 
         const endToEndLatency = displayTime - estimatedCaptureTime;
 
-        // Only record reasonable latency values (filter out outliers)
         if (endToEndLatency > 0 && endToEndLatency < 2000) {
           const measurement: LatencyMeasurement = {
             frameId,
@@ -169,7 +163,6 @@ export const useWebRTC = () => {
             };
           });
 
-          // Send latency data to server
           if (webSocketRef.current?.readyState === WebSocket.OPEN) {
             webSocketRef.current.send(
               JSON.stringify({
@@ -241,7 +234,6 @@ export const useWebRTC = () => {
 
       stats.forEach((report) => {
         if (report.type === "inbound-rtp" && report.mediaType === "video") {
-          // Basic stats
           if (report.framesPerSecond) fps = Math.round(report.framesPerSecond);
           if (report.bytesReceived)
             bitrate = Math.round((report.bytesReceived * 8) / 1000);
@@ -249,7 +241,6 @@ export const useWebRTC = () => {
             resolution = `${report.frameWidth}x${report.frameHeight}`;
           }
 
-          // Frame timing stats for latency calculation
           currentFrameStats = {
             timestamp: report.timestamp,
             framesReceived: report.framesReceived || 0,
@@ -259,7 +250,6 @@ export const useWebRTC = () => {
               report.lastPacketReceivedTimestamp || 0,
           };
 
-          // Log detailed frame stats periodically
           if (report.framesReceived && report.framesReceived % 100 === 0) {
             log(
               `WebRTC frame stats - Received: ${report.framesReceived}, Decoded: ${report.framesDecoded}, Dropped: ${report.framesDropped}`,
@@ -268,15 +258,13 @@ export const useWebRTC = () => {
           }
         }
 
-        // Network RTT from candidate pair
         if (report.type === "candidate-pair" && report.state === "succeeded") {
           if (report.currentRoundTripTime) {
-            networkRtt = report.currentRoundTripTime * 1000; // Convert to ms
+            networkRtt = report.currentRoundTripTime * 1000;
           }
         }
       });
 
-      // Calculate latency based on current frame display time
       if (currentFrameStats) {
         const displayTime = performance.now();
         measureFrameLatencyFromStats(currentFrameStats, displayTime);
@@ -298,10 +286,8 @@ export const useWebRTC = () => {
 
   const startStatsLoop = useCallback(() => {
     if (statsIntervalRef.current) clearInterval(statsIntervalRef.current);
-    // Increase frequency for better latency tracking
-    statsIntervalRef.current = setInterval(updateStreamStats, 1000); // Every 1 second
+    statsIntervalRef.current = setInterval(updateStreamStats, 1000);
 
-    // Start latency testing
     if (latencyTestIntervalRef.current)
       clearInterval(latencyTestIntervalRef.current);
     latencyTestIntervalRef.current = setInterval(performLatencyTest, 5000);
@@ -327,6 +313,7 @@ export const useWebRTC = () => {
             sdpMid: e.candidate.sdpMid,
             sessionCode: sessionCodeRef.current,
             timestamp: performance.now(),
+            connection_id: connectionIdRef.current,
           })
         );
       }
@@ -338,7 +325,6 @@ export const useWebRTC = () => {
       attachStream();
       startStatsLoop();
 
-      // Reset frame tracking when new track starts
       previousStatsRef.current = null;
       frameTrackingRef.current.clear();
     };
@@ -359,23 +345,45 @@ export const useWebRTC = () => {
   /*─────────────────────────────────── WS msg */
   const handleOffer = useCallback(
     async (msg: any) => {
-      if (!peerConnectionRef.current) createPeer();
+      log("📥 Received offer from broadcaster", "success");
 
-      await peerConnectionRef.current!.setRemoteDescription({
-        type: "offer",
-        sdp: msg.sdp,
-      });
-      const answer = await peerConnectionRef.current!.createAnswer();
-      await peerConnectionRef.current!.setLocalDescription(answer);
+      if (!peerConnectionRef.current) {
+        log("Creating new peer connection for offer", "debug");
+        createPeer();
+      }
 
-      webSocketRef.current?.send(
-        JSON.stringify({
-          type: "answer",
-          sdp: answer.sdp,
-          sessionCode: sessionCodeRef.current,
-          timestamp: performance.now(),
-        })
-      );
+      try {
+        await peerConnectionRef.current!.setRemoteDescription({
+          type: "offer",
+          sdp: msg.sdp,
+        });
+
+        log("✅ Remote description set successfully", "success");
+
+        const answer = await peerConnectionRef.current!.createAnswer();
+        await peerConnectionRef.current!.setLocalDescription(answer);
+
+        log("✅ Answer created and set as local description", "success");
+
+        webSocketRef.current?.send(
+          JSON.stringify({
+            type: "answer",
+            sdp: answer.sdp,
+            sessionCode: sessionCodeRef.current,
+            timestamp: performance.now(),
+            connection_id: connectionIdRef.current,
+          })
+        );
+
+        log("📤 Answer sent to broadcaster", "success");
+      } catch (error) {
+        log(`❌ Error handling offer: ${error}`, "error");
+        setConnectionError({
+          message: `Failed to process offer: ${error}`,
+          code: "OFFER_ERROR",
+          timestamp: new Date(),
+        });
+      }
     },
     [createPeer]
   );
@@ -386,7 +394,9 @@ export const useWebRTC = () => {
 
       switch (d.type) {
         case "connected":
-          // Calculate signaling latency if timestamps are available
+          // Store connection ID for this viewer
+          connectionIdRef.current = d.connectionId || "";
+
           if (d.latency_info && d.latency_info.signaling_latency_ms) {
             setStreamStats((prev) => ({
               ...prev,
@@ -399,7 +409,28 @@ export const useWebRTC = () => {
               "info"
             );
           }
+
+          log(
+            `✅ Connected as viewer with ID: ${connectionIdRef.current}`,
+            "success"
+          );
+          log(
+            `👥 Session has ${d.viewerCount}/${d.maxViewers} viewers`,
+            "info"
+          );
+
+          // Create peer connection early
           createPeer();
+          break;
+
+        case "broadcaster_joined":
+          log("🎥 Broadcaster joined the session", "info");
+          // Broadcaster will send offer soon
+          break;
+
+        case "request_offer":
+          // This message is for broadcasters, viewers shouldn't receive it
+          log("⚠️ Received request_offer as viewer - ignoring", "debug");
           break;
 
         case "offer":
@@ -408,32 +439,34 @@ export const useWebRTC = () => {
 
         case "ice":
           if (peerConnectionRef.current && d.candidate) {
-            peerConnectionRef.current
-              .addIceCandidate(
+            try {
+              await peerConnectionRef.current.addIceCandidate(
                 new RTCIceCandidate({
                   candidate: d.candidate,
                   sdpMLineIndex: d.sdpMLineIndex,
                   sdpMid: d.sdpMid,
                 })
-              )
-              .catch((e) => log("ICE add failed: " + e, "error"));
+              );
+              log("✅ ICE candidate added successfully", "debug");
+            } catch (e) {
+              log("❌ ICE add failed: " + e, "error");
+            }
           }
           break;
 
         case "broadcaster_disconnected":
+          log("📺 Broadcaster disconnected", "info");
           setIsConnected(false);
           remoteStreamRef.current = null;
           if (videoRef.current) videoRef.current.srcObject = null;
-          // Reset tracking when disconnected
           previousStatsRef.current = null;
           frameTrackingRef.current.clear();
           break;
 
         case "latency_response":
-          // Handle latency test response
           if (d.client_timestamp && d.server_send_time) {
             const roundTripTime = receiveTime - d.client_timestamp;
-            const networkLatency = roundTripTime / 2; // Estimate one-way
+            const networkLatency = roundTripTime / 2;
 
             setStreamStats((prev) => ({
               ...prev,
@@ -450,7 +483,6 @@ export const useWebRTC = () => {
           break;
 
         case "latency_update":
-          // Handle server latency updates
           if (d.average_latency) {
             log(
               `Server reports avg latency: ${d.average_latency.toFixed(1)}ms`,
@@ -460,11 +492,16 @@ export const useWebRTC = () => {
           break;
 
         case "error":
+          log(`❌ Server error: ${d.message}`, "error");
           setConnectionError({
             message: d.message,
             code: "SERVER_ERROR",
             timestamp: new Date(),
           });
+          break;
+
+        default:
+          log(`❓ Unknown message type: ${d.type}`, "debug");
           break;
       }
     },
@@ -482,6 +519,7 @@ export const useWebRTC = () => {
           webSocketRef.current = ws;
 
           ws.onopen = () => {
+            log(`🔌 WebSocket opened for session ${code}`, "success");
             ws.send(
               JSON.stringify({
                 type: "connect",
@@ -492,14 +530,27 @@ export const useWebRTC = () => {
             );
             res();
           };
-          ws.onmessage = (e) => handleWS(JSON.parse(e.data));
-          ws.onclose = () => {
+
+          ws.onmessage = (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              handleWS(data);
+            } catch (error) {
+              log(`❌ Failed to parse WebSocket message: ${error}`, "error");
+            }
+          };
+
+          ws.onclose = (e) => {
+            log(`🔌❌ WebSocket closed: ${e.code} ${e.reason}`, "info");
             setIsConnected(false);
-            // Reset tracking on disconnect
             previousStatsRef.current = null;
             frameTrackingRef.current.clear();
           };
-          ws.onerror = () => rej(new Error("WS error"));
+
+          ws.onerror = (e) => {
+            log(`❌ WebSocket error: ${e}`, "error");
+            rej(new Error("WebSocket connection failed"));
+          };
         } catch (e) {
           rej(e);
         }
@@ -508,8 +559,11 @@ export const useWebRTC = () => {
   );
 
   const disconnect = useCallback(() => {
+    log("🔌 Disconnecting WebRTC connection", "info");
+
     webSocketRef.current?.close(1000, "manual");
     peerConnectionRef.current?.close();
+
     if (statsIntervalRef.current) clearInterval(statsIntervalRef.current);
     if (latencyTestIntervalRef.current)
       clearInterval(latencyTestIntervalRef.current);
@@ -519,11 +573,10 @@ export const useWebRTC = () => {
     setIsConnected(false);
     setConnectionError(null);
 
-    // Reset all tracking
     previousStatsRef.current = null;
     frameTrackingRef.current.clear();
+    connectionIdRef.current = "";
 
-    // Reset latency stats
     setLatencyStats({
       current: 0,
       average: 0,
@@ -536,10 +589,8 @@ export const useWebRTC = () => {
 
   /*─────────────────────────────────── side-effects */
 
-  /* ↻ 1) run every time the ref gains a node */
   useEffect(attachStream, [videoRef.current, attachStream]);
 
-  /* ↻ 2) keep-alive ping */
   useEffect(() => {
     const id = setInterval(() => {
       if (webSocketRef.current?.readyState === WebSocket.OPEN) {
@@ -554,7 +605,6 @@ export const useWebRTC = () => {
     return () => clearInterval(id);
   }, []);
 
-  /* ↻ 3) cleanup on unmount */
   useEffect(() => () => disconnect(), [disconnect]);
 
   /*─────────────────────────────────── exports */

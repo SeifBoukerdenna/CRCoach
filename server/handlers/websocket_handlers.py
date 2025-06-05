@@ -61,6 +61,7 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
     ws.connect_time = server_receive_time
     ws.signaling_latency = signaling_latency
     ws.connection_attempts = getattr(ws, 'connection_attempts', 0) + 1
+    ws.role = role  # Store role on websocket
 
     success = False
 
@@ -73,6 +74,19 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
         success = await current_session.add_broadcaster(ws)
 
         if success:
+            # Notify all existing viewers that broadcaster joined
+            if current_session.viewers:
+                broadcaster_joined_msg = {
+                    'type': 'broadcaster_joined',
+                    'sessionCode': session_code,
+                    'timestamp': datetime.now().isoformat()
+                }
+                for viewer in current_session.viewers:
+                    try:
+                        await viewer.send_text(json.dumps(broadcaster_joined_msg))
+                    except:
+                        pass
+
             # If inference is enabled, start frame capture
             if session_inference_states.get(session_code, False):
                 frame_capture_service = get_frame_capture_service()
@@ -88,6 +102,24 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
             else:
                 await send_error(ws, f'Failed to join session {session_code}')
             return None, None
+
+        # If broadcaster exists and WebRTC is established, trigger new WebRTC connection
+        if current_session.broadcaster is not None:
+            print(f"🎥 New viewer {connection_id} joining active broadcast - requesting fresh offer")
+
+            # Request broadcaster to create a new offer for this specific viewer
+            request_offer_msg = {
+                'type': 'request_offer',
+                'for_viewer': connection_id,
+                'sessionCode': session_code,
+                'timestamp': time.time() * 1000
+            }
+
+            try:
+                await current_session.broadcaster.send_text(json.dumps(request_offer_msg))
+                print(f"✅ Requested new offer from broadcaster for viewer {connection_id}")
+            except Exception as e:
+                print(f"❌ Failed to request offer from broadcaster: {e}")
 
     if success:
         # Send connection confirmation
@@ -117,14 +149,10 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
         await ws.send_text(json.dumps(response))
         print(f"✅ {role} {connection_id} connected to session {session_code} - viewers: {len(current_session.viewers)}/{current_session.max_viewers}")
 
-        # For viewers joining an existing session with broadcaster
-        if role == 'viewer' and current_session.broadcaster is not None:
-            print(f"🎥 Viewer {connection_id} joining active broadcast in session {session_code}")
-
     return current_session, role
 
 async def handle_signaling(current_session: Session, ws: WebSocket, msg: dict):
-    """Handle WebRTC signaling messages with enhanced multi-viewer support"""
+    """Handle WebRTC signaling messages with proper multi-viewer support"""
     if not current_session:
         await send_error(ws, 'Not in a session')
         return
@@ -143,42 +171,100 @@ async def handle_signaling(current_session: Session, ws: WebSocket, msg: dict):
 
     print(f"🔄 Handling {msg_type} from {role} {connection_id} in session {current_session.session_code}")
 
-    # Enhanced logging for debugging
     if msg_type == 'offer':
+        # Broadcaster sending offer - determine target viewer
+        target_viewer_id = msg.get('for_viewer')
         sdp = msg.get('sdp', '')
         hop_latency = msg.get('signaling_hop_latency', 0)
+
         print(f"📤 Offer from broadcaster - SDP length: {len(sdp)} chars, latency: {hop_latency:.1f}ms")
+        if target_viewer_id:
+            print(f"🎯 Offer targeted for specific viewer: {target_viewer_id}")
+
         if 'video' in sdp.lower():
             print("✅ SDP contains video track")
         if 'audio' in sdp.lower():
             print("✅ SDP contains audio track")
 
-        # Log viewer count when offer is sent
-        print(f"📊 Broadcasting offer to {len(current_session.viewers)} viewers")
+        # Forward offer to specific viewer or all viewers
+        if target_viewer_id:
+            # Send to specific viewer
+            target_viewer = None
+            for viewer in current_session.viewers:
+                if getattr(viewer, 'connection_id', None) == target_viewer_id:
+                    target_viewer = viewer
+                    break
+
+            if target_viewer:
+                try:
+                    await target_viewer.send_text(json.dumps(msg))
+                    print(f"✅ Offer sent to specific viewer {target_viewer_id}")
+                except Exception as e:
+                    print(f"❌ Failed to send offer to viewer {target_viewer_id}: {e}")
+            else:
+                print(f"❌ Target viewer {target_viewer_id} not found")
+        else:
+            # Broadcast to all viewers (original behavior)
+            successful_sends = 0
+            for viewer in current_session.viewers:
+                try:
+                    await viewer.send_text(json.dumps(msg))
+                    successful_sends += 1
+                except Exception as e:
+                    viewer_id = getattr(viewer, 'connection_id', 'unknown')
+                    print(f"❌ Failed to send offer to viewer {viewer_id}: {e}")
+
+            print(f"✅ Offer broadcast to {successful_sends}/{len(current_session.viewers)} viewers")
 
     elif msg_type == 'answer':
-        sdp = msg.get('sdp', '')
-        hop_latency = msg.get('signaling_hop_latency', 0)
-        print(f"📤 Answer from viewer {connection_id} - SDP length: {len(sdp)} chars, latency: {hop_latency:.1f}ms")
+        # Viewer sending answer to broadcaster
+        if current_session.broadcaster:
+            try:
+                await current_session.broadcaster.send_text(json.dumps(msg))
+                print(f"✅ Answer from viewer {connection_id} sent to broadcaster")
+            except Exception as e:
+                print(f"❌ Failed to send answer to broadcaster: {e}")
+        else:
+            print(f"❌ No broadcaster to receive answer from viewer {connection_id}")
 
     elif msg_type == 'ice':
+        # ICE candidate - route based on role
         candidate = msg.get('candidate', '')
         hop_latency = msg.get('signaling_hop_latency', 0)
         print(f"🧊 ICE from {role} {connection_id}: {candidate[:50]}..., latency: {hop_latency:.1f}ms")
 
-    # Broadcast the signaling message
-    try:
-        await current_session.broadcast_message(msg, ws)
-
-        # Log successful broadcast
         if role == 'broadcaster':
-            print(f"✅ Signaling message broadcast to {len(current_session.viewers)} viewers")
-        elif role == 'viewer':
-            print(f"✅ Signaling message sent to broadcaster")
+            # Broadcaster ICE - send to all viewers
+            successful_sends = 0
+            for viewer in current_session.viewers:
+                try:
+                    await viewer.send_text(json.dumps(msg))
+                    successful_sends += 1
+                except Exception as e:
+                    viewer_id = getattr(viewer, 'connection_id', 'unknown')
+                    print(f"❌ Failed to send ICE to viewer {viewer_id}: {e}")
 
-    except Exception as e:
-        print(f"❌ Error broadcasting signaling message: {e}")
-        await send_error(ws, f'Failed to relay {msg_type} message')
+            print(f"✅ ICE broadcast to {successful_sends}/{len(current_session.viewers)} viewers")
+
+        elif role == 'viewer':
+            # Viewer ICE - send to broadcaster
+            if current_session.broadcaster:
+                try:
+                    await current_session.broadcaster.send_text(json.dumps(msg))
+                    print(f"✅ ICE from viewer {connection_id} sent to broadcaster")
+                except Exception as e:
+                    print(f"❌ Failed to send ICE to broadcaster: {e}")
+            else:
+                print(f"❌ No broadcaster to receive ICE from viewer {connection_id}")
+
+    elif msg_type == 'request_offer':
+        # Handle request for new offer (for late-joining viewers)
+        if role == 'broadcaster':
+            target_viewer_id = msg.get('for_viewer')
+            print(f"🔄 Broadcaster received request to create offer for viewer {target_viewer_id}")
+            # The broadcaster should handle this in their WebRTC logic
+        else:
+            print(f"❌ Only broadcasters can handle request_offer messages")
 
 async def handle_frame_data(ws: WebSocket, msg: dict):
     """Handle frame data for inference"""
@@ -314,6 +400,19 @@ async def handle_disconnect(current_session: Session, ws: WebSocket, session_man
 
         await current_session.remove_broadcaster()
         print(f"🎥 Broadcaster {connection_id} removed from session {current_session.session_code}")
+
+        # Notify all viewers that broadcaster disconnected
+        if current_session.viewers:
+            disconnect_msg = {
+                'type': 'broadcaster_disconnected',
+                'sessionCode': current_session.session_code,
+                'timestamp': datetime.now().isoformat()
+            }
+            for viewer in current_session.viewers:
+                try:
+                    await viewer.send_text(json.dumps(disconnect_msg))
+                except:
+                    pass
 
     elif role == 'viewer':
         await current_session.remove_viewer(ws)

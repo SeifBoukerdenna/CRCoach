@@ -1,255 +1,290 @@
 """
-server/models/session.py - Fixed to properly support multiple viewers
+server/models/session.py - Enhanced for multiple viewers support
 """
 
-import time
-from typing import List, Optional, Dict, Any
+import json
+import asyncio
 from datetime import datetime, timedelta
+from typing import List, Optional, Set
 from fastapi import WebSocket
 
 
 class Session:
-    def __init__(self, session_code: str, max_viewers: int = 50):
+    def __init__(self, session_code: str, max_viewers: int = 100):
         self.session_code = session_code
-        self.broadcaster: Optional[WebSocket] = None
-        self.viewers: List[WebSocket] = []
         self.max_viewers = max_viewers
         self.created_at = datetime.now()
         self.last_activity = datetime.now()
+
+        # Connection tracking
+        self.broadcaster: Optional[WebSocket] = None
+        self.viewers: List[WebSocket] = []
+        self.viewer_ids: Set[str] = set()  # Track viewer connection IDs
+
+        # Statistics
+        self.total_viewers_ever = 0
         self.connection_attempts = 0
         self.webrtc_established = False
-        self.latency_data: List[Dict[str, Any]] = []
 
-        # Enhanced viewer tracking
-        self.viewer_info: Dict[WebSocket, Dict[str, Any]] = {}
-        self.total_viewers_ever = 0
+        # Enhanced tracking
+        self.viewer_join_times = {}  # connection_id -> join_time
+        self.viewer_connection_ids = {}  # websocket -> connection_id mapping
 
-        print(f"✅ Session {session_code} created (max viewers: {max_viewers})")
+        print(f"🆕 Created session {session_code} with max {max_viewers} viewers")
 
-    async def add_broadcaster(self, ws: WebSocket) -> bool:
+    async def add_broadcaster(self, websocket: WebSocket) -> bool:
         """Add broadcaster to session"""
         if self.broadcaster is not None:
             print(f"❌ Session {self.session_code} already has a broadcaster")
             return False
 
-        self.broadcaster = ws
-        ws.role = 'broadcaster'
+        self.broadcaster = websocket
         self.last_activity = datetime.now()
         self.webrtc_established = True
 
-        print(f"🎥 Broadcaster connected to session {self.session_code}")
+        # Store connection info
+        connection_id = getattr(websocket, 'connection_id', 'unknown')
+        self.viewer_connection_ids[websocket] = connection_id
 
-        # Notify all existing viewers that broadcaster is now available
-        if self.viewers:
-            await self.broadcast_to_viewers({
-                'type': 'broadcaster_connected',
-                'sessionCode': self.session_code,
-                'timestamp': datetime.now().isoformat(),
-                'viewerCount': len(self.viewers)
-            })
+        print(f"🎥 Broadcaster {connection_id} added to session {self.session_code}")
+        print(f"📊 Session {self.session_code} now has broadcaster + {len(self.viewers)} viewers")
 
         return True
 
-    async def add_viewer(self, ws: WebSocket) -> bool:
-        """Add viewer to session"""
+    async def add_viewer(self, websocket: WebSocket) -> bool:
+        """Add viewer to session with proper duplicate checking"""
         if len(self.viewers) >= self.max_viewers:
-            print(f"❌ Session {self.session_code} at max viewer capacity ({self.max_viewers})")
+            print(f"❌ Session {self.session_code} at max capacity ({self.max_viewers})")
             return False
 
-        if ws in self.viewers:
-            print(f"⚠️ Viewer already in session {self.session_code}")
-            return True
+        connection_id = getattr(websocket, 'connection_id', 'unknown')
 
-        self.viewers.append(ws)
-        ws.role = 'viewer'
-        self.last_activity = datetime.now()
+        # Check for duplicate connection IDs
+        if connection_id in self.viewer_ids:
+            print(f"❌ Viewer {connection_id} already exists in session {self.session_code}")
+            return False
+
+        # Check for duplicate websocket objects
+        if websocket in self.viewers:
+            print(f"❌ WebSocket already exists in viewers list for session {self.session_code}")
+            return False
+
+        # Add viewer
+        self.viewers.append(websocket)
+        self.viewer_ids.add(connection_id)
+        self.viewer_connection_ids[websocket] = connection_id
+        self.viewer_join_times[connection_id] = datetime.now()
+
         self.total_viewers_ever += 1
+        self.last_activity = datetime.now()
 
-        # Store viewer info
-        connection_id = getattr(ws, 'connection_id', f'viewer_{len(self.viewers)}')
-        self.viewer_info[ws] = {
-            'connection_id': connection_id,
-            'connected_at': datetime.now(),
-            'connection_attempts': getattr(ws, 'connection_attempts', 0)
-        }
-
-        print(f"👥 Viewer {connection_id} connected to session {self.session_code} ({len(self.viewers)}/{self.max_viewers} viewers)")
-
-        # Notify broadcaster about new viewer
-        if self.broadcaster:
-            try:
-                await self.broadcaster.send_text(json.dumps({
-                    'type': 'viewer_joined',
-                    'sessionCode': self.session_code,
-                    'viewerCount': len(self.viewers),
-                    'viewerId': connection_id,
-                    'timestamp': datetime.now().isoformat()
-                }))
-            except Exception as e:
-                print(f"⚠️ Failed to notify broadcaster of new viewer: {e}")
-
-        # Notify other viewers about the new viewer count
-        await self.broadcast_to_viewers({
-            'type': 'viewer_count_update',
-            'sessionCode': self.session_code,
-            'viewerCount': len(self.viewers),
-            'timestamp': datetime.now().isoformat()
-        }, exclude=ws)
+        print(f"👥 Viewer {connection_id} added to session {self.session_code}")
+        print(f"📊 Session {self.session_code} now has {len(self.viewers)}/{self.max_viewers} viewers")
 
         return True
-
-    async def remove_viewer(self, ws: WebSocket):
-        """Remove viewer from session"""
-        if ws not in self.viewers:
-            return
-
-        connection_id = self.viewer_info.get(ws, {}).get('connection_id', 'unknown')
-        self.viewers.remove(ws)
-
-        if ws in self.viewer_info:
-            del self.viewer_info[ws]
-
-        print(f"👥❌ Viewer {connection_id} disconnected from session {self.session_code} ({len(self.viewers)} remaining)")
-
-        # Notify broadcaster about viewer leaving
-        if self.broadcaster:
-            try:
-                await self.broadcaster.send_text(json.dumps({
-                    'type': 'viewer_left',
-                    'sessionCode': self.session_code,
-                    'viewerCount': len(self.viewers),
-                    'viewerId': connection_id,
-                    'timestamp': datetime.now().isoformat()
-                }))
-            except Exception as e:
-                print(f"⚠️ Failed to notify broadcaster of viewer leaving: {e}")
-
-        # Notify remaining viewers about updated count
-        await self.broadcast_to_viewers({
-            'type': 'viewer_count_update',
-            'sessionCode': self.session_code,
-            'viewerCount': len(self.viewers),
-            'timestamp': datetime.now().isoformat()
-        })
 
     async def remove_broadcaster(self):
         """Remove broadcaster from session"""
-        if self.broadcaster is None:
+        if self.broadcaster:
+            connection_id = self.viewer_connection_ids.get(self.broadcaster, 'unknown')
+
+            # Clean up mapping
+            if self.broadcaster in self.viewer_connection_ids:
+                del self.viewer_connection_ids[self.broadcaster]
+
+            self.broadcaster = None
+            self.webrtc_established = False
+            self.last_activity = datetime.now()
+
+            print(f"🎥❌ Broadcaster {connection_id} removed from session {self.session_code}")
+
+            # Notify all viewers
+            if self.viewers:
+                disconnect_msg = {
+                    'type': 'broadcaster_disconnected',
+                    'sessionCode': self.session_code,
+                    'timestamp': datetime.now().isoformat()
+                }
+
+                await self.broadcast_to_viewers(disconnect_msg)
+
+    async def remove_viewer(self, websocket: WebSocket):
+        """Remove viewer from session with proper cleanup"""
+        if websocket not in self.viewers:
+            print(f"⚠️ Attempted to remove viewer that doesn't exist in session {self.session_code}")
             return
 
-        print(f"🎥❌ Broadcaster disconnected from session {self.session_code}")
+        connection_id = self.viewer_connection_ids.get(websocket, 'unknown')
 
-        # Notify all viewers that broadcaster left
-        await self.broadcast_to_viewers({
-            'type': 'broadcaster_disconnected',
-            'sessionCode': self.session_code,
-            'timestamp': datetime.now().isoformat(),
-            'message': 'The broadcaster has ended the stream'
-        })
+        # Remove from all tracking structures
+        self.viewers.remove(websocket)
 
-        self.broadcaster = None
-        self.webrtc_established = False
+        if connection_id in self.viewer_ids:
+            self.viewer_ids.remove(connection_id)
 
-    async def broadcast_message(self, message: dict, sender: WebSocket, exclude_sender: bool = False):
-        """Broadcast message to appropriate recipients based on sender role"""
-        import json
+        if websocket in self.viewer_connection_ids:
+            del self.viewer_connection_ids[websocket]
+
+        if connection_id in self.viewer_join_times:
+            join_time = self.viewer_join_times[connection_id]
+            session_duration = datetime.now() - join_time
+            print(f"📊 Viewer {connection_id} was connected for {session_duration.total_seconds():.1f}s")
+            del self.viewer_join_times[connection_id]
 
         self.last_activity = datetime.now()
-        message_json = json.dumps(message)
-        sender_role = getattr(sender, 'role', 'unknown')
 
-        print(f"📢 Broadcasting {message.get('type', 'unknown')} from {sender_role} in session {self.session_code}")
+        print(f"👥❌ Viewer {connection_id} removed from session {self.session_code}")
+        print(f"📊 Session {self.session_code} now has {len(self.viewers)}/{self.max_viewers} viewers")
 
-        # If broadcaster sends a message, send to all viewers
-        if sender_role == 'broadcaster':
-            failed_viewers = []
-            successful_sends = 0
+    async def broadcast_message(self, message: dict, sender: WebSocket = None, exclude_sender: bool = False):
+        """Broadcast message to appropriate recipients based on sender role"""
+        sender_role = getattr(sender, 'role', 'unknown') if sender else 'server'
+        sender_id = getattr(sender, 'connection_id', 'unknown') if sender else 'server'
+
+        successful_sends = 0
+        failed_sends = 0
+
+        if sender_role == 'broadcaster' or sender is None:
+            # Broadcaster message or server message - send to all viewers
+            viewers_to_remove = []
 
             for viewer in self.viewers:
                 if exclude_sender and viewer == sender:
                     continue
+
                 try:
-                    await viewer.send_text(message_json)
+                    await viewer.send_text(json.dumps(message))
                     successful_sends += 1
                 except Exception as e:
-                    print(f"❌ Failed to send to viewer: {e}")
-                    failed_viewers.append(viewer)
+                    viewer_id = self.viewer_connection_ids.get(viewer, 'unknown')
+                    print(f"❌ Failed to send message to viewer {viewer_id}: {e}")
+                    viewers_to_remove.append(viewer)
+                    failed_sends += 1
 
-            # Clean up failed viewers
-            for failed_viewer in failed_viewers:
-                await self.remove_viewer(failed_viewer)
+            # Clean up failed connections
+            for viewer in viewers_to_remove:
+                await self.remove_viewer(viewer)
 
             if successful_sends > 0:
-                print(f"✅ Message sent to {successful_sends} viewers")
+                print(f"📤 Message broadcast to {successful_sends} viewers by {sender_role} {sender_id}")
 
-        # If viewer sends a message, send to broadcaster
-        elif sender_role == 'viewer' and self.broadcaster:
-            if not exclude_sender or sender != self.broadcaster:
+        elif sender_role == 'viewer':
+            # Viewer message - send to broadcaster
+            if self.broadcaster:
                 try:
-                    await self.broadcaster.send_text(message_json)
-                    print(f"✅ Message sent to broadcaster")
+                    await self.broadcaster.send_text(json.dumps(message))
+                    successful_sends += 1
+                    print(f"📤 Message sent from viewer {sender_id} to broadcaster")
                 except Exception as e:
-                    print(f"❌ Failed to send to broadcaster: {e}")
+                    broadcaster_id = self.viewer_connection_ids.get(self.broadcaster, 'unknown')
+                    print(f"❌ Failed to send message to broadcaster {broadcaster_id}: {e}")
                     await self.remove_broadcaster()
+                    failed_sends += 1
+            else:
+                print(f"❌ No broadcaster to receive message from viewer {sender_id}")
+                failed_sends += 1
 
-    async def broadcast_to_viewers(self, message: dict, exclude: Optional[WebSocket] = None):
-        """Broadcast message to all viewers"""
-        import json
+        return successful_sends, failed_sends
 
-        if not self.viewers:
-            return
-
-        message_json = json.dumps(message)
-        failed_viewers = []
+    async def broadcast_to_viewers(self, message: dict):
+        """Broadcast message specifically to all viewers"""
         successful_sends = 0
+        viewers_to_remove = []
 
         for viewer in self.viewers:
-            if exclude and viewer == exclude:
-                continue
             try:
-                await viewer.send_text(message_json)
+                await viewer.send_text(json.dumps(message))
                 successful_sends += 1
             except Exception as e:
-                print(f"❌ Failed to send to viewer: {e}")
-                failed_viewers.append(viewer)
+                viewer_id = self.viewer_connection_ids.get(viewer, 'unknown')
+                print(f"❌ Failed to broadcast to viewer {viewer_id}: {e}")
+                viewers_to_remove.append(viewer)
 
-        # Clean up failed viewers
-        for failed_viewer in failed_viewers:
-            await self.remove_viewer(failed_viewer)
+        # Clean up failed connections
+        for viewer in viewers_to_remove:
+            await self.remove_viewer(viewer)
 
-        if successful_sends > 0:
-            print(f"✅ Broadcast sent to {successful_sends} viewers")
+        return successful_sends
+
+    async def broadcast_to_broadcaster(self, message: dict):
+        """Send message specifically to broadcaster"""
+        if not self.broadcaster:
+            return False
+
+        try:
+            await self.broadcaster.send_text(json.dumps(message))
+            return True
+        except Exception as e:
+            broadcaster_id = self.viewer_connection_ids.get(self.broadcaster, 'unknown')
+            print(f"❌ Failed to send to broadcaster {broadcaster_id}: {e}")
+            await self.remove_broadcaster()
+            return False
 
     def is_empty(self) -> bool:
-        """Check if session is empty"""
+        """Check if session has no active connections"""
         return self.broadcaster is None and len(self.viewers) == 0
 
     def is_expired(self) -> bool:
         """Check if session has expired"""
-        from core.config import Config
-        expiry_time = timedelta(seconds=Config.get_session_timeout_seconds())
+        expiry_time = timedelta(minutes=30)  # Increased from 5 to 30 minutes
         return datetime.now() - self.last_activity > expiry_time
 
+    def get_viewer_by_id(self, connection_id: str) -> Optional[WebSocket]:
+        """Get viewer WebSocket by connection ID"""
+        for websocket, stored_id in self.viewer_connection_ids.items():
+            if stored_id == connection_id and websocket in self.viewers:
+                return websocket
+        return None
+
+    def get_connection_id(self, websocket: WebSocket) -> str:
+        """Get connection ID for a WebSocket"""
+        return self.viewer_connection_ids.get(websocket, 'unknown')
+
     def get_stats(self) -> dict:
-        """Get session statistics"""
-        uptime = (datetime.now() - self.created_at).total_seconds()
+        """Get detailed session statistics"""
+        now = datetime.now()
+
+        # Calculate viewer session durations
+        viewer_durations = []
+        for connection_id, join_time in self.viewer_join_times.items():
+            duration = (now - join_time).total_seconds()
+            viewer_durations.append(duration)
+
+        avg_viewer_duration = sum(viewer_durations) / len(viewer_durations) if viewer_durations else 0
 
         return {
             'session_code': self.session_code,
             'created_at': self.created_at.isoformat(),
-            'uptime_seconds': uptime,
             'last_activity': self.last_activity.isoformat(),
+            'uptime_seconds': (now - self.created_at).total_seconds(),
+            'inactive_seconds': (now - self.last_activity).total_seconds(),
+
+            # Connection stats
             'has_broadcaster': self.broadcaster is not None,
             'current_viewers': len(self.viewers),
             'max_viewers': self.max_viewers,
             'total_viewers_ever': self.total_viewers_ever,
             'connection_attempts': self.connection_attempts,
             'webrtc_established': self.webrtc_established,
-            'viewer_info': {
-                self.viewer_info[ws]['connection_id']: {
-                    'connected_at': self.viewer_info[ws]['connected_at'].isoformat(),
-                    'connection_attempts': self.viewer_info[ws]['connection_attempts']
-                }
-                for ws in self.viewer_info.keys() if ws in self.viewers
-            }
+
+            # Capacity and performance
+            'capacity_utilization': (len(self.viewers) / self.max_viewers) * 100,
+            'is_full': len(self.viewers) >= self.max_viewers,
+            'is_empty': self.is_empty(),
+            'is_expired': self.is_expired(),
+
+            # Viewer analytics
+            'viewer_connection_ids': list(self.viewer_ids),
+            'avg_viewer_session_duration': avg_viewer_duration,
+            'current_viewer_durations': viewer_durations,
+
+            # Health metrics
+            'active_connections': (1 if self.broadcaster else 0) + len(self.viewers),
+            'connection_health': 'healthy' if not self.is_expired() else 'expired'
         }
+
+    def __str__(self):
+        return f"Session({self.session_code}: {len(self.viewers)} viewers, broadcaster={'✅' if self.broadcaster else '❌'})"
+
+    def __repr__(self):
+        return self.__str__()
