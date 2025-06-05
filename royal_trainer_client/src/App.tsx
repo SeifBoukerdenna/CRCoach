@@ -1,18 +1,43 @@
-// royal_trainer_client/src/App.tsx - Optimized layout with better space usage
+// royal_trainer_client/src/App.tsx - Complete with Anti-Piracy Watermark System
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Wifi, WifiOff, Clock, Zap, Play, Activity, Brain, Maximize2, Minimize2, ChevronDown, ChevronUp, BarChart3, Target, Eye } from 'lucide-react';
+import {
+  Crown,
+  Wifi,
+  WifiOff,
+  Clock,
+  Zap,
+  Play,
+  Activity,
+  Brain,
+  Maximize2,
+  Minimize2,
+  ChevronDown,
+  ChevronUp,
+  Target,
+  Eye
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
+
+// Existing component imports
 import ConnectionSection from './components/ConnectionSection';
 import VideoStream from './components/VideoStream';
 import StatusBadge from './components/StatusBadge';
 import InferencePanel from './components/InferencePanel';
 import LatencyDisplay from './components/LatencyDisplay';
+import InferenceControlPanel from './components/inference/InferenceControlPanel';
+
+// Hook imports
 import { useWebRTCWithFrameCapture } from './hooks/useWebRTCWithFrameCapture';
 import { useInference } from './hooks/useInference';
+
+// Type imports
 import type { ConnectionState, Detection } from './types';
-import InferenceControlPanel from './components/inference/InferenceControlPanel';
+
+// NEW: Anti-piracy watermark imports
+import AntiPiracyWatermark from './components/AntiPiracyWatermark';
+import WatermarkSettings from './components/WatermarkSettings';
 
 // Detection History Interface
 interface DetectionHistoryItem {
@@ -25,6 +50,7 @@ interface DetectionHistoryItem {
 }
 
 const App: React.FC = () => {
+  // Connection state
   const [connectionState, setConnectionState] = useState<ConnectionState>('offline');
   const [sessionCode, setSessionCode] = useState<string>('');
   const [isConnecting, setIsConnecting] = useState(false);
@@ -33,7 +59,7 @@ const App: React.FC = () => {
   const [showConnectionLoader, setShowConnectionLoader] = useState(false);
   const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // New layout state
+  // Layout state
   const [isVideoMinimized, setIsVideoMinimized] = useState(true);
   const [showAdvancedControls, setShowAdvancedControls] = useState(false);
   const [showLatencyPanel, setShowLatencyPanel] = useState(false);
@@ -42,6 +68,7 @@ const App: React.FC = () => {
   const [detectionHistory, setDetectionHistory] = useState<DetectionHistoryItem[]>([]);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<DetectionHistoryItem | null>(null);
 
+  // WebRTC and Inference hooks
   const {
     videoRef,
     connect,
@@ -62,6 +89,163 @@ const App: React.FC = () => {
     isInferenceActive,
     inferenceStats
   } = useInference(sessionCode, isConnected);
+
+  // NEW: Anti-piracy and security measures
+  useEffect(() => {
+    const preventRightClick = (e: MouseEvent) => {
+      e.preventDefault();
+      console.warn('🛡️ Right-click disabled for security');
+
+      // Log security event
+      const securityEvent = {
+        type: 'RIGHT_CLICK_ATTEMPT',
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href,
+        sessionCode: sessionCode
+      };
+
+      const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
+      logs.push(securityEvent);
+      localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
+
+      return false;
+    };
+
+    const preventKeyboardShortcuts = (e: KeyboardEvent) => {
+      // Prevent common developer tools shortcuts
+      const isDevToolsShortcut =
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        (e.ctrlKey && e.key === 'u') ||
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && e.key === 'Delete') ||
+        (e.ctrlKey && e.key === 's'); // Prevent save
+
+      if (isDevToolsShortcut) {
+        e.preventDefault();
+        console.warn('🛡️ Developer tools access prevented');
+
+        // Log security event
+        const securityEvent = {
+          type: 'DEVTOOLS_SHORTCUT_ATTEMPT',
+          timestamp: new Date().toISOString(),
+          key: e.key,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          userAgent: navigator.userAgent,
+          sessionCode: sessionCode
+        };
+
+        const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
+        logs.push(securityEvent);
+        localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
+
+        return false;
+      }
+    };
+
+    const preventDragDrop = (e: DragEvent) => {
+      e.preventDefault();
+      return false;
+    };
+
+    const preventSelection = (e: Event) => {
+      e.preventDefault();
+      return false;
+    };
+
+    // Detect developer tools by monitoring window size changes
+    const detectDevTools = () => {
+      const threshold = 160;
+
+      const detectBySize = () => {
+        if (
+          window.outerHeight - window.innerHeight > threshold ||
+          window.outerWidth - window.innerWidth > threshold
+        ) {
+          console.warn('🛡️ Developer tools detected - security event logged');
+
+          const securityEvent = {
+            type: 'DEVTOOLS_DETECTED',
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            windowSize: {
+              inner: { width: window.innerWidth, height: window.innerHeight },
+              outer: { width: window.outerWidth, height: window.outerHeight }
+            },
+            sessionCode: sessionCode
+          };
+
+          const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
+          logs.push(securityEvent);
+          localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
+        }
+      };
+
+      detectBySize();
+    };
+
+    // Monitor for console tampering
+    const detectConsoleTampering = () => {
+      const originalLog = console.log;
+      console.log = function (...args) {
+        // Check if someone is trying to disable watermarks via console
+        const message = args.join(' ').toLowerCase();
+        if (message.includes('watermark') || message.includes('disable') || message.includes('hide')) {
+          const securityEvent = {
+            type: 'CONSOLE_TAMPERING_DETECTED',
+            timestamp: new Date().toISOString(),
+            message: args.join(' '),
+            sessionCode: sessionCode
+          };
+
+          const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
+          logs.push(securityEvent);
+          localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
+        }
+        originalLog.apply(console, args);
+      };
+    };
+
+    // Add event listeners
+    document.addEventListener('contextmenu', preventRightClick);
+    document.addEventListener('keydown', preventKeyboardShortcuts);
+    document.addEventListener('dragstart', preventDragDrop);
+    document.addEventListener('selectstart', preventSelection);
+
+    // Initialize console monitoring
+    detectConsoleTampering();
+
+    // Check for developer tools periodically
+    const devToolsInterval = setInterval(detectDevTools, 2000);
+
+    // Monitor for window focus/blur (potential screen recording detection)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        const securityEvent = {
+          type: 'WINDOW_HIDDEN',
+          timestamp: new Date().toISOString(),
+          sessionCode: sessionCode
+        };
+
+        const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
+        logs.push(securityEvent);
+        localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('contextmenu', preventRightClick);
+      document.removeEventListener('keydown', preventKeyboardShortcuts);
+      document.removeEventListener('dragstart', preventDragDrop);
+      document.removeEventListener('selectstart', preventSelection);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(devToolsInterval);
+    };
+  }, [sessionCode]);
 
   // Store detection history
   useEffect(() => {
@@ -129,6 +313,7 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [startTime, connectionState]);
 
+  // Connection handlers
   const handleConnect = async () => {
     if (sessionCode.length !== 4) return;
 
@@ -140,7 +325,7 @@ const App: React.FC = () => {
       setIsConnecting(false);
       setShowConnectionLoader(false);
       setConnectionState('offline');
-    }, 6000);
+    }, 10000); // Increased timeout to 10 seconds
 
     setConnectionTimeout(timeout);
 
@@ -170,6 +355,11 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSessionCodeChange = (code: string) => {
+    setSessionCode(code);
+  };
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (connectionTimeout) {
@@ -177,10 +367,6 @@ const App: React.FC = () => {
       }
     };
   }, [connectionTimeout]);
-
-  const handleSessionCodeChange = (code: string) => {
-    setSessionCode(code);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 relative overflow-x-hidden overflow-y-auto">
@@ -212,6 +398,9 @@ const App: React.FC = () => {
             <h1 className="text-2xl font-black bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-600 bg-clip-text text-transparent tracking-tight">
               Royal Trainer AI
             </h1>
+            <div className="text-xs bg-red-600/20 border border-red-500/40 rounded-full px-2 py-1 text-red-300 font-bold">
+              BETA
+            </div>
           </div>
         </motion.div>
 
@@ -307,7 +496,7 @@ const App: React.FC = () => {
                 {/* Live Layout - Better proportions */}
                 <div className="grid h-full gap-3 grid-cols-12">
 
-                  {/* Left Sidebar - Fixed width, no horizontal scroll */}
+                  {/* Left Sidebar - Fixed width */}
                   <motion.div
                     className="col-span-3 w-full max-w-sm space-y-3 overflow-y-auto overflow-x-hidden thin-scrollbar"
                     initial={{ opacity: 0, x: -20 }}
@@ -331,6 +520,9 @@ const App: React.FC = () => {
                       onToggleInference={toggleInference}
                       frameStats={getFrameStats()}
                     />
+
+                    {/* NEW: Watermark Settings Panel */}
+                    <WatermarkSettings />
 
                     {/* Advanced Controls Toggle */}
                     <motion.button
@@ -384,7 +576,7 @@ const App: React.FC = () => {
                     </AnimatePresence>
                   </motion.div>
 
-                  {/* Center - Video Stream with better proportions */}
+                  {/* Center - Video Stream */}
                   <motion.div
                     className="col-span-5 flex flex-col"
                     initial={{ opacity: 0, y: 20 }}
@@ -392,8 +584,7 @@ const App: React.FC = () => {
                     transition={{ duration: 0.3, delay: 0.1 }}
                   >
                     {/* Video Container */}
-                    <div className={`transition-all duration-300 ${isVideoMinimized ? 'h-48' : 'h-3/5'
-                      } mb-3`}>
+                    <div className={`transition-all duration-300 ${isVideoMinimized ? 'h-48' : 'h-3/5'} mb-3`}>
                       <VideoStream
                         videoRef={videoRef}
                         sessionCode={sessionCode}
@@ -401,7 +592,7 @@ const App: React.FC = () => {
                       />
                     </div>
 
-                    {/* Bottom Stats Area - Using remaining space */}
+                    {/* Bottom Stats Area */}
                     <div className="flex-1 bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4">
                       {selectedHistoryItem ? (
                         <div className="h-full flex flex-col overflow-hidden">
@@ -528,6 +719,13 @@ const App: React.FC = () => {
                                 <span className="text-white/70">Detections:</span>
                                 <span className="text-white font-bold">{detectionHistory.length}</span>
                               </div>
+
+                              <div className="flex justify-between items-center">
+                                <span className="text-white/70">AI Status:</span>
+                                <span className={`font-bold ${isInferenceEnabled ? 'text-green-400' : 'text-red-400'}`}>
+                                  {isInferenceEnabled ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -578,6 +776,19 @@ const App: React.FC = () => {
                       Experience cutting-edge YOLOv8 computer vision for real-time Clash Royale troop detection and analysis.
                       Connect your mobile device and watch AI identify every troop, building, and spell in real-time.
                     </p>
+
+                    {/* Beta Warning */}
+                    <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 mb-8 max-w-2xl mx-auto">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        <span className="text-red-300 font-bold">CONFIDENTIAL BETA SOFTWARE</span>
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                      </div>
+                      <p className="text-red-200 text-sm">
+                        This software is protected by anti-piracy measures. All usage is monitored and logged.
+                        Unauthorized distribution is strictly prohibited.
+                      </p>
+                    </div>
                   </motion.div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
@@ -638,11 +849,32 @@ const App: React.FC = () => {
                     </motion.div>
                   </div>
 
-                  {/* Model Info Grid */}
+                  {/* Watermark Settings Panel - Always visible on homepage */}
                   <motion.div
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.8 }}
+                    className="mb-12 flex justify-center"
+                  >
+                    <div className="bg-gradient-to-br from-red-900/50 to-purple-900/50 backdrop-blur-xl border border-red-500/30 rounded-2xl p-6">
+                      <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                        🛡️ Security & Protection
+                      </h3>
+                      <div className="flex justify-center">
+                        <WatermarkSettings />
+                      </div>
+                      <p className="text-white/70 text-sm mt-4 max-w-md">
+                        Configure anti-piracy watermarks and security settings. These measures help protect
+                        the confidential nature of this beta software.
+                      </p>
+                    </div>
+                  </motion.div>
+
+                  {/* Model Info Grid */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 1.0 }}
                     className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-gradient-to-r from-purple-900/30 to-blue-900/30 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-8"
                   >
                     <div className="text-center">
@@ -661,9 +893,9 @@ const App: React.FC = () => {
                       <div className="text-sm text-white/70">Trained on Clash Royale data</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-4xl mb-3">📱</div>
-                      <div className="text-lg font-bold text-white mb-2">Mobile Ready</div>
-                      <div className="text-sm text-white/70">Works with any device</div>
+                      <div className="text-4xl mb-3">🛡️</div>
+                      <div className="text-lg font-bold text-white mb-2">Protected</div>
+                      <div className="text-sm text-white/70">Anti-piracy watermarks</div>
                     </div>
                   </motion.div>
                 </div>
@@ -687,9 +919,14 @@ const App: React.FC = () => {
             <span>⚡ Real-time Analysis</span>
             <span>•</span>
             <span>📊 Frame History</span>
+            <span>•</span>
+            <span>🛡️ Anti-Piracy Protected</span>
           </div>
         </motion.div>
       </div>
+
+      {/* NEW: Anti-Piracy Watermark - ALWAYS RENDERED WITH HIGHEST Z-INDEX */}
+      <AntiPiracyWatermark />
 
       {/* Connection Loading Overlay */}
       <AnimatePresence>
@@ -698,7 +935,7 @@ const App: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex items-center justify-center"
+            className="fixed inset-0 z-[9990] bg-black/80 backdrop-blur-lg flex items-center justify-center"
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
@@ -770,31 +1007,40 @@ const App: React.FC = () => {
               >
                 Initializing AI detection system
               </motion.div>
+
+              <div className="bg-red-900/30 border border-red-500/40 rounded-lg p-3 mt-4">
+                <div className="text-red-300 text-sm">
+                  🛡️ Secure connection in progress...
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Error Display */}
-      {connectionError && (
-        <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 50, scale: 0.9 }}
-          className="fixed bottom-6 right-6 bg-gradient-to-r from-red-600 to-red-700 backdrop-blur-xl border border-red-500/50 rounded-2xl p-6 shadow-2xl max-w-md z-50"
-        >
-          <div className="text-white">
-            <div className="font-bold text-lg mb-2">Connection Error</div>
-            <div className="text-red-100">{connectionError.message}</div>
-            <div className="text-xs text-red-200 mt-2">
-              {connectionError.timestamp.toLocaleTimeString()}
+      <AnimatePresence>
+        {connectionError && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            className="fixed bottom-6 right-6 bg-gradient-to-r from-red-600 to-red-700 backdrop-blur-xl border border-red-500/50 rounded-2xl p-6 shadow-2xl max-w-md z-[9995]"
+          >
+            <div className="text-white">
+              <div className="font-bold text-lg mb-2">Connection Error</div>
+              <div className="text-red-100">{connectionError.message}</div>
+              <div className="text-xs text-red-200 mt-2">
+                {connectionError.timestamp.toLocaleTimeString()}
+              </div>
             </div>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Custom Scrollbar Styles */}
+      {/* Custom Scrollbar Styles & Security CSS */}
       <style>{`
+        /* Scrollbar Styles */
         .thin-scrollbar::-webkit-scrollbar {
           width: 4px;
         }
@@ -808,6 +1054,56 @@ const App: React.FC = () => {
         }
         .thin-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(177, 84, 255, 0.6);
+        }
+
+        /* Security CSS - Prevent common bypass attempts */
+        body {
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+          -webkit-touch-callout: none;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        * {
+          -webkit-user-drag: none;
+          -khtml-user-drag: none;
+          -moz-user-drag: none;
+          -o-user-drag: none;
+          user-drag: none;
+        }
+
+        /* Prevent text selection on specific elements */
+        .no-select {
+          -webkit-user-select: none !important;
+          -moz-user-select: none !important;
+          -ms-user-select: none !important;
+          user-select: none !important;
+        }
+
+        /* Hide watermarks from print media - but ensure they still appear */
+        @media print {
+          [class*="watermark"],
+          [style*="z-index: 999"] {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 0.8 !important;
+            position: fixed !important;
+          }
+        }
+
+        /* Ensure watermarks stay on top */
+        .watermark-overlay {
+          position: fixed !important;
+          z-index: 9999 !important;
+          pointer-events: none !important;
+          user-select: none !important;
+        }
+
+        /* Prevent iframe embedding */
+        html {
+          display: block !important;
         }
       `}</style>
     </div>
