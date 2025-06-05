@@ -91,161 +91,161 @@ const App: React.FC = () => {
   } = useInference(sessionCode, isConnected);
 
   // NEW: Anti-piracy and security measures
-  useEffect(() => {
-    const preventRightClick = (e: MouseEvent) => {
-      e.preventDefault();
-      console.warn('🛡️ Right-click disabled for security');
+  // useEffect(() => {
+  //   const preventRightClick = (e: MouseEvent) => {
+  //     e.preventDefault();
+  //     console.warn('🛡️ Right-click disabled for security');
 
-      // Log security event
-      const securityEvent = {
-        type: 'RIGHT_CLICK_ATTEMPT',
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        url: window.location.href,
-        sessionCode: sessionCode
-      };
+  //     // Log security event
+  //     const securityEvent = {
+  //       type: 'RIGHT_CLICK_ATTEMPT',
+  //       timestamp: new Date().toISOString(),
+  //       userAgent: navigator.userAgent,
+  //       url: window.location.href,
+  //       sessionCode: sessionCode
+  //     };
 
-      const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
-      logs.push(securityEvent);
-      localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
+  //     const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
+  //     logs.push(securityEvent);
+  //     localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
 
-      return false;
-    };
+  //     return false;
+  //   };
 
-    const preventKeyboardShortcuts = (e: KeyboardEvent) => {
-      // Prevent common developer tools shortcuts
-      const isDevToolsShortcut =
-        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
-        (e.ctrlKey && e.key === 'u') ||
-        e.key === 'F12' ||
-        (e.ctrlKey && e.shiftKey && e.key === 'Delete') ||
-        (e.ctrlKey && e.key === 's'); // Prevent save
+  //   const preventKeyboardShortcuts = (e: KeyboardEvent) => {
+  //     // Prevent common developer tools shortcuts
+  //     const isDevToolsShortcut =
+  //       (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+  //       (e.ctrlKey && e.key === 'u') ||
+  //       e.key === 'F12' ||
+  //       (e.ctrlKey && e.shiftKey && e.key === 'Delete') ||
+  //       (e.ctrlKey && e.key === 's'); // Prevent save
 
-      if (isDevToolsShortcut) {
-        e.preventDefault();
-        console.warn('🛡️ Developer tools access prevented');
+  //     if (isDevToolsShortcut) {
+  //       e.preventDefault();
+  //       console.warn('🛡️ Developer tools access prevented');
 
-        // Log security event
-        const securityEvent = {
-          type: 'DEVTOOLS_SHORTCUT_ATTEMPT',
-          timestamp: new Date().toISOString(),
-          key: e.key,
-          ctrlKey: e.ctrlKey,
-          shiftKey: e.shiftKey,
-          userAgent: navigator.userAgent,
-          sessionCode: sessionCode
-        };
+  //       // Log security event
+  //       const securityEvent = {
+  //         type: 'DEVTOOLS_SHORTCUT_ATTEMPT',
+  //         timestamp: new Date().toISOString(),
+  //         key: e.key,
+  //         ctrlKey: e.ctrlKey,
+  //         shiftKey: e.shiftKey,
+  //         userAgent: navigator.userAgent,
+  //         sessionCode: sessionCode
+  //       };
 
-        const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
-        logs.push(securityEvent);
-        localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
+  //       const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
+  //       logs.push(securityEvent);
+  //       localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
 
-        return false;
-      }
-    };
+  //       return false;
+  //     }
+  //   };
 
-    const preventDragDrop = (e: DragEvent) => {
-      e.preventDefault();
-      return false;
-    };
+  //   const preventDragDrop = (e: DragEvent) => {
+  //     e.preventDefault();
+  //     return false;
+  //   };
 
-    const preventSelection = (e: Event) => {
-      e.preventDefault();
-      return false;
-    };
+  //   const preventSelection = (e: Event) => {
+  //     e.preventDefault();
+  //     return false;
+  //   };
 
-    // Detect developer tools by monitoring window size changes
-    const detectDevTools = () => {
-      const threshold = 160;
+  //   // Detect developer tools by monitoring window size changes
+  //   const detectDevTools = () => {
+  //     const threshold = 160;
 
-      const detectBySize = () => {
-        if (
-          window.outerHeight - window.innerHeight > threshold ||
-          window.outerWidth - window.innerWidth > threshold
-        ) {
-          console.warn('🛡️ Developer tools detected - security event logged');
+  //     const detectBySize = () => {
+  //       if (
+  //         window.outerHeight - window.innerHeight > threshold ||
+  //         window.outerWidth - window.innerWidth > threshold
+  //       ) {
+  //         console.warn('🛡️ Developer tools detected - security event logged');
 
-          const securityEvent = {
-            type: 'DEVTOOLS_DETECTED',
-            timestamp: new Date().toISOString(),
-            userAgent: navigator.userAgent,
-            windowSize: {
-              inner: { width: window.innerWidth, height: window.innerHeight },
-              outer: { width: window.outerWidth, height: window.outerHeight }
-            },
-            sessionCode: sessionCode
-          };
+  //         const securityEvent = {
+  //           type: 'DEVTOOLS_DETECTED',
+  //           timestamp: new Date().toISOString(),
+  //           userAgent: navigator.userAgent,
+  //           windowSize: {
+  //             inner: { width: window.innerWidth, height: window.innerHeight },
+  //             outer: { width: window.outerWidth, height: window.outerHeight }
+  //           },
+  //           sessionCode: sessionCode
+  //         };
 
-          const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
-          logs.push(securityEvent);
-          localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
-        }
-      };
+  //         const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
+  //         logs.push(securityEvent);
+  //         localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
+  //       }
+  //     };
 
-      detectBySize();
-    };
+  //     detectBySize();
+  //   };
 
-    // Monitor for console tampering
-    const detectConsoleTampering = () => {
-      const originalLog = console.log;
-      console.log = function (...args) {
-        // Check if someone is trying to disable watermarks via console
-        const message = args.join(' ').toLowerCase();
-        if (message.includes('watermark') || message.includes('disable') || message.includes('hide')) {
-          const securityEvent = {
-            type: 'CONSOLE_TAMPERING_DETECTED',
-            timestamp: new Date().toISOString(),
-            message: args.join(' '),
-            sessionCode: sessionCode
-          };
+  //   // Monitor for console tampering
+  //   const detectConsoleTampering = () => {
+  //     const originalLog = console.log;
+  //     console.log = function (...args) {
+  //       // Check if someone is trying to disable watermarks via console
+  //       const message = args.join(' ').toLowerCase();
+  //       if (message.includes('watermark') || message.includes('disable') || message.includes('hide')) {
+  //         const securityEvent = {
+  //           type: 'CONSOLE_TAMPERING_DETECTED',
+  //           timestamp: new Date().toISOString(),
+  //           message: args.join(' '),
+  //           sessionCode: sessionCode
+  //         };
 
-          const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
-          logs.push(securityEvent);
-          localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
-        }
-        originalLog.apply(console, args);
-      };
-    };
+  //         const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
+  //         logs.push(securityEvent);
+  //         localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
+  //       }
+  //       originalLog.apply(console, args);
+  //     };
+  //   };
 
-    // Add event listeners
-    document.addEventListener('contextmenu', preventRightClick);
-    document.addEventListener('keydown', preventKeyboardShortcuts);
-    document.addEventListener('dragstart', preventDragDrop);
-    document.addEventListener('selectstart', preventSelection);
+  //   // Add event listeners
+  //   document.addEventListener('contextmenu', preventRightClick);
+  //   document.addEventListener('keydown', preventKeyboardShortcuts);
+  //   document.addEventListener('dragstart', preventDragDrop);
+  //   document.addEventListener('selectstart', preventSelection);
 
-    // Initialize console monitoring
-    detectConsoleTampering();
+  //   // Initialize console monitoring
+  //   detectConsoleTampering();
 
-    // Check for developer tools periodically
-    const devToolsInterval = setInterval(detectDevTools, 2000);
+  //   // Check for developer tools periodically
+  //   const devToolsInterval = setInterval(detectDevTools, 2000);
 
-    // Monitor for window focus/blur (potential screen recording detection)
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        const securityEvent = {
-          type: 'WINDOW_HIDDEN',
-          timestamp: new Date().toISOString(),
-          sessionCode: sessionCode
-        };
+  //   // Monitor for window focus/blur (potential screen recording detection)
+  //   const handleVisibilityChange = () => {
+  //     if (document.hidden) {
+  //       const securityEvent = {
+  //         type: 'WINDOW_HIDDEN',
+  //         timestamp: new Date().toISOString(),
+  //         sessionCode: sessionCode
+  //       };
 
-        const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
-        logs.push(securityEvent);
-        localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
-      }
-    };
+  //       const logs = JSON.parse(localStorage.getItem('royal-trainer-security-logs') || '[]');
+  //       logs.push(securityEvent);
+  //       localStorage.setItem('royal-trainer-security-logs', JSON.stringify(logs));
+  //     }
+  //   };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+  //   document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Cleanup
-    return () => {
-      document.removeEventListener('contextmenu', preventRightClick);
-      document.removeEventListener('keydown', preventKeyboardShortcuts);
-      document.removeEventListener('dragstart', preventDragDrop);
-      document.removeEventListener('selectstart', preventSelection);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearInterval(devToolsInterval);
-    };
-  }, [sessionCode]);
+  //   // Cleanup
+  //   return () => {
+  //     document.removeEventListener('contextmenu', preventRightClick);
+  //     document.removeEventListener('keydown', preventKeyboardShortcuts);
+  //     document.removeEventListener('dragstart', preventDragDrop);
+  //     document.removeEventListener('selectstart', preventSelection);
+  //     document.removeEventListener('visibilitychange', handleVisibilityChange);
+  //     clearInterval(devToolsInterval);
+  //   };
+  // }, [sessionCode]);
 
   // Store detection history
   useEffect(() => {
