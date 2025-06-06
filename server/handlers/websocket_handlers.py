@@ -433,10 +433,15 @@ async def handle_disconnect(current_session: Session, ws: WebSocket, session_man
             max_latency = max(connection_latencies)
             print(f"📊 Final latency stats for {connection_id} - Avg: {avg_latency:.1f}ms, Min: {min_latency:.1f}ms, Max: {max_latency:.1f}ms, Frames: {len(connection_latencies)}")
 
-    # Remove empty session
+    # Mark session activity but allow reconnect within cleanup window
+    current_session.last_activity = datetime.now()
+
+    # Defer removal of completely empty sessions to the periodic cleanup task
     if current_session.is_empty():
-        session_manager.remove_session(current_session.session_code)
-        print(f"🗑️ Empty session {current_session.session_code} removed")
+        print(
+            f"🗑️ Session {current_session.session_code} now empty - will be"
+            " removed by cleanup task if no reconnect occurs"
+        )
 
 async def get_session_latency_stats(session_code: str, session_manager: SessionManager) -> dict:
     """Get latency statistics for a session"""
