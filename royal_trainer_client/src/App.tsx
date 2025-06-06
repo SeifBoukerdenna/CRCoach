@@ -331,6 +331,7 @@ const App: React.FC = () => {
 
     try {
       await connect(sessionCode);
+      setIsConnecting(false);
     } catch (error) {
       console.error('Connection failed:', error);
       setIsConnecting(false);
@@ -344,6 +345,7 @@ const App: React.FC = () => {
 
   const handleDisconnect = () => {
     disconnect();
+    setIsConnecting(false);
     setStartTime(null);
     setElapsedTime('00:00:00');
     setShowConnectionLoader(false);
