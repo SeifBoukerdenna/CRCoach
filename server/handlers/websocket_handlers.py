@@ -1,5 +1,5 @@
 """
-server/handlers/websocket_handlers.py - Fixed for multiple viewers support
+server/handlers/websocket_handlers.py - Enhanced for multiple viewers support
 """
 
 import json
@@ -61,12 +61,11 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
     ws.connect_time = server_receive_time
     ws.signaling_latency = signaling_latency
     ws.connection_attempts = getattr(ws, 'connection_attempts', 0) + 1
-    ws.role = role  # Store role on websocket
+    ws.role = role
 
     success = False
 
     if role == 'broadcaster':
-        # Only allow one broadcaster per session
         if current_session.broadcaster is not None:
             await send_error(ws, f'Session {session_code} already has a broadcaster')
             return None, None
@@ -81,48 +80,36 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
                     'sessionCode': session_code,
                     'timestamp': datetime.now().isoformat()
                 }
-                for viewer in current_session.viewers:
-                    try:
-                        await viewer.send_text(json.dumps(broadcaster_joined_msg))
-                    except:
-                        pass
-
-            # If inference is enabled, start frame capture
-            if session_inference_states.get(session_code, False):
-                frame_capture_service = get_frame_capture_service()
-                await frame_capture_service.start_capture(session_code, fps=5.0)
+                await current_session.broadcast_to_viewers(broadcaster_joined_msg)
 
     elif role == 'viewer':
-        # Allow multiple viewers up to the limit
         success = await current_session.add_viewer(ws)
 
         if not success:
             if len(current_session.viewers) >= current_session.max_viewers:
-                await send_error(ws, f'Session {session_code} is at maximum viewer capacity ({current_session.max_viewers})')
+                await send_error(ws, f'Session {session_code} is at maximum capacity')
             else:
                 await send_error(ws, f'Failed to join session {session_code}')
             return None, None
 
-        # If broadcaster exists and WebRTC is established, trigger new WebRTC connection
+        # NEW: Request broadcaster to create offer for this specific viewer
         if current_session.broadcaster is not None:
-            print(f"🎥 New viewer {connection_id} joining active broadcast - requesting fresh offer")
+            print(f"🎥 Requesting offer for new viewer {connection_id}")
 
-            # Request broadcaster to create a new offer for this specific viewer
             request_offer_msg = {
-                'type': 'request_offer',
-                'for_viewer': connection_id,
+                'type': 'request_viewer_offer',
+                'viewer_id': connection_id,
                 'sessionCode': session_code,
                 'timestamp': time.time() * 1000
             }
 
             try:
                 await current_session.broadcaster.send_text(json.dumps(request_offer_msg))
-                print(f"✅ Requested new offer from broadcaster for viewer {connection_id}")
+                print(f"✅ Requested offer from broadcaster for viewer {connection_id}")
             except Exception as e:
-                print(f"❌ Failed to request offer from broadcaster: {e}")
+                print(f"❌ Failed to request offer: {e}")
 
     if success:
-        # Send connection confirmation
         response = {
             'type': 'connected',
             'sessionCode': session_code,
@@ -139,20 +126,16 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
                 'client_timestamp': client_timestamp,
                 'server_receive_time': server_receive_time,
                 'signaling_latency_ms': signaling_latency
-            },
-            'session_stats': {
-                'total_viewers_ever': current_session.total_viewers_ever,
-                'session_uptime': (datetime.now() - current_session.created_at).total_seconds()
             }
         }
 
         await ws.send_text(json.dumps(response))
-        print(f"✅ {role} {connection_id} connected to session {session_code} - viewers: {len(current_session.viewers)}/{current_session.max_viewers}")
+        print(f"✅ {role} {connection_id} connected - viewers: {len(current_session.viewers)}")
 
     return current_session, role
 
 async def handle_signaling(current_session: Session, ws: WebSocket, msg: dict):
-    """Handle WebRTC signaling messages with proper multi-viewer support"""
+    """Enhanced signaling handler for multiple viewers"""
     if not current_session:
         await send_error(ws, 'Not in a session')
         return
@@ -160,51 +143,30 @@ async def handle_signaling(current_session: Session, ws: WebSocket, msg: dict):
     msg_type = msg.get('type', 'unknown')
     role = getattr(ws, 'role', 'unknown')
     connection_id = getattr(ws, 'connection_id', 'unknown')
-    server_receive_time = time.time() * 1000
-    client_timestamp = msg.get('timestamp', server_receive_time)
 
-    # Add server timing info
-    msg['server_receive_time'] = server_receive_time
-    msg['server_forward_time'] = time.time() * 1000
-    msg['signaling_hop_latency'] = server_receive_time - client_timestamp if client_timestamp else 0
+    # Add timing and connection info
+    msg['server_timestamp'] = time.time() * 1000
     msg['connection_id'] = connection_id
 
-    print(f"🔄 Handling {msg_type} from {role} {connection_id} in session {current_session.session_code}")
+    print(f"🔄 {msg_type} from {role} {connection_id}")
 
     if msg_type == 'offer':
-        # Broadcaster sending offer - determine target viewer
-        target_viewer_id = msg.get('for_viewer')
-        sdp = msg.get('sdp', '')
-        hop_latency = msg.get('signaling_hop_latency', 0)
+        # Broadcaster sending offer to specific viewer
+        target_viewer_id = msg.get('target_viewer_id') or msg.get('for_viewer')
 
-        print(f"📤 Offer from broadcaster - SDP length: {len(sdp)} chars, latency: {hop_latency:.1f}ms")
-        if target_viewer_id:
-            print(f"🎯 Offer targeted for specific viewer: {target_viewer_id}")
-
-        if 'video' in sdp.lower():
-            print("✅ SDP contains video track")
-        if 'audio' in sdp.lower():
-            print("✅ SDP contains audio track")
-
-        # Forward offer to specific viewer or all viewers
         if target_viewer_id:
             # Send to specific viewer
-            target_viewer = None
-            for viewer in current_session.viewers:
-                if getattr(viewer, 'connection_id', None) == target_viewer_id:
-                    target_viewer = viewer
-                    break
-
+            target_viewer = current_session.get_viewer_by_id(target_viewer_id)
             if target_viewer:
                 try:
                     await target_viewer.send_text(json.dumps(msg))
-                    print(f"✅ Offer sent to specific viewer {target_viewer_id}")
+                    print(f"✅ Offer sent to viewer {target_viewer_id}")
                 except Exception as e:
                     print(f"❌ Failed to send offer to viewer {target_viewer_id}: {e}")
             else:
-                print(f"❌ Target viewer {target_viewer_id} not found")
+                print(f"❌ Viewer {target_viewer_id} not found")
         else:
-            # Broadcast to all viewers (original behavior)
+            # Broadcast to all viewers (fallback)
             successful_sends = 0
             for viewer in current_session.viewers:
                 try:
@@ -213,83 +175,55 @@ async def handle_signaling(current_session: Session, ws: WebSocket, msg: dict):
                 except Exception as e:
                     viewer_id = getattr(viewer, 'connection_id', 'unknown')
                     print(f"❌ Failed to send offer to viewer {viewer_id}: {e}")
-
-            print(f"✅ Offer broadcast to {successful_sends}/{len(current_session.viewers)} viewers")
+            print(f"✅ Offer broadcast to {successful_sends} viewers")
 
     elif msg_type == 'answer':
-        # Viewer sending answer to broadcaster
+        # Viewer sending answer - add viewer ID and send to broadcaster
+        msg['from_viewer_id'] = connection_id
+
         if current_session.broadcaster:
             try:
                 await current_session.broadcaster.send_text(json.dumps(msg))
                 print(f"✅ Answer from viewer {connection_id} sent to broadcaster")
             except Exception as e:
                 print(f"❌ Failed to send answer to broadcaster: {e}")
-        else:
-            print(f"❌ No broadcaster to receive answer from viewer {connection_id}")
 
     elif msg_type == 'ice':
-        # ICE candidate - route based on role
-        candidate = msg.get('candidate', '')
-        hop_latency = msg.get('signaling_hop_latency', 0)
-        print(f"🧊 ICE from {role} {connection_id}: {candidate[:50]}..., latency: {hop_latency:.1f}ms")
-
+        # Route ICE candidates
         if role == 'broadcaster':
-            # Broadcaster ICE - send to all viewers
-            successful_sends = 0
-            for viewer in current_session.viewers:
-                try:
-                    await viewer.send_text(json.dumps(msg))
-                    successful_sends += 1
-                except Exception as e:
-                    viewer_id = getattr(viewer, 'connection_id', 'unknown')
-                    print(f"❌ Failed to send ICE to viewer {viewer_id}: {e}")
-
-            print(f"✅ ICE broadcast to {successful_sends}/{len(current_session.viewers)} viewers")
+            # Send to specific viewer if target specified
+            target_viewer_id = msg.get('target_viewer_id')
+            if target_viewer_id:
+                target_viewer = current_session.get_viewer_by_id(target_viewer_id)
+                if target_viewer:
+                    try:
+                        await target_viewer.send_text(json.dumps(msg))
+                        print(f"✅ ICE sent to viewer {target_viewer_id}")
+                    except Exception as e:
+                        print(f"❌ Failed to send ICE to viewer {target_viewer_id}: {e}")
+            else:
+                # Broadcast to all viewers
+                successful_sends = 0
+                for viewer in current_session.viewers:
+                    try:
+                        await viewer.send_text(json.dumps(msg))
+                        successful_sends += 1
+                    except Exception as e:
+                        pass
+                print(f"✅ ICE broadcast to {successful_sends} viewers")
 
         elif role == 'viewer':
-            # Viewer ICE - send to broadcaster
+            # Add viewer ID and send to broadcaster
+            msg['from_viewer_id'] = connection_id
             if current_session.broadcaster:
                 try:
                     await current_session.broadcaster.send_text(json.dumps(msg))
                     print(f"✅ ICE from viewer {connection_id} sent to broadcaster")
                 except Exception as e:
                     print(f"❌ Failed to send ICE to broadcaster: {e}")
-            else:
-                print(f"❌ No broadcaster to receive ICE from viewer {connection_id}")
-
-    elif msg_type == 'request_offer':
-        # Handle request for new offer (for late-joining viewers)
-        if role == 'broadcaster':
-            target_viewer_id = msg.get('for_viewer')
-            print(f"🔄 Broadcaster received request to create offer for viewer {target_viewer_id}")
-            # The broadcaster should handle this in their WebRTC logic
-        else:
-            print(f"❌ Only broadcasters can handle request_offer messages")
-
-async def handle_frame_data(ws: WebSocket, msg: dict):
-    """Handle frame data for inference"""
-    session_code = msg.get('sessionCode')
-    frame_data = msg.get('frameData')  # base64 encoded frame
-
-    if not session_code or not frame_data:
-        print("⚠️ Incomplete frame data received")
-        return
-
-    # Update frame capture service with latest frame
-    frame_capture_service = get_frame_capture_service()
-    await frame_capture_service.update_frame(session_code, frame_data)
-
-    # Don't log every frame to avoid spam
-    if hasattr(handle_frame_data, 'last_log_time'):
-        if time.time() - handle_frame_data.last_log_time > 5:  # Log every 5 seconds
-            print(f"🎞️ Frame data updated for session {session_code}")
-            handle_frame_data.last_log_time = time.time()
-    else:
-        handle_frame_data.last_log_time = time.time()
-        print(f"🎞️ Frame data updated for session {session_code}")
 
 async def handle_ping(ws: WebSocket):
-    """Handle ping message with enhanced latency tracking"""
+    """Handle ping message"""
     connection_id = getattr(ws, 'connection_id', 'unknown')
     role = getattr(ws, 'role', 'unknown')
     server_time = time.time() * 1000
@@ -299,35 +233,25 @@ async def handle_ping(ws: WebSocket):
         'timestamp': datetime.now().isoformat(),
         'connectionId': connection_id,
         'role': role,
-        'server_timestamp': server_time,
-        'latency_info': {
-            'server_receive_time': server_time,
-            'server_send_time': time.time() * 1000
-        }
+        'server_timestamp': server_time
     }
 
     try:
         await ws.send_text(json.dumps(pong_msg))
-        # Only log pings occasionally to avoid spam
-        if not hasattr(handle_ping, 'last_log_time') or time.time() - handle_ping.last_log_time > 30:
-            print(f"🏓 Pong sent to {role} {connection_id}")
-            handle_ping.last_log_time = time.time()
     except Exception as e:
         print(f"❌ Failed to send pong to {connection_id}: {e}")
 
 async def handle_frame_timing(ws: WebSocket, msg: dict, session_manager: SessionManager):
-    """Handle frame timing messages for end-to-end latency tracking"""
+    """Handle frame timing for latency measurement"""
     frame_id = msg.get('frameId')
     capture_timestamp = msg.get('captureTimestamp')
     display_timestamp = msg.get('displayTimestamp')
     session_code = msg.get('sessionCode')
 
     if not all([frame_id, capture_timestamp, display_timestamp, session_code]):
-        print("⚠️ Incomplete frame timing data received")
         return
 
     end_to_end_latency = display_timestamp - capture_timestamp
-    server_process_time = time.time() * 1000
 
     current_session = session_manager.get_session(session_code)
     if current_session:
@@ -342,101 +266,55 @@ async def handle_frame_timing(ws: WebSocket, msg: dict, session_manager: Session
             'capture_timestamp': capture_timestamp,
             'display_timestamp': display_timestamp,
             'end_to_end_latency': end_to_end_latency,
-            'server_process_time': server_process_time,
             'role': role,
-            'connection_id': connection_id
+            'connection_id': connection_id,
+            'server_timestamp': time.time() * 1000
         }
 
         current_session.latency_data.append(latency_record)
-
-        # Keep only last 100 measurements
         if len(current_session.latency_data) > 100:
             current_session.latency_data = current_session.latency_data[-100:]
 
-        recent_latencies = [record['end_to_end_latency'] for record in current_session.latency_data[-10:]]
-        avg_latency = sum(recent_latencies) / len(recent_latencies) if recent_latencies else 0
+async def handle_frame_data(ws: WebSocket, msg: dict):
+    """Handle frame data for inference"""
+    session_code = msg.get('sessionCode')
+    frame_data = msg.get('frameData')
 
-        # Only log occasionally to avoid spam
-        if not hasattr(handle_frame_timing, 'last_log_time') or time.time() - handle_frame_timing.last_log_time > 10:
-            print(f"📊 Frame timing from {role} {connection_id} - E2E: {end_to_end_latency:.1f}ms, Avg: {avg_latency:.1f}ms")
-            handle_frame_timing.last_log_time = time.time()
+    if not session_code or not frame_data:
+        return
 
-        # Broadcast latency update to all participants
-        latency_update = {
-            'type': 'latency_update',
-            'session_code': session_code,
-            'frame_id': frame_id,
-            'end_to_end_latency': end_to_end_latency,
-            'average_latency': avg_latency,
-            'min_latency': min(recent_latencies) if recent_latencies else 0,
-            'max_latency': max(recent_latencies) if recent_latencies else 0,
-            'total_frames': len(current_session.latency_data),
-            'reporting_viewer': connection_id,
-            'server_timestamp': server_process_time
-        }
-
-        # Broadcast to all participants except sender
-        await current_session.broadcast_message(latency_update, ws, exclude_sender=True)
+    from services.frame_capture import get_frame_capture_service
+    frame_capture_service = get_frame_capture_service()
+    await frame_capture_service.update_frame(session_code, frame_data)
 
 async def handle_disconnect(current_session: Session, ws: WebSocket, session_manager: SessionManager):
-    """Handle connection cleanup with frame capture cleanup"""
+    """Handle connection cleanup"""
     if not current_session:
         return
 
     role = getattr(ws, 'role', 'unknown')
     connection_id = getattr(ws, 'connection_id', 'unknown')
-    connect_time = getattr(ws, 'connect_time', time.time() * 1000)
-    disconnect_time = time.time() * 1000
-    session_duration = disconnect_time - connect_time
 
-    print(f"🧹 Cleaning up {role} {connection_id} from session {current_session.session_code}")
-    print(f"📊 Session duration: {session_duration:.1f}ms")
+    print(f"🧹 Cleaning up {role} {connection_id}")
 
-    # Handle role-specific cleanup
     if role == 'broadcaster':
-        # Stop frame capture if broadcaster disconnects
-        frame_capture_service = get_frame_capture_service()
-        await frame_capture_service.stop_capture(current_session.session_code)
-
         await current_session.remove_broadcaster()
-        print(f"🎥 Broadcaster {connection_id} removed from session {current_session.session_code}")
 
-        # Notify all viewers that broadcaster disconnected
+        # Notify all viewers
         if current_session.viewers:
             disconnect_msg = {
                 'type': 'broadcaster_disconnected',
                 'sessionCode': current_session.session_code,
                 'timestamp': datetime.now().isoformat()
             }
-            for viewer in current_session.viewers:
-                try:
-                    await viewer.send_text(json.dumps(disconnect_msg))
-                except:
-                    pass
+            await current_session.broadcast_to_viewers(disconnect_msg)
 
     elif role == 'viewer':
         await current_session.remove_viewer(ws)
-        print(f"👥 Viewer {connection_id} removed from session {current_session.session_code}")
-
-    # Log final latency stats if available
-    if hasattr(current_session, 'latency_data') and current_session.latency_data:
-        # Filter latency data for this specific connection
-        connection_latencies = [
-            record['end_to_end_latency']
-            for record in current_session.latency_data
-            if record.get('connection_id') == connection_id
-        ]
-
-        if connection_latencies:
-            avg_latency = sum(connection_latencies) / len(connection_latencies)
-            min_latency = min(connection_latencies)
-            max_latency = max(connection_latencies)
-            print(f"📊 Final latency stats for {connection_id} - Avg: {avg_latency:.1f}ms, Min: {min_latency:.1f}ms, Max: {max_latency:.1f}ms, Frames: {len(connection_latencies)}")
 
     # Remove empty session
     if current_session.is_empty():
         session_manager.remove_session(current_session.session_code)
-        print(f"🗑️ Empty session {current_session.session_code} removed")
 
 async def get_session_latency_stats(session_code: str, session_manager: SessionManager) -> dict:
     """Get latency statistics for a session"""
@@ -453,15 +331,6 @@ async def get_session_latency_stats(session_code: str, session_manager: SessionM
         }
 
     latencies = [record['end_to_end_latency'] for record in current_session.latency_data]
-    recent_latencies = latencies[-20:]
-
-    # Get per-viewer stats
-    viewer_stats = {}
-    for record in current_session.latency_data:
-        conn_id = record.get('connection_id', 'unknown')
-        if conn_id not in viewer_stats:
-            viewer_stats[conn_id] = []
-        viewer_stats[conn_id].append(record['end_to_end_latency'])
 
     return {
         'session_code': session_code,
@@ -469,18 +338,8 @@ async def get_session_latency_stats(session_code: str, session_manager: SessionM
         'average_latency': sum(latencies) / len(latencies) if latencies else 0,
         'min_latency': min(latencies) if latencies else 0,
         'max_latency': max(latencies) if latencies else 0,
-        'recent_latencies': recent_latencies,
-        'p50_latency': sorted(latencies)[len(latencies)//2] if latencies else 0,
-        'p95_latency': sorted(latencies)[int(len(latencies)*0.95)] if latencies else 0,
-        'p99_latency': sorted(latencies)[int(len(latencies)*0.99)] if latencies else 0,
+        'recent_latencies': latencies[-20:],
         'viewer_count': len(current_session.viewers),
         'max_viewers': current_session.max_viewers,
-        'has_broadcaster': current_session.broadcaster is not None,
-        'viewer_stats': {
-            conn_id: {
-                'average_latency': sum(latencies) / len(latencies),
-                'frame_count': len(latencies)
-            }
-            for conn_id, latencies in viewer_stats.items()
-        }
+        'has_broadcaster': current_session.broadcaster is not None
     }
