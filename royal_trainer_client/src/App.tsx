@@ -1,8 +1,4 @@
-// royal_trainer_client/src/App.tsx
-// ─────────────────────────────────────────────────────────────────────────
-// Full single-file version that uses the new extracted UI helpers while
-// preserving **every** feature.  Copy-paste straight into your project.
-// ─────────────────────────────────────────────────────────────────────────
+// royal_trainer_client/src/App.tsx - Updated with single viewer enforcement
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,14 +20,14 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-/* ── NEW LAYOUT / OVERLAYS ───────────────────────────── */
+/* ── LAYOUT / OVERLAYS ───────────────────────────────── */
 import AnimatedBackground from './components/layout/AnimatedBackground';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ConnectionLoader from './components/overlays/ConnectionLoader';
 import ErrorToast from './components/overlays/ErrorToast';
 
-/* ── EXISTING FEATURE COMPONENTS ─────────────────────── */
+/* ── FEATURE COMPONENTS ─────────────────────── */
 import ConnectionSection from './components/ConnectionSection';
 import VideoStream from './components/VideoStream';
 import StatusBadge from './components/StatusBadge';
@@ -57,8 +53,6 @@ interface DetectionHistoryItem {
   inferenceTime: number;
   sessionCode: string;
 }
-
-/* ─────────────────────────────────────────────────────── */
 
 const App: React.FC = () => {
   /* ────────── STATE & HOOKS ─────────────────────────── */
@@ -89,7 +83,11 @@ const App: React.FC = () => {
     isInferenceEnabled,
     toggleInference,
     getFrameStats,
-    isCapturing
+    isCapturing,
+    // New session status properties
+    sessionStatus,
+    isCheckingSession,
+    checkSessionStatus
   } = useWebRTCWithFrameCapture();
 
   const {
@@ -100,7 +98,7 @@ const App: React.FC = () => {
 
   /* ────────── EFFECTS ───────────────────────────────── */
 
-  /* store detection history */
+  /* Store detection history */
   useEffect(() => {
     if (inferenceData && inferenceData.detections.length) {
       setHistory(prev => [
@@ -117,7 +115,7 @@ const App: React.FC = () => {
     }
   }, [inferenceData, sessionCode]);
 
-  /* connection state watcher */
+  /* Connection state watcher */
   useEffect(() => {
     if (isConnecting) {
       setConnectionState('connecting');
@@ -142,7 +140,7 @@ const App: React.FC = () => {
     }
   }, [isConnecting, isConnected]);
 
-  /* elapsed timer */
+  /* Elapsed timer */
   useEffect(() => {
     if (!startTime || connectionState !== 'live') return;
     const id = setInterval(() => {
@@ -158,6 +156,14 @@ const App: React.FC = () => {
   /* ────────── HANDLERS ──────────────────────────────── */
   const handleConnect = async () => {
     if (sessionCode.length !== 4) return;
+
+    // Check session status first
+    const status = await checkSessionStatus(sessionCode);
+    if (status && !status.available_for_viewer) {
+      // Error will be handled by the hook and displayed in ConnectionSection
+      return;
+    }
+
     setIsConnecting(true);
     setShowLoader(true);
 
@@ -165,11 +171,18 @@ const App: React.FC = () => {
       setIsConnecting(false);
       setShowLoader(false);
       setConnectionState('offline');
-    }, 10_000);
+    }, 15_000); // Extended timeout for status checking
     setTimeoutRef(to);
 
-    try { await connect(sessionCode); }
-    catch (e) { console.error(e); setIsConnecting(false); setShowLoader(false); clearTimeout(to); }
+    try {
+      await connect(sessionCode);
+    }
+    catch (e) {
+      console.error(e);
+      setIsConnecting(false);
+      setShowLoader(false);
+      clearTimeout(to);
+    }
   };
 
   const handleDisconnect = () => {
@@ -182,10 +195,18 @@ const App: React.FC = () => {
     timeoutRef && clearTimeout(timeoutRef);
   };
 
+  const handleSessionCodeChange = (code: string) => {
+    setSessionCode(code);
+    // Clear any existing connection error when code changes
+    if (connectionError && code.length < 4) {
+      // The error will be cleared by the hook
+    }
+  };
+
   /* ────────── RENDER ───────────────────────────────── */
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 relative overflow-x-hidden overflow-y-auto">
-      {/* decorations & watermark */}
+      {/* Decorations & watermark */}
       <AnimatedBackground />
       <AntiPiracyWatermark />
 
@@ -235,12 +256,15 @@ const App: React.FC = () => {
                   initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.3 }}>
                   <ConnectionSection
                     sessionCode={sessionCode}
-                    onSessionCodeChange={setSessionCode}
+                    onSessionCodeChange={handleSessionCodeChange}
                     connectionState={connectionState}
                     onConnect={handleConnect}
                     onDisconnect={handleDisconnect}
                     isConnecting={isConnecting}
                     connectionError={connectionError}
+                    sessionStatus={sessionStatus}
+                    isCheckingSession={isCheckingSession}
+                    onCheckSessionStatus={checkSessionStatus}
                   />
 
                   <InferenceControlPanel
@@ -253,7 +277,7 @@ const App: React.FC = () => {
 
                   <WatermarkSettings />
 
-                  {/* advanced toggle */}
+                  {/* Advanced toggle */}
                   <motion.button
                     onClick={() => setShowAdv(!showAdv)}
                     className="w-full py-2 px-3 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white/70 hover:text-white hover:bg-slate-700/50 flex items-center justify-between"
@@ -290,12 +314,12 @@ const App: React.FC = () => {
 
                 {/* CENTER COLUMN */}
                 <motion.div className="col-span-5 flex flex-col" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.3, delay: 0.1 }}>
-                  {/* video */}
+                  {/* Video */}
                   <div className={`transition-all duration-300 ${isVideoMin ? 'h-48' : 'h-3/5'} mb-3`}>
                     <VideoStream videoRef={videoRef} sessionCode={sessionCode} streamStats={streamStats} />
                   </div>
 
-                  {/* history & stats */}
+                  {/* History & stats */}
                   <div className="flex-1 bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4">
                     {selectedFrame ? (
                       /* FRAME ANALYSIS */
@@ -321,7 +345,7 @@ const App: React.FC = () => {
                     ) : (
                       /* HISTORY GRID */
                       <div className="grid grid-cols-4 gap-4 h-full">
-                        {/* history list */}
+                        {/* History list */}
                         <div className="col-span-2 space-y-4">
                           {!!history.length && (
                             <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-3">
@@ -344,7 +368,7 @@ const App: React.FC = () => {
                           )}
                         </div>
 
-                        {/* live stats */}
+                        {/* Live stats */}
                         <div className="col-span-2 space-y-4">
                           <h4 className="text-lg font-bold text-white flex items-center gap-2"><Activity className="w-5 h-5 text-green-400" />Connection Stats</h4>
                           <div className="space-y-3">
@@ -354,6 +378,7 @@ const App: React.FC = () => {
                             <Stat label="Session" value={<span className="text-yellow-400 font-mono">{sessionCode}</span>} />
                             <Stat label="Detections" value={history.length} />
                             <Stat label="AI Status" value={<span className={isInferenceEnabled ? 'text-green-400' : 'text-red-400'}>{isInferenceEnabled ? 'Active' : 'Inactive'}</span>} />
+                            <Stat label="Viewer Limit" value={<span className="text-orange-400">1/1 MAX</span>} />
                           </div>
                         </div>
                       </div>
@@ -370,12 +395,15 @@ const App: React.FC = () => {
               /* ─────────────── OFFLINE LANDING ───────────── */
               <OfflineLanding
                 sessionCode={sessionCode}
-                onSessionCodeChange={setSessionCode}
+                onSessionCodeChange={handleSessionCodeChange}
                 connectionState={connectionState}
                 onConnect={handleConnect}
                 onDisconnect={handleDisconnect}
                 isConnecting={isConnecting}
                 connectionError={connectionError}
+                sessionStatus={sessionStatus}
+                isCheckingSession={isCheckingSession}
+                onCheckSessionStatus={checkSessionStatus}
               />
             )}
           </AnimatePresence>
@@ -384,11 +412,11 @@ const App: React.FC = () => {
         <Footer />
       </div>
 
-      {/* overlays */}
+      {/* Overlays */}
       <ConnectionLoader show={showLoader} sessionCode={sessionCode} />
       <ErrorToast error={connectionError} />
 
-      {/* global scrollbar + security css (unchanged) */}
+      {/* Global styles */}
       <style>{`
         .thin-scrollbar::-webkit-scrollbar{width:4px}
         .thin-scrollbar::-webkit-scrollbar-track{background:rgba(255,255,255,0.05);border-radius:2px}
@@ -419,14 +447,18 @@ interface OfflineProps {
   onDisconnect: () => void;
   isConnecting: boolean;
   connectionError: any;
+  sessionStatus?: any;
+  isCheckingSession?: boolean;
+  onCheckSessionStatus?: (code: string) => Promise<any>;
 }
 const OfflineLanding: React.FC<OfflineProps> = ({
-  sessionCode, onSessionCodeChange, connectionState, onConnect, onDisconnect, isConnecting, connectionError
+  sessionCode, onSessionCodeChange, connectionState, onConnect, onDisconnect,
+  isConnecting, connectionError, sessionStatus, isCheckingSession, onCheckSessionStatus
 }) => (
   <motion.div key="offline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
     className="h-full flex items-center justify-center">
     <div className="max-w-6xl mx-auto px-6 text-center">
-      {/* top hero */}
+      {/* Top hero */}
       <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-12">
         <div className="text-8xl mb-6">🧠</div>
         <h2 className="text-5xl font-black bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent mb-6">
@@ -436,21 +468,26 @@ const OfflineLanding: React.FC<OfflineProps> = ({
           Experience cutting-edge YOLOv8 computer vision for real-time Clash Royale troop detection and analysis.
           Connect your mobile device and watch AI identify every troop, building and spell instantly.
         </p>
-        {/* beta warning */}
+        {/* Enhanced beta warning */}
         <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 mb-8 max-w-2xl mx-auto">
           <div className="flex items-center justify-center gap-2 mb-2">
             <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
             <span className="text-red-300 font-bold">CONFIDENTIAL BETA SOFTWARE</span>
             <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
           </div>
-          <p className="text-red-200 text-sm">
+          <p className="text-red-200 text-sm mb-2">
             This software is protected by anti-piracy measures. All usage is monitored and logged.
             Unauthorized distribution is strictly prohibited.
           </p>
+          <div className="bg-orange-900/40 border border-orange-500/40 rounded-lg p-2 mt-2">
+            <p className="text-orange-200 text-xs font-bold">
+              ⚠️ SINGLE VIEWER LIMIT: Only one viewer per broadcast session allowed
+            </p>
+          </div>
         </div>
       </motion.div>
 
-      {/* grid */}
+      {/* Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
           <ConnectionSection
@@ -461,6 +498,9 @@ const OfflineLanding: React.FC<OfflineProps> = ({
             onDisconnect={onDisconnect}
             isConnecting={isConnecting}
             connectionError={connectionError}
+            sessionStatus={sessionStatus}
+            isCheckingSession={isCheckingSession}
+            onCheckSessionStatus={onCheckSessionStatus}
           />
         </motion.div>
 
@@ -494,7 +534,7 @@ const OfflineLanding: React.FC<OfflineProps> = ({
         </motion.div>
       </div>
 
-      {/* watermark settings panel */}
+      {/* Watermark settings panel */}
       <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.8 }} className="mb-12 flex justify-center">
         <div className="bg-gradient-to-br from-red-900/50 to-purple-900/50 backdrop-blur-xl border border-red-500/30 rounded-2xl p-6">
           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">🛡️ Security & Protection</h3>
@@ -506,14 +546,14 @@ const OfflineLanding: React.FC<OfflineProps> = ({
         </div>
       </motion.div>
 
-      {/* model info */}
+      {/* Model info */}
       <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 1 }}
         className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-gradient-to-r from-purple-900/30 to-blue-900/30 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-8">
         {[
           { icon: "🧠", title: "YOLOv8 Model", sub: "State-of-the-art object detection" },
           { icon: "⚡", title: "Real-time Speed", sub: "5+ FPS processing rate" },
           { icon: "🎯", title: "High Accuracy", sub: "Trained on Clash Royale data" },
-          { icon: "🛡️", title: "Protected", sub: "Anti-piracy watermarks" }].map((c) => (
+          { icon: "👤", title: "Single Viewer", sub: "One viewer per broadcast session" }].map((c) => (
             <div key={c.title} className="text-center">
               <div className="text-4xl mb-3">{c.icon}</div>
               <div className="text-lg font-bold text-white mb-1">{c.title}</div>

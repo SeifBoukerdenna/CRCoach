@@ -45,6 +45,17 @@ interface WebRTCFrameStats {
   lastPacketReceivedTimestamp: number;
 }
 
+interface SessionStatus {
+  session_code: string;
+  exists: boolean;
+  has_broadcaster: boolean;
+  viewer_count: number;
+  max_viewers: number;
+  available_for_viewer: boolean;
+  available_for_broadcaster: boolean;
+  message: string;
+}
+
 export const useWebRTCWithFrameCapture = () => {
   /*─────────────────────────────────── state */
   const [isConnected, setIsConnected] = useState(false);
@@ -61,6 +72,10 @@ export const useWebRTCWithFrameCapture = () => {
     measurements: [],
   });
   const [isInferenceEnabled, setIsInferenceEnabled] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(
+    null
+  );
+  const [isCheckingSession, setIsCheckingSession] = useState(false);
 
   /*─────────────────────────────────── refs */
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -77,24 +92,19 @@ export const useWebRTCWithFrameCapture = () => {
   const frameTrackingRef = useRef<Map<number, number>>(new Map());
 
   /*─────────────────────────────────── frame capture integration */
-  const {
-    startCapture: startFrameCapture,
-    stopCapture: stopFrameCapture,
-    captureManualFrame,
-    getFrameStats,
-    isCapturing,
-  } = useVideoFrameCapture(
-    videoRef,
-    sessionCodeRef.current,
-    isInferenceEnabled,
-    webSocketRef,
-    {
-      fps: 5, // 5 FPS for inference
-      quality: 0.8,
-      maxWidth: 640,
-      maxHeight: 480,
-    }
-  );
+  const { captureManualFrame, getFrameStats, isCapturing } =
+    useVideoFrameCapture(
+      videoRef,
+      sessionCodeRef.current,
+      isInferenceEnabled,
+      webSocketRef,
+      {
+        fps: 5,
+        quality: 0.8,
+        maxWidth: 640,
+        maxHeight: 480,
+      }
+    );
 
   /*─────────────────────────────────── helpers */
   const log = (msg: string, t: string = "info") => {
@@ -109,6 +119,32 @@ export const useWebRTCWithFrameCapture = () => {
         : "ℹ️";
     console.log(`[${ts}] ${emoji} ${msg}`);
   };
+
+  /*─────────────────────────────────── session status checking */
+  const checkSessionStatus = useCallback(
+    async (sessionCode: string): Promise<SessionStatus | null> => {
+      if (!sessionCode || sessionCode.length !== 4) return null;
+
+      setIsCheckingSession(true);
+      try {
+        const response = await fetch(`/api/sessions/${sessionCode}/status`);
+        if (response.ok) {
+          const status = await response.json();
+          setSessionStatus(status);
+          return status;
+        } else {
+          console.warn(`Failed to check session status: ${response.status}`);
+          return null;
+        }
+      } catch (error) {
+        console.error("Error checking session status:", error);
+        return null;
+      } finally {
+        setIsCheckingSession(false);
+      }
+    },
+    []
+  );
 
   /*─────────────────────────────────── inference control */
   const toggleInference = useCallback(async (enabled: boolean) => {
@@ -239,13 +275,6 @@ export const useWebRTCWithFrameCapture = () => {
               })
             );
           }
-
-          log(
-            `WebRTC frame latency: ${endToEndLatency.toFixed(1)}ms (frames: ${
-              currentStats.framesReceived
-            })`,
-            "debug"
-          );
         }
       }
 
@@ -271,9 +300,7 @@ export const useWebRTCWithFrameCapture = () => {
     if (videoRef.current && remoteStreamRef.current) {
       if (videoRef.current.srcObject !== remoteStreamRef.current) {
         videoRef.current.srcObject = remoteStreamRef.current;
-        videoRef.current.play().catch(() => {
-          /* safari autoplay */
-        });
+        videoRef.current.play().catch(() => {});
         log("Remote stream attached to <video>", "success");
       }
     }
@@ -308,13 +335,6 @@ export const useWebRTCWithFrameCapture = () => {
             lastPacketReceivedTimestamp:
               report.lastPacketReceivedTimestamp || 0,
           };
-
-          if (report.framesReceived && report.framesReceived % 100 === 0) {
-            log(
-              `WebRTC frame stats - Received: ${report.framesReceived}, Decoded: ${report.framesDecoded}, Dropped: ${report.framesDropped}`,
-              "debug"
-            );
-          }
         }
 
         if (report.type === "candidate-pair" && report.state === "succeeded") {
@@ -449,12 +469,9 @@ export const useWebRTCWithFrameCapture = () => {
           break;
 
         case "offer":
-          // Check if this offer is meant for us
           const targetViewerId = d.target_viewer_id || d.for_viewer;
           if (!targetViewerId || targetViewerId === connectionIdRef.current) {
             await handleOffer(d);
-          } else {
-            log(`Offer for different viewer: ${targetViewerId}`, "debug");
           }
           break;
 
@@ -490,13 +507,6 @@ export const useWebRTCWithFrameCapture = () => {
               ...prev,
               networkLatency,
             }));
-
-            log(
-              `Network latency: ${networkLatency.toFixed(
-                1
-              )}ms (RTT: ${roundTripTime.toFixed(1)}ms)`,
-              "debug"
-            );
           }
           break;
 
@@ -507,23 +517,33 @@ export const useWebRTCWithFrameCapture = () => {
             code: "SERVER_ERROR",
             timestamp: new Date(),
           });
-
-          // Stop connecting state immediately on error
           setIsConnecting(false);
           break;
 
         default:
-          log(`Unknown message type: ${d.type}`);
           break;
       }
     },
     [createPeer, handleOffer]
   );
 
-  /*─────────────────────────────────── connect */
+  /*─────────────────────────────────── connect with validation */
   const connect = useCallback(
-    (code: string) =>
-      new Promise<void>((res, rej) => {
+    async (code: string) => {
+      // First check session status
+      const status = await checkSessionStatus(code);
+
+      if (!status) {
+        throw new Error("Failed to check session status");
+      }
+
+      if (!status.available_for_viewer) {
+        throw new Error(
+          "Session already has a viewer! Only one viewer allowed per broadcast."
+        );
+      }
+
+      return new Promise<void>((res, rej) => {
         try {
           sessionCodeRef.current = code;
           setIsConnecting(true);
@@ -554,14 +574,15 @@ export const useWebRTCWithFrameCapture = () => {
           };
           ws.onerror = () => {
             setIsConnecting(false);
-            rej(new Error("WS error"));
+            rej(new Error("WebSocket connection failed"));
           };
         } catch (e) {
           setIsConnecting(false);
           rej(e);
         }
-      }),
-    [handleWebSocketMessage]
+      });
+    },
+    [handleWebSocketMessage, checkSessionStatus]
   );
 
   const disconnect = useCallback(() => {
@@ -577,6 +598,7 @@ export const useWebRTCWithFrameCapture = () => {
     setIsConnecting(false);
     setIsInferenceEnabled(false);
     setConnectionError(null);
+    setSessionStatus(null);
 
     previousStatsRef.current = null;
     frameTrackingRef.current.clear();
@@ -622,6 +644,11 @@ export const useWebRTCWithFrameCapture = () => {
     streamStats,
     latencyStats,
     performLatencyTest,
+
+    // Session status
+    sessionStatus,
+    isCheckingSession,
+    checkSessionStatus,
 
     // Inference controls
     isInferenceEnabled,

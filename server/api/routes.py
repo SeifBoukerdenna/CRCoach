@@ -1,3 +1,7 @@
+"""
+server/api/routes.py - Add session status checking endpoint
+"""
+
 import time
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
@@ -54,6 +58,45 @@ async def health_check():
             "sessions_with_latency_data": sum(1 for s in session_manager.sessions.values()
                                             if hasattr(s, 'latency_data') and s.latency_data)
         }
+    }
+
+# NEW: Session status endpoint for checking availability
+@router.get("/api/sessions/{session_code}/status")
+async def get_session_status(session_code: str):
+    """Check session status and availability"""
+    if not session_code.isdigit() or len(session_code) != 4:
+        raise HTTPException(status_code=400, detail="Invalid session code format")
+
+    session = session_manager.get_session(session_code)
+
+    if not session:
+        # Session doesn't exist - available for new connections
+        return {
+            "session_code": session_code,
+            "exists": False,
+            "has_broadcaster": False,
+            "viewer_count": 0,
+            "max_viewers": 1,  # Single viewer limit
+            "available_for_viewer": True,
+            "available_for_broadcaster": True,
+            "message": "Session available"
+        }
+
+    # Session exists - check current state
+    viewer_count = len(session.viewers)
+    has_broadcaster = session.broadcaster is not None
+
+    return {
+        "session_code": session_code,
+        "exists": True,
+        "has_broadcaster": has_broadcaster,
+        "viewer_count": viewer_count,
+        "max_viewers": 1,  # Single viewer limit
+        "available_for_viewer": viewer_count == 0,  # Only available if no viewers
+        "available_for_broadcaster": not has_broadcaster,
+        "message": "Session not available - already has a viewer" if viewer_count > 0 else "Session available",
+        "created_at": session.created_at.isoformat(),
+        "last_activity": session.last_activity.isoformat()
     }
 
 @router.get("/api/sessions")

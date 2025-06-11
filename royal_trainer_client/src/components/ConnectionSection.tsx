@@ -1,9 +1,20 @@
-// royal_trainer_client/src/components/ConnectionSection.tsx - Compact version for sidebar
+// royal_trainer_client/src/components/ConnectionSection.tsx - Enhanced with session validation
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, AlertCircle, Crown, Smartphone, Zap, Square } from 'lucide-react';
+import { Wifi, AlertCircle, Crown, Smartphone, Zap, Square, Users, Check, X, Loader2 } from 'lucide-react';
 import type { ConnectionError, ConnectionState } from '../types';
+
+interface SessionStatus {
+    session_code: string;
+    exists: boolean;
+    has_broadcaster: boolean;
+    viewer_count: number;
+    max_viewers: number;
+    available_for_viewer: boolean;
+    available_for_broadcaster: boolean;
+    message: string;
+}
 
 interface ConnectionSectionProps {
     sessionCode: string;
@@ -13,6 +24,9 @@ interface ConnectionSectionProps {
     onDisconnect: () => void;
     isConnecting: boolean;
     connectionError: ConnectionError | null;
+    sessionStatus?: SessionStatus | null;
+    isCheckingSession?: boolean;
+    onCheckSessionStatus?: (code: string) => Promise<SessionStatus | null>;
 }
 
 const ConnectionSection: React.FC<ConnectionSectionProps> = ({
@@ -22,10 +36,23 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
     onConnect,
     onDisconnect,
     isConnecting,
-    connectionError
+    connectionError,
+    sessionStatus,
+    isCheckingSession = false,
+    onCheckSessionStatus
 }) => {
     const [digits, setDigits] = useState(['', '', '', '']);
     const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+    const [lastCheckedCode, setLastCheckedCode] = useState('');
+
+    // Check session status when code changes
+    useEffect(() => {
+        const code = digits.join('');
+        if (code.length === 4 && code !== lastCheckedCode && onCheckSessionStatus) {
+            setLastCheckedCode(code);
+            onCheckSessionStatus(code);
+        }
+    }, [digits, lastCheckedCode, onCheckSessionStatus]);
 
     const handleDigitChange = (index: number, value: string) => {
         if (value.length > 1) return;
@@ -50,7 +77,7 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
             const prevInput = document.getElementById(`digit-${index - 1}`) as HTMLInputElement;
             prevInput?.focus();
         }
-        if (e.key === 'Enter' && sessionCode.length === 4) {
+        if (e.key === 'Enter' && canConnect()) {
             onConnect();
         }
         if (e.key === 'ArrowLeft' && index > 0) {
@@ -78,6 +105,7 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
     const clearCode = () => {
         setDigits(['', '', '', '']);
         onSessionCodeChange('');
+        setLastCheckedCode('');
         const firstInput = document.getElementById('digit-0') as HTMLInputElement;
         firstInput?.focus();
     };
@@ -89,13 +117,60 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
         onSessionCodeChange(randomCode);
     };
 
+    // Determine if connection is possible
+    const canConnect = () => {
+        if (connectionState === 'live') return false;
+        if (isConnecting) return false;
+        if (sessionCode.length !== 4) return false;
+        if (isCheckingSession) return false;
+        if (sessionStatus && !sessionStatus.available_for_viewer) return false;
+        return true;
+    };
+
+    // Get session status display
+    const getSessionStatusDisplay = () => {
+        if (sessionCode.length !== 4) return null;
+        if (isCheckingSession) {
+            return (
+                <div className="flex items-center gap-2 text-blue-400 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Checking session...
+                </div>
+            );
+        }
+        if (!sessionStatus) return null;
+
+        if (sessionStatus.available_for_viewer) {
+            return (
+                <div className="flex items-center gap-2 text-green-400 text-sm">
+                    <Check className="w-4 h-4" />
+                    Session available!
+                    {sessionStatus.has_broadcaster && (
+                        <span className="text-green-300">• Broadcaster online</span>
+                    )}
+                </div>
+            );
+        } else {
+            return (
+                <div className="flex items-center gap-2 text-red-400 text-sm">
+                    <X className="w-4 h-4" />
+                    {sessionStatus.viewer_count > 0
+                        ? "Session already has a viewer!"
+                        : sessionStatus.message}
+                    <Users className="w-4 h-4" />
+                    {sessionStatus.viewer_count}/{sessionStatus.max_viewers}
+                </div>
+            );
+        }
+    };
+
     return (
         <motion.div
             className="bg-gradient-to-br from-slate-800/90 via-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4 shadow-2xl"
             whileHover={{ scale: 1.01 }}
             transition={{ duration: 0.1 }}
         >
-            {/* Compact Header */}
+            {/* Header */}
             <div className="text-center mb-4">
                 <div className="flex items-center justify-center gap-2 mb-2">
                     <Crown className="w-5 h-5 text-yellow-400" />
@@ -106,7 +181,7 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                 <p className="text-white/70 text-sm">Enter 4-digit session code</p>
             </div>
 
-            {/* Compact Code Input */}
+            {/* Code Input */}
             <div className="mb-4">
                 <div className="flex justify-center gap-2 mb-3">
                     {digits.map((digit, index) => (
@@ -133,6 +208,20 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                     ))}
                 </div>
 
+                {/* Session Status Display */}
+                <AnimatePresence>
+                    {getSessionStatusDisplay() && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mb-3 flex justify-center"
+                        >
+                            {getSessionStatusDisplay()}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {/* Quick Action Buttons */}
                 <div className="flex justify-center gap-2 mb-3">
                     <button
@@ -157,23 +246,27 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                 {connectionState !== 'live' ? (
                     <motion.button
                         onClick={onConnect}
-                        disabled={sessionCode.length !== 4 || isConnecting}
-                        className={`w-full py-3 px-4 rounded-lg font-bold text-sm transition-all duration-150 flex items-center justify-center gap-2 border-2 shadow-lg ${sessionCode.length === 4 && !isConnecting
+                        disabled={!canConnect()}
+                        className={`w-full py-3 px-4 rounded-lg font-bold text-sm transition-all duration-150 flex items-center justify-center gap-2 border-2 shadow-lg ${canConnect()
                             ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 border-yellow-400 hover:shadow-xl hover:scale-105 active:scale-95'
                             : 'bg-slate-700 text-slate-400 cursor-not-allowed border-slate-600'
                             }`}
-                        whileHover={sessionCode.length === 4 && !isConnecting ? { scale: 1.02 } : {}}
-                        whileTap={sessionCode.length === 4 && !isConnecting ? { scale: 0.98 } : {}}
+                        whileHover={canConnect() ? { scale: 1.02 } : {}}
+                        whileTap={canConnect() ? { scale: 0.98 } : {}}
                     >
-                        {isConnecting ? (
+                        {isConnecting || isCheckingSession ? (
                             <>
-                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                Connecting...
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                {isCheckingSession ? 'Checking...' : 'Connecting...'}
                             </>
                         ) : (
                             <>
                                 <Wifi className="w-4 h-4" />
-                                Connect Stream
+                                {sessionCode.length !== 4
+                                    ? 'Enter Code'
+                                    : sessionStatus && !sessionStatus.available_for_viewer
+                                        ? 'Session Unavailable'
+                                        : 'Connect Stream'}
                             </>
                         )}
                     </motion.button>
@@ -201,7 +294,7 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                 </span>
             </div>
 
-            {/* Error Display */}
+            {/* Enhanced Error Display */}
             <AnimatePresence>
                 {connectionError && (
                     <motion.div
@@ -214,7 +307,12 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                         <div className="flex items-start gap-2">
                             <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
                             <div className="flex-1">
-                                <p className="text-red-300 font-semibold text-sm">{connectionError.message}</p>
+                                <p className="text-red-300 font-semibold text-sm">
+                                    {connectionError.message.includes('already has a viewer')
+                                        ? '🚫 Viewer Limit Reached'
+                                        : 'Connection Failed'}
+                                </p>
+                                <p className="text-red-200 text-xs mt-1">{connectionError.message}</p>
                                 {connectionError.code && (
                                     <p className="text-red-400/70 text-xs mt-1">Error: {connectionError.code}</p>
                                 )}
@@ -262,7 +360,17 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                         ))}
                     </div>
 
-                    <div className="mt-3 p-2 bg-black/20 rounded-lg border border-yellow-500/30">
+                    <div className="mt-3 p-2 bg-red-900/30 rounded-lg border border-red-500/30">
+                        <div className="flex items-center gap-2 text-red-400 text-xs font-medium mb-1">
+                            <Users className="w-3 h-3" />
+                            Single Viewer Limit
+                        </div>
+                        <p className="text-red-200 text-xs">
+                            Only one viewer per broadcast session allowed
+                        </p>
+                    </div>
+
+                    <div className="mt-2 p-2 bg-black/20 rounded-lg border border-yellow-500/30">
                         <div className="flex items-center gap-2 text-yellow-400 text-xs font-medium mb-1">
                             <Zap className="w-3 h-3" />
                             Pro Tip
