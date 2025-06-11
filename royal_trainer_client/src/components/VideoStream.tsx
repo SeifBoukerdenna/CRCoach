@@ -20,12 +20,14 @@ import {
     Share,
     Info
 } from 'lucide-react';
+import { useVideoStream } from '../hooks/useVideoStream';
 import type { StreamStats } from '../types';
 
 interface VideoStreamProps {
     videoRef: React.RefObject<HTMLVideoElement>;
     sessionCode: string;
     streamStats: StreamStats | null;
+    remoteStream?: MediaStream | null | undefined;
     isMinimized?: boolean;
     onToggleSize?: () => void;
     className?: string;
@@ -35,10 +37,14 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     videoRef,
     sessionCode,
     streamStats,
+    remoteStream,
     isMinimized = false,
     onToggleSize,
     className = ''
 }) => {
+    // Use the video stream hook to handle stream attachment
+    useVideoStream(videoRef, remoteStream);
+
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showStats, setShowStats] = useState(false);
     const [videoReady, setVideoReady] = useState(false);

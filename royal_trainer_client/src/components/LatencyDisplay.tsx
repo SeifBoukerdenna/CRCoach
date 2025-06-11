@@ -11,7 +11,7 @@ import {
     Signal
 } from 'lucide-react';
 
-interface LatencyStats {
+export interface LatencyStats {
     current: number;
     average: number;
     min: number;

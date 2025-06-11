@@ -658,5 +658,7 @@ export const useWebRTCWithFrameCapture = () => {
     captureManualFrame,
     getFrameStats,
     isCapturing,
+
+    remoteStream: remoteStreamRef.current,
   };
 };

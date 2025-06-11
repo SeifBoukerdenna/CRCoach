@@ -33,27 +33,6 @@ const OfflineState: React.FC<OfflineStateProps> = ({
                 The AI will automatically start scanning for Clash Royale game elements.
             </p>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
-                {[
-                    { icon: '⚔️', title: 'Characters', desc: 'Knights, Archers, Giants' },
-                    { icon: '🏰', title: 'Buildings', desc: 'Towers, Cannons, Tesla' },
-                    { icon: '🔥', title: 'Spells', desc: 'Fireball, Lightning, Freeze' },
-                    { icon: '💧', title: 'Resources', desc: 'Elixir, Crown Towers' }
-                ].map((item, index) => (
-                    <motion.div
-                        key={item.title}
-                        className="p-4 bg-black/20 rounded-xl border border-white/10"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                    >
-                        <div className="text-3xl mb-2">{item.icon}</div>
-                        <div className="text-sm font-medium text-white/70">{item.title}</div>
-                        <div className="text-xs text-white/50 mt-1">{item.desc}</div>
-                    </motion.div>
-                ))}
-            </div>
-
             <div className="mt-8 text-sm text-white/30">
                 <div className="flex items-center justify-center gap-2 mb-2">
                     <div className="w-2 h-2 bg-gray-500 rounded-full" />
