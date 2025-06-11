@@ -1,60 +1,47 @@
 #!/bin/bash
-# Docker WebRTC Server Startup Script
+set -e
 
 SCRIPT_DIR="/home/malikmacbook/CRCoach/server"
 IMAGE_NAME="webrtc-server"
 CONTAINER_NAME="webrtc-server"
 PORT="8080"
 
-echo "Starting WebRTC server startup script..."
+echo "🚀 Starting WebRTC server startup script..."
 
-# Check if Docker is running
+# 1) Ensure Docker is running
 if ! docker info >/dev/null 2>&1; then
-    echo "Docker is not running. Starting Docker..."
-    sudo systemctl start docker
-    sleep 5
+  echo "Docker is not running. Starting it..."
+  sudo systemctl start docker
+  sleep 5
 fi
 
-# Check if container is already running
-if docker ps --format "table {{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
-    echo "Container ${CONTAINER_NAME} is already running"
-    exit 0
-fi
-
-# Navigate to project directory
+# 2) Switch to your project dir
 cd "$SCRIPT_DIR" || {
-    echo "Error: Cannot find directory $SCRIPT_DIR"
-    exit 1
+  echo "❌ Cannot find directory $SCRIPT_DIR"
+  exit 1
 }
 
-# Check if image exists
-if ! docker images --format "table {{.Repository}}" | grep -q "^${IMAGE_NAME}$"; then
-    echo "Image ${IMAGE_NAME} not found. Building..."
-    docker build -f docker/Dockerfile -t "$IMAGE_NAME" .
+# 3) **Always rebuild** the image so it includes your latest code
+echo "🔨 Building Docker image ${IMAGE_NAME} (no cache)…"
+docker build --no-cache -f docker/Dockerfile -t "$IMAGE_NAME" .
 
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to build Docker image"
-        exit 1
-    fi
-    echo "Image built successfully"
-else
-    echo "Image ${IMAGE_NAME} already exists"
+# 4) Remove any existing container (so we start fresh)
+if docker ps -a --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}\$"; then
+  echo "🛑 Removing old container ${CONTAINER_NAME}"
+  docker rm -f "$CONTAINER_NAME"
 fi
 
-# Stop and remove existing container if it exists but isn't running
-if docker ps -a --format "table {{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
-    echo "Removing existing container..."
-    docker rm -f "$CONTAINER_NAME"
-fi
+# 5) Run the new container
+echo "▶️  Launching container ${CONTAINER_NAME} on port ${PORT}"
+docker run -d \
+  --name "$CONTAINER_NAME" \
+  -p "${PORT}:${PORT}" \
+  "$IMAGE_NAME"
 
-# Run the container
-echo "Starting container..."
-docker run -d --name "$CONTAINER_NAME" -p "${PORT}:${PORT}" "$IMAGE_NAME"
-
+# 6) Final check
 if [ $? -eq 0 ]; then
-    echo "Container started successfully"
-    echo "Server should be available at: http://$(curl -s ifconfig.me):${PORT}/health"
+  echo "✅ Container started. Health check at: http://$(curl -s ifconfig.me):${PORT}/health"
 else
-    echo "Error: Failed to start container"
-    exit 1
+  echo "❌ Failed to start container"
+  exit 1
 fi
