@@ -1,20 +1,10 @@
-// royal_trainer_client/src/components/ConnectionSection.tsx - Enhanced with session validation
+// royal_trainer_client/src/components/ConnectionSection.tsx - Enhanced session state handling
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, AlertCircle, Crown, Smartphone, Zap, Square, Users, Check, X, Loader2 } from 'lucide-react';
-import type { ConnectionError, ConnectionState } from '../types';
+import { Wifi, AlertCircle, Crown, Smartphone, Zap, Square, Users, Check, X, Loader2, Clock, RefreshCw } from 'lucide-react';
+import type { ConnectionError, ConnectionState, SessionStatus } from '../types';
 
-interface SessionStatus {
-    session_code: string;
-    exists: boolean;
-    has_broadcaster: boolean;
-    viewer_count: number;
-    max_viewers: number;
-    available_for_viewer: boolean;
-    available_for_broadcaster: boolean;
-    message: string;
-}
 
 interface ConnectionSectionProps {
     sessionCode: string;
@@ -127,9 +117,10 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
         return true;
     };
 
-    // Get session status display
+    // Get session status display with enhanced error handling
     const getSessionStatusDisplay = () => {
         if (sessionCode.length !== 4) return null;
+
         if (isCheckingSession) {
             return (
                 <div className="flex items-center gap-2 text-blue-400 text-sm">
@@ -138,29 +129,92 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                 </div>
             );
         }
+
         if (!sessionStatus) return null;
 
-        if (sessionStatus.available_for_viewer) {
-            return (
-                <div className="flex items-center gap-2 text-green-400 text-sm">
-                    <Check className="w-4 h-4" />
-                    Session available!
-                    {sessionStatus.has_broadcaster && (
-                        <span className="text-green-300">• Broadcaster online</span>
-                    )}
-                </div>
-            );
-        } else {
-            return (
-                <div className="flex items-center gap-2 text-red-400 text-sm">
-                    <X className="w-4 h-4" />
-                    {sessionStatus.viewer_count > 0
-                        ? "Session already has a viewer!"
-                        : sessionStatus.message}
-                    <Users className="w-4 h-4" />
-                    {sessionStatus.viewer_count}/{sessionStatus.max_viewers}
-                </div>
-            );
+        // Handle different error types
+        switch (sessionStatus.error_type) {
+            case 'session_not_found':
+                return (
+                    <div className="flex items-center gap-2 text-red-400 text-sm">
+                        <X className="w-4 h-4" />
+                        Session does not exist
+                        <div className="text-xs text-red-300 ml-1">Check the code</div>
+                    </div>
+                );
+
+            case 'session_expired':
+                return (
+                    <div className="flex items-center gap-2 text-orange-400 text-sm">
+                        <Clock className="w-4 h-4" />
+                        Session expired
+                        <div className="text-xs text-orange-300 ml-1">Generate new broadcast</div>
+                    </div>
+                );
+
+            case 'session_full':
+                return (
+                    <div className="flex items-center gap-2 text-red-400 text-sm">
+                        <Users className="w-4 h-4" />
+                        Session has viewer
+                        <div className="text-xs text-red-300 ml-1">{sessionStatus.viewer_count}/1 MAX</div>
+                    </div>
+                );
+
+            case null:
+                // Session is available
+                return (
+                    <div className="flex items-center gap-2 text-green-400 text-sm">
+                        <Check className="w-4 h-4" />
+                        Session available!
+                        {sessionStatus.has_broadcaster && (
+                            <span className="text-green-300">• Broadcaster online</span>
+                        )}
+                    </div>
+                );
+
+            default:
+                // Fallback for unknown error types
+                return (
+                    <div className="flex items-center gap-2 text-red-400 text-sm">
+                        <X className="w-4 h-4" />
+                        {sessionStatus.message}
+                    </div>
+                );
+        }
+    };
+
+    // Get button text based on session status
+    const getButtonText = () => {
+        if (isConnecting || isCheckingSession) {
+            return isCheckingSession ? 'Checking...' : 'Connecting...';
+        }
+
+        if (sessionCode.length !== 4) {
+            return 'Enter Code';
+        }
+
+        if (!sessionStatus) {
+            return 'Connect Stream';
+        }
+
+        switch (sessionStatus.error_type) {
+            case 'session_not_found':
+                return 'Session Not Found';
+            case 'session_expired':
+                return 'Session Expired';
+            case 'session_full':
+                return 'Session Full';
+            default:
+                return 'Connect Stream';
+        }
+    };
+
+    // Manual refresh session status
+    const handleRefreshStatus = () => {
+        if (sessionCode.length === 4 && onCheckSessionStatus) {
+            setLastCheckedCode(''); // Force refresh
+            onCheckSessionStatus(sessionCode);
         }
     };
 
@@ -177,6 +231,17 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                     <h3 className="text-lg font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
                         Connect
                     </h3>
+                    {sessionCode.length === 4 && onCheckSessionStatus && (
+                        <motion.button
+                            onClick={handleRefreshStatus}
+                            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            title="Refresh Status"
+                        >
+                            <RefreshCw className="w-3 h-3 text-white/70" />
+                        </motion.button>
+                    )}
                 </div>
                 <p className="text-white/70 text-sm">Enter 4-digit session code</p>
             </div>
@@ -198,7 +263,11 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                                 className={`w-10 h-10 text-lg font-bold text-center bg-slate-700/50 border-2 rounded-lg text-white focus:outline-none transition-all duration-150 ${focusedIndex === index
                                     ? 'border-yellow-400 bg-slate-600/50 scale-110'
                                     : digit
-                                        ? 'border-green-500 bg-slate-600/30'
+                                        ? sessionStatus?.error_type
+                                            ? 'border-red-500 bg-slate-600/30'
+                                            : sessionStatus?.available_for_viewer
+                                                ? 'border-green-500 bg-slate-600/30'
+                                                : 'border-orange-500 bg-slate-600/30'
                                         : 'border-slate-600 hover:border-slate-500'
                                     }`}
                                 maxLength={1}
@@ -217,7 +286,49 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                             exit={{ opacity: 0, height: 0 }}
                             className="mb-3 flex justify-center"
                         >
-                            {getSessionStatusDisplay()}
+                            <div className={`p-2 rounded-lg border ${sessionStatus?.error_type === 'session_not_found'
+                                ? 'bg-red-900/30 border-red-500/50'
+                                : sessionStatus?.error_type === 'session_expired'
+                                    ? 'bg-orange-900/30 border-orange-500/50'
+                                    : sessionStatus?.error_type === 'session_full'
+                                        ? 'bg-red-900/30 border-red-500/50'
+                                        : 'bg-green-900/30 border-green-500/50'
+                                }`}>
+                                {getSessionStatusDisplay()}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Enhanced Session Info for Error Cases */}
+                <AnimatePresence>
+                    {sessionStatus?.error_type && sessionCode.length === 4 && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mb-3 p-3 bg-black/20 rounded-lg border border-white/10"
+                        >
+                            <div className="text-xs text-white/60 space-y-1">
+                                {sessionStatus.error_type === 'session_not_found' && (
+                                    <>
+                                        <div>❌ Code <span className="font-mono text-white">{sessionCode}</span> not found</div>
+                                        <div>💡 Double-check the code or start a new broadcast</div>
+                                    </>
+                                )}
+                                {sessionStatus.error_type === 'session_expired' && (
+                                    <>
+                                        <div>⏰ Session <span className="font-mono text-white">{sessionCode}</span> expired</div>
+                                        <div>📱 Previous viewer disconnected - create new broadcast</div>
+                                    </>
+                                )}
+                                {sessionStatus.error_type === 'session_full' && (
+                                    <>
+                                        <div>👥 Session <span className="font-mono text-white">{sessionCode}</span> is full</div>
+                                        <div>🚫 Only 1 viewer allowed per broadcast session</div>
+                                    </>
+                                )}
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -257,16 +368,12 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                         {isConnecting || isCheckingSession ? (
                             <>
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                {isCheckingSession ? 'Checking...' : 'Connecting...'}
+                                {getButtonText()}
                             </>
                         ) : (
                             <>
                                 <Wifi className="w-4 h-4" />
-                                {sessionCode.length !== 4
-                                    ? 'Enter Code'
-                                    : sessionStatus && !sessionStatus.available_for_viewer
-                                        ? 'Session Unavailable'
-                                        : 'Connect Stream'}
+                                {getButtonText()}
                             </>
                         )}
                     </motion.button>
@@ -310,7 +417,11 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                                 <p className="text-red-300 font-semibold text-sm">
                                     {connectionError.message.includes('already has a viewer')
                                         ? '🚫 Viewer Limit Reached'
-                                        : 'Connection Failed'}
+                                        : connectionError.message.includes('does not exist')
+                                            ? '❓ Session Not Found'
+                                            : connectionError.message.includes('expired')
+                                                ? '⏰ Session Expired'
+                                                : 'Connection Failed'}
                                 </p>
                                 <p className="text-red-200 text-xs mt-1">{connectionError.message}</p>
                                 {connectionError.code && (
@@ -363,10 +474,10 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                     <div className="mt-3 p-2 bg-red-900/30 rounded-lg border border-red-500/30">
                         <div className="flex items-center gap-2 text-red-400 text-xs font-medium mb-1">
                             <Users className="w-3 h-3" />
-                            Single Viewer Limit
+                            Single Use Sessions
                         </div>
                         <p className="text-red-200 text-xs">
-                            Only one viewer per broadcast session allowed
+                            Sessions expire after viewer disconnects. Generate new broadcast for each viewing session.
                         </p>
                     </div>
 

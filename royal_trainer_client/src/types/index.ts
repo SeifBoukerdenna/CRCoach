@@ -30,6 +30,19 @@ export interface Detection {
   };
 }
 
+export interface SessionStatus {
+  session_code: string;
+  exists: boolean;
+  has_broadcaster: boolean;
+  viewer_count: number;
+  max_viewers: number;
+  available_for_viewer: boolean;
+  available_for_broadcaster: boolean;
+  message: string;
+  error_type?: "session_not_found" | "session_expired" | "session_full" | null;
+  expiry_reason?: string;
+}
+
 export interface InferenceData {
   detections: Detection[];
   inference_time: number;

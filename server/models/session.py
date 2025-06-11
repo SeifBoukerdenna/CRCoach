@@ -1,5 +1,5 @@
 """
-server/models/session.py - Enhanced for single viewer enforcement
+server/models/session.py - Enhanced with viewer usage tracking
 """
 
 import json
@@ -10,9 +10,9 @@ from fastapi import WebSocket
 
 
 class Session:
-    def __init__(self, session_code: str, max_viewers: int = 1):  # Changed default to 1
+    def __init__(self, session_code: str, max_viewers: int = 1):
         self.session_code = session_code
-        self.max_viewers = max_viewers  # Enforce single viewer limit
+        self.max_viewers = max_viewers
         self.created_at = datetime.now()
         self.last_activity = datetime.now()
 
@@ -29,6 +29,11 @@ class Session:
         # Enhanced tracking
         self.viewer_join_times = {}
         self.viewer_connection_ids = {}
+
+        # NEW: Track if a viewer has ever connected and disconnected
+        self.viewer_has_connected = False
+        self.viewer_has_disconnected = False
+        self.session_expired_due_to_viewer_disconnect = False
 
         print(f"🆕 Created session {session_code} (SINGLE VIEWER LIMIT: {max_viewers})")
 
@@ -50,6 +55,11 @@ class Session:
 
     async def add_viewer(self, websocket: WebSocket) -> bool:
         """Add viewer to session - ENFORCES SINGLE VIEWER LIMIT"""
+        # Check if session is expired due to previous viewer disconnect
+        if self.session_expired_due_to_viewer_disconnect:
+            print(f"❌ Session {self.session_code} REJECTED: Session expired due to previous viewer disconnect")
+            return False
+
         # STRICT SINGLE VIEWER ENFORCEMENT
         if len(self.viewers) >= 1:
             print(f"❌ Session {self.session_code} REJECTED: Already has {len(self.viewers)} viewer(s) - SINGLE VIEWER LIMIT")
@@ -75,6 +85,9 @@ class Session:
 
         self.total_viewers_ever += 1
         self.last_activity = datetime.now()
+
+        # Mark that a viewer has connected
+        self.viewer_has_connected = True
 
         print(f"👥 Viewer {connection_id} added to session {self.session_code} (SINGLE VIEWER SESSION)")
         print(f"📊 Session {self.session_code} now has {len(self.viewers)}/1 viewers (MAX REACHED)")
@@ -129,16 +142,34 @@ class Session:
 
         self.last_activity = datetime.now()
 
+        # Mark that a viewer has disconnected and expire the session
+        if self.viewer_has_connected:
+            self.viewer_has_disconnected = True
+            self.session_expired_due_to_viewer_disconnect = True
+            print(f"🔒 Session {self.session_code} EXPIRED due to viewer disconnect - future connections blocked")
+
         print(f"👥❌ Viewer {connection_id} removed from session {self.session_code}")
-        print(f"📊 Session {self.session_code} now has {len(self.viewers)}/1 viewers (AVAILABLE FOR NEW VIEWER)")
+        print(f"📊 Session {self.session_code} now has {len(self.viewers)}/1 viewers")
 
     def is_available_for_viewer(self) -> bool:
-        """Check if session can accept a new viewer (single viewer limit)"""
+        """Check if session can accept a new viewer (single viewer limit + expiry check)"""
+        # If session is expired due to viewer disconnect, not available
+        if self.session_expired_due_to_viewer_disconnect:
+            return False
         return len(self.viewers) == 0
+
+    def is_available_for_broadcaster(self) -> bool:
+        """Check if session can accept a broadcaster"""
+        # Even expired sessions can get new broadcasters (they need to create new sessions)
+        return self.broadcaster is None
 
     def is_full(self) -> bool:
         """Check if session is at capacity"""
         return len(self.viewers) >= self.max_viewers
+
+    def is_expired_due_to_viewer_disconnect(self) -> bool:
+        """Check if session is expired due to viewer disconnect"""
+        return self.session_expired_due_to_viewer_disconnect
 
     async def broadcast_message(self, message: dict, sender: WebSocket = None, exclude_sender: bool = False):
         """Broadcast message - optimized for single viewer"""
@@ -218,7 +249,9 @@ class Session:
         return self.broadcaster is None and len(self.viewers) == 0
 
     def is_expired(self) -> bool:
-        """Check if session has expired"""
+        """Check if session has expired (time-based or viewer disconnect)"""
+        if self.session_expired_due_to_viewer_disconnect:
+            return True
         expiry_time = timedelta(minutes=30)
         return datetime.now() - self.last_activity > expiry_time
 
@@ -232,6 +265,15 @@ class Session:
     def get_connection_id(self, websocket: WebSocket) -> str:
         """Get connection ID for a WebSocket"""
         return self.viewer_connection_ids.get(websocket, 'unknown')
+
+    def get_expiry_reason(self) -> str:
+        """Get reason for session expiry"""
+        if self.session_expired_due_to_viewer_disconnect:
+            return "viewer_disconnected"
+        elif self.is_expired():
+            return "timeout"
+        else:
+            return "not_expired"
 
     def get_stats(self) -> dict:
         """Get detailed session statistics"""
@@ -263,11 +305,18 @@ class Session:
             # Single viewer specific stats
             'is_single_viewer_session': True,
             'available_for_viewer': self.is_available_for_viewer(),
+            'available_for_broadcaster': self.is_available_for_broadcaster(),
             'viewer_slots_available': 1 - len(self.viewers),
             'capacity_utilization': len(self.viewers) * 100,  # 0% or 100% for single viewer
             'is_full': self.is_full(),
             'is_empty': self.is_empty(),
             'is_expired': self.is_expired(),
+
+            # NEW: Viewer usage tracking
+            'viewer_has_connected': self.viewer_has_connected,
+            'viewer_has_disconnected': self.viewer_has_disconnected,
+            'expired_due_to_viewer_disconnect': self.session_expired_due_to_viewer_disconnect,
+            'expiry_reason': self.get_expiry_reason(),
 
             # Viewer analytics
             'viewer_connection_ids': list(self.viewer_ids),
@@ -280,7 +329,8 @@ class Session:
         }
 
     def __str__(self):
-        return f"Session({self.session_code}: {len(self.viewers)}/1 viewers, broadcaster={'✅' if self.broadcaster else '❌'})"
+        expiry_status = " [EXPIRED]" if self.session_expired_due_to_viewer_disconnect else ""
+        return f"Session({self.session_code}: {len(self.viewers)}/1 viewers, broadcaster={'✅' if self.broadcaster else '❌'}{expiry_status})"
 
     def __repr__(self):
         return self.__str__()
