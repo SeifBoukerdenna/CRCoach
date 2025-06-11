@@ -21,9 +21,9 @@ cd "$SCRIPT_DIR" || {
   exit 1
 }
 
-# 3) **Always rebuild** the image so it includes your latest code
-echo "🔨 Building Docker image ${IMAGE_NAME} (no cache)…"
-docker build --no-cache -f docker/Dockerfile -t "$IMAGE_NAME" .
+# 3) Build image with layer caching (packages cached unless requirements.txt changes)
+echo "🔨 Building Docker image ${IMAGE_NAME} with smart caching..."
+docker build -f docker/Dockerfile -t "$IMAGE_NAME" .
 
 # 4) Remove any existing container (so we start fresh)
 if docker ps -a --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}\$"; then
@@ -41,6 +41,7 @@ docker run -d \
 # 6) Final check
 if [ $? -eq 0 ]; then
   echo "✅ Container started. Health check at: http://$(curl -s ifconfig.me):${PORT}/health"
+  echo "📊 View logs: docker logs -f ${CONTAINER_NAME}"
 else
   echo "❌ Failed to start container"
   exit 1
