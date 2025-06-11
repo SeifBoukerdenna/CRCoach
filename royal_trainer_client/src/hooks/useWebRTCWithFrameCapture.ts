@@ -48,6 +48,7 @@ interface WebRTCFrameStats {
 export const useWebRTCWithFrameCapture = () => {
   /*─────────────────────────────────── state */
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] =
     useState<ConnectionError | null>(null);
   const [streamStats, setStreamStats] = useState<StreamStats | null>(null);
@@ -69,6 +70,7 @@ export const useWebRTCWithFrameCapture = () => {
   const latencyTestIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const sessionCodeRef = useRef<string>("");
+  const connectionIdRef = useRef<string>("");
 
   // WebRTC stats tracking
   const previousStatsRef = useRef<WebRTCFrameStats | null>(null);
@@ -422,36 +424,38 @@ export const useWebRTCWithFrameCapture = () => {
     [createPeer]
   );
 
-  const handleWS = useCallback(
+  const handleWebSocketMessage = useCallback(
     async (d: any) => {
       const receiveTime = performance.now();
 
       switch (d.type) {
         case "connected":
+          connectionIdRef.current = d.connectionId || "";
+          setIsConnecting(false);
+          log(
+            `Connected as viewer with ID: ${connectionIdRef.current}`,
+            "success"
+          );
+          log(`Session has ${d.viewerCount}/${d.maxViewers} viewers`);
+
           if (d.latency_info && d.latency_info.signaling_latency_ms) {
             setStreamStats((prev) => ({
               ...prev,
               signalingLatency: d.latency_info.signaling_latency_ms,
             }));
-            log(
-              `Signaling latency: ${d.latency_info.signaling_latency_ms.toFixed(
-                1
-              )}ms`,
-              "info"
-            );
-          }
-
-          // Check if inference was already enabled
-          if (d.inference_enabled) {
-            setIsInferenceEnabled(true);
-            log("Inference was already enabled for this session", "info");
           }
 
           createPeer();
           break;
 
         case "offer":
-          await handleOffer(d);
+          // Check if this offer is meant for us
+          const targetViewerId = d.target_viewer_id || d.for_viewer;
+          if (!targetViewerId || targetViewerId === connectionIdRef.current) {
+            await handleOffer(d);
+          } else {
+            log(`Offer for different viewer: ${targetViewerId}`, "debug");
+          }
           break;
 
         case "ice":
@@ -496,21 +500,20 @@ export const useWebRTCWithFrameCapture = () => {
           }
           break;
 
-        case "latency_update":
-          if (d.average_latency) {
-            log(
-              `Server reports avg latency: ${d.average_latency.toFixed(1)}ms`,
-              "info"
-            );
-          }
-          break;
-
         case "error":
+          log(`Server error: ${d.message}`, "error");
           setConnectionError({
             message: d.message,
             code: "SERVER_ERROR",
             timestamp: new Date(),
           });
+
+          // Stop connecting state immediately on error
+          setIsConnecting(false);
+          break;
+
+        default:
+          log(`Unknown message type: ${d.type}`);
           break;
       }
     },
@@ -523,6 +526,9 @@ export const useWebRTCWithFrameCapture = () => {
       new Promise<void>((res, rej) => {
         try {
           sessionCodeRef.current = code;
+          setIsConnecting(true);
+          setConnectionError(null);
+
           const proto = location.protocol === "https:" ? "wss:" : "ws:";
           const ws = new WebSocket(`${proto}//${location.host}/ws/${code}`);
           webSocketRef.current = ws;
@@ -538,19 +544,24 @@ export const useWebRTCWithFrameCapture = () => {
             );
             res();
           };
-          ws.onmessage = (e) => handleWS(JSON.parse(e.data));
+          ws.onmessage = (e) => handleWebSocketMessage(JSON.parse(e.data));
           ws.onclose = () => {
             setIsConnected(false);
+            setIsConnecting(false);
             setIsInferenceEnabled(false);
             previousStatsRef.current = null;
             frameTrackingRef.current.clear();
           };
-          ws.onerror = () => rej(new Error("WS error"));
+          ws.onerror = () => {
+            setIsConnecting(false);
+            rej(new Error("WS error"));
+          };
         } catch (e) {
+          setIsConnecting(false);
           rej(e);
         }
       }),
-    [handleWS]
+    [handleWebSocketMessage]
   );
 
   const disconnect = useCallback(() => {
@@ -563,6 +574,7 @@ export const useWebRTCWithFrameCapture = () => {
     remoteStreamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setIsConnected(false);
+    setIsConnecting(false);
     setIsInferenceEnabled(false);
     setConnectionError(null);
 
@@ -605,6 +617,7 @@ export const useWebRTCWithFrameCapture = () => {
     connect,
     disconnect,
     isConnected,
+    isConnecting,
     connectionError,
     streamStats,
     latencyStats,

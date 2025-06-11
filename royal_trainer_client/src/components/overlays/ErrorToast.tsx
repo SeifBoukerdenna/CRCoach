@@ -10,6 +10,12 @@ interface Props {
     error: ErrorInfo | null;
 }
 
+const getErrorIcon = (message: string) => {
+    if (message.includes('already has a viewer')) return '👥';
+    if (message.includes('capacity')) return '⚠️';
+    return '❌';
+};
+
 const ErrorToast: React.FC<Props> = ({ error }) => (
     <AnimatePresence>
         {error && (
@@ -20,7 +26,12 @@ const ErrorToast: React.FC<Props> = ({ error }) => (
                 className="fixed bottom-6 right-6 bg-gradient-to-r from-red-600 to-red-700 backdrop-blur-xl border border-red-500/50 rounded-2xl p-6 shadow-2xl max-w-md z-[9995]"
             >
                 <div className="text-white">
-                    <div className="font-bold text-lg mb-2">Connection Error</div>
+                    <div className="font-bold text-lg mb-2 flex items-center gap-2">
+                        <span className="text-2xl">{getErrorIcon(error.message)}</span>
+                        {error.message.includes('already has a viewer')
+                            ? 'Viewer Limit Reached'
+                            : 'Connection Error'}
+                    </div>
                     <div className="text-red-100">{error.message}</div>
                     <div className="text-xs text-red-200 mt-2">
                         {error.timestamp.toLocaleTimeString()}

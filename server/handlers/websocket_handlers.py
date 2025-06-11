@@ -83,6 +83,11 @@ async def handle_connect(ws: WebSocket, msg: dict, session_manager: SessionManag
                 await current_session.broadcast_to_viewers(broadcaster_joined_msg)
 
     elif role == 'viewer':
+        if len(current_session.viewers) >= 1:
+            await send_error(ws, 'Session already has a viewer. Only one viewer allowed per broadcast.')
+            return None, None
+
+
         success = await current_session.add_viewer(ws)
 
         if not success:
