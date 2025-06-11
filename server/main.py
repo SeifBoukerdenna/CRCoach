@@ -183,7 +183,7 @@ app = FastAPI(
 )
 
 # Include routes
-app.include_router(router, prefix="/api", tags=["sessions"])
+app.include_router(router, tags=["sessions"])
 app.include_router(inference_router, prefix="/api")
 
 # WebSocket endpoint

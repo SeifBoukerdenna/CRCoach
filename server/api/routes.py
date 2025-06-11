@@ -54,7 +54,7 @@ async def health_check():
         }
     }
 
-@router.get("/sessions/{session_code}/status", summary="Check session status and availability")
+@router.get("/api/sessions/{session_code}/status", summary="Check session status and availability")
 async def get_session_status(session_code: str):
     if not session_code.isdigit() or len(session_code) != 4:
         raise HTTPException(status_code=400, detail="Invalid session code format")
@@ -91,7 +91,7 @@ async def get_session_status(session_code: str):
         "last_activity": session.last_activity.isoformat()
     }
 
-@router.get("/sessions", summary="Get all sessions with latency information")
+@router.get("/api/sessions", summary="Get all sessions with latency information")
 async def get_sessions():
     sessions_with_latency = []
     for session in session_manager.sessions.values():
@@ -121,7 +121,7 @@ async def get_sessions():
         "timestamp": datetime.now().isoformat()
     }
 
-@router.get("/sessions/{session_code}/latency", summary="Get detailed latency statistics for a session")
+@router.get("/api/sessions/{session_code}/latency", summary="Get detailed latency statistics for a session")
 async def get_session_latency(session_code: str):
     if not session_code.isdigit() or len(session_code) != 4:
         raise HTTPException(status_code=400, detail="Invalid session code")
@@ -141,7 +141,7 @@ async def get_session_latency(session_code: str):
         }
     }
 
-@router.post("/sessions/{session_code}/latency/reset", summary="Reset latency statistics for a session")
+@router.post("/api/sessions/{session_code}/latency/reset", summary="Reset latency statistics for a session")
 async def reset_session_latency(session_code: str):
     if not session_code.isdigit() or len(session_code) != 4:
         raise HTTPException(status_code=400, detail="Invalid session code")
