@@ -1,5 +1,5 @@
 """
-server/handlers/websocket_handlers.py - Enhanced for single viewer enforcement
+server/handlers/websocket_handlers.py - Enhanced for viewer frame data support
 """
 
 import json
@@ -291,16 +291,34 @@ async def handle_frame_timing(ws: WebSocket, msg: dict, session_manager: Session
             current_session.latency_data = current_session.latency_data[-100:]
 
 async def handle_frame_data(ws: WebSocket, msg: dict):
-    """Handle frame data for inference"""
+    """Handle frame data for inference - SUPPORTS BOTH VIEWERS AND BROADCASTERS"""
     session_code = msg.get('sessionCode')
     frame_data = msg.get('frameData')
+    role = getattr(ws, 'role', 'unknown')
+    connection_id = getattr(ws, 'connection_id', 'unknown')
 
     if not session_code or not frame_data:
+        print(f"❌ Missing session_code or frame_data from {role} {connection_id}")
         return
 
-    from services.frame_capture import get_frame_capture_service
-    frame_capture_service = get_frame_capture_service()
-    await frame_capture_service.update_frame(session_code, frame_data)
+    try:
+        from services.frame_capture import get_frame_capture_service
+        frame_capture_service = get_frame_capture_service()
+
+        # Update frame data for inference processing
+        await frame_capture_service.update_frame(session_code, frame_data)
+
+        # Log successful frame data reception (but don't spam)
+        if not hasattr(handle_frame_data, '_last_log_time'):
+            handle_frame_data._last_log_time = 0
+
+        current_time = time.time()
+        if current_time - handle_frame_data._last_log_time > 5:  # Log every 5 seconds
+            print(f"🎥 Frame data received from {role} {connection_id} for session {session_code}")
+            handle_frame_data._last_log_time = current_time
+
+    except Exception as e:
+        print(f"❌ Error processing frame data from {role} {connection_id}: {e}")
 
 async def handle_disconnect(current_session: Session, ws: WebSocket, session_manager: SessionManager):
     """Handle connection cleanup with single viewer awareness"""

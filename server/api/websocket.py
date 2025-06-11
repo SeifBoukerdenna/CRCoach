@@ -1,5 +1,5 @@
 """
-server/api/websocket.py - Updated WebSocket endpoint with enhanced multiple viewer support
+server/api/websocket.py - Fixed to allow viewers to send frame data for inference
 """
 
 import json
@@ -88,11 +88,12 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
                     await handle_frame_timing(websocket, msg, session_manager)
 
                 elif message_type == 'frame_data':
-                    # Handle frame data for inference (from broadcaster)
-                    if role != 'broadcaster':
-                        await send_error(websocket, 'Only broadcasters can send frame data')
+                    # Handle frame data for inference - ALLOW BOTH BROADCASTERS AND VIEWERS
+                    if role not in ['broadcaster', 'viewer']:
+                        await send_error(websocket, 'Only broadcasters and viewers can send frame data')
                         continue
 
+                    # Viewers send frame data for AI inference, broadcasters send for streaming
                     await handle_frame_data(websocket, msg)
 
                 elif message_type == 'latency_test':
@@ -110,9 +111,9 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
                     await websocket.send_text(json.dumps(latency_response))
 
                 elif message_type == 'canvas_frame':
-                    # Handle canvas frame data from React client
-                    if role != 'broadcaster':
-                        await send_error(websocket, 'Only broadcasters can send canvas frames')
+                    # Handle canvas frame data from React client - ALLOW VIEWERS
+                    if role not in ['broadcaster', 'viewer']:
+                        await send_error(websocket, 'Only broadcasters and viewers can send canvas frames')
                         continue
 
                     frame_data = msg.get('frameData')
