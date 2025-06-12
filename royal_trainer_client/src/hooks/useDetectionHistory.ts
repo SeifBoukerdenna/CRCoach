@@ -1,16 +1,6 @@
 // royal_trainer_client/src/hooks/useDetectionHistory.ts
-
 import { useState, useEffect } from "react";
-import type { Detection, InferenceData } from "../types";
-
-export interface DetectionHistoryItem {
-  id: string;
-  timestamp: number;
-  detections: Detection[];
-  annotatedFrame: string;
-  inferenceTime: number;
-  sessionCode: string;
-}
+import type { DetectionHistoryItem, InferenceData } from "../types";
 
 export const useDetectionHistory = (
   inferenceData: InferenceData | null,

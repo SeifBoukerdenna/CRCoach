@@ -1,12 +1,11 @@
-// royal_trainer_client/src/components/HistoryAndStats.tsx - Fixed null pointer error
-
+// royal_trainer_client/src/components/HistoryAndStats.tsx
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Target, Eye, Activity } from 'lucide-react';
-import type { StreamStats } from '../types';
-import type { DetectionHistoryItem } from '../hooks/useDetectionHistory';
 
+import type { DetectionHistoryItem, StreamStats } from '../types';
 
+/* ── LOCAL TYPES ────────────────────────────────────── */
 interface LatencyStats {
     current: number;
     average: number;
@@ -26,13 +25,18 @@ interface HistoryAndStatsProps {
     isInferenceEnabled: boolean;
 }
 
-const Stat: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+/* ── SMALL REUSABLE COMPONENT ───────────────────────── */
+const Stat: React.FC<{ label: string; value: React.ReactNode }> = ({
+    label,
+    value,
+}) => (
     <div className="flex justify-between">
         <span className="text-white/70">{label}:</span>
         <span className="text-white font-bold">{value}</span>
     </div>
 );
 
+/* ── MAIN COMPONENT ─────────────────────────────────── */
 const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
     history,
     selectedFrame,
@@ -42,6 +46,10 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
     sessionCode,
     isInferenceEnabled,
 }) => {
+    /* cache for easier type-safe use below */
+    const selectedFrameId = selectedFrame?.id;
+
+    /* ────────── FRAME ANALYSIS VIEW ──────────────────── */
     if (selectedFrame) {
         return (
             <div className="h-full flex flex-col overflow-hidden">
@@ -64,10 +72,12 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                         alt="Annotated"
                         className="flex-1 object-contain bg-black rounded-lg border border-slate-600"
                     />
+
                     <div className="w-64 space-y-2 overflow-y-auto thin-scrollbar">
                         <div className="text-sm text-white/60">
                             {new Date(selectedFrame.timestamp).toLocaleString()}
                         </div>
+
                         {selectedFrame.detections.map((d, i) => (
                             <div key={i} className="bg-slate-700/50 rounded-lg p-2">
                                 <div className="flex justify-between">
@@ -87,6 +97,7 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
         );
     }
 
+    /* ────────── HISTORY + LIVE-STATS GRID ─────────────── */
     return (
         <div className="grid grid-cols-4 gap-4 h-full">
             {/* History list */}
@@ -101,31 +112,37 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                             <Target className="w-4 h-4 text-purple-400" />
                             Detection History ({history.length})
                         </h4>
+
                         <div className="space-y-2 max-h-48 overflow-y-auto thin-scrollbar">
-                            {history.slice(0, 10).map((item) => (
-                                <motion.button
-                                    key={item.id}
-                                    onClick={() => onSelectFrame(item)}
-                                    className={`w-full p-2 rounded-lg text-left ${(selectedFrame as any).id === item.id
-                                        ? 'bg-purple-600/30 border border-purple-500/50'
-                                        : 'bg-slate-700/30 hover:bg-slate-600/30'
-                                        }`}
-                                >
-                                    <div className="flex justify-between">
-                                        <div>
-                                            <div className="text-xs text-white/80">
-                                                {item.detections.length} objects
+                            {history
+                                .slice(0, 10)
+                                .filter(
+                                    (item): item is DetectionHistoryItem => !!item?.id
+                                )
+                                .map(item => (
+                                    <motion.button
+                                        key={item.id}
+                                        onClick={() => onSelectFrame(item)}
+                                        className={`w-full p-2 rounded-lg text-left ${selectedFrameId === item.id
+                                            ? 'bg-purple-600/30 border border-purple-500/50'
+                                            : 'bg-slate-700/30 hover:bg-slate-600/30'
+                                            }`}
+                                    >
+                                        <div className="flex justify-between">
+                                            <div>
+                                                <div className="text-xs text-white/80">
+                                                    {item.detections.length} objects
+                                                </div>
+                                                <div className="text-xs text-white/60">
+                                                    {new Date(item.timestamp).toLocaleTimeString()}
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-white/60">
-                                                {new Date(item.timestamp).toLocaleTimeString()}
+                                            <div className="text-xs text-green-400">
+                                                {Math.round(item.inferenceTime)}ms
                                             </div>
                                         </div>
-                                        <div className="text-xs text-green-400">
-                                            {Math.round(item.inferenceTime)}ms
-                                        </div>
-                                    </div>
-                                </motion.button>
-                            ))}
+                                    </motion.button>
+                                ))}
                         </div>
                     </motion.div>
                 )}
@@ -137,29 +154,38 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                     <Activity className="w-5 h-5 text-green-400" />
                     Connection Stats
                 </h4>
+
                 <div className="space-y-3">
-                    <Stat label="Stream FPS" value={streamStats?.fps || 0} />
-                    <Stat label="Resolution" value={streamStats?.resolution || 'N/A'} />
+                    <Stat label="Stream FPS" value={streamStats?.fps ?? 0} />
+                    <Stat label="Resolution" value={streamStats?.resolution ?? 'N/A'} />
                     <Stat
                         label="Latency"
-                        value={latencyStats.current ? `${Math.round(latencyStats.current)}ms` : 'N/A'}
+                        value={
+                            latencyStats.current
+                                ? `${Math.round(latencyStats.current)}ms`
+                                : 'N/A'
+                        }
                     />
                     <Stat
                         label="Session"
-                        value={<span className="text-yellow-400 font-mono">{sessionCode}</span>}
+                        value={
+                            <span className="text-yellow-400 font-mono">{sessionCode}</span>
+                        }
                     />
                     <Stat label="Detections" value={history.length} />
                     <Stat
                         label="AI Status"
                         value={
-                            <span className={isInferenceEnabled ? 'text-green-400' : 'text-red-400'}>
+                            <span
+                                className={isInferenceEnabled ? 'text-green-400' : 'text-red-400'}
+                            >
                                 {isInferenceEnabled ? 'Active' : 'Inactive'}
                             </span>
                         }
                     />
                     <Stat
                         label="Viewer Limit"
-                        value={<span className="text-orange-400">1/1 MAX</span>}
+                        value={<span className="text-orange-400">1/1&nbsp;MAX</span>}
                     />
                 </div>
             </div>

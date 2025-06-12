@@ -15,6 +15,15 @@ export interface ConnectionError {
   timestamp: Date;
 }
 
+export interface DetectionHistoryItem {
+  id: string;
+  timestamp: number;
+  detections: Detection[];
+  annotatedFrame: string;
+  inferenceTime: number;
+  sessionCode: string;
+}
+
 // YOLOv8 Detection Types
 export interface Detection {
   class: string;
