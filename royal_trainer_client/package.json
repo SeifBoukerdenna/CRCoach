@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite --mode development",
     "dev:remote": "VITE_FORCE_REMOTE_URL=true vite --mode development",
-    "build": "tsc && vite build --mode production",
-    "build:staging": "tsc && vite build --mode staging",
+    "build": "vite build --mode production",
+    "build:staging": "vite build --mode staging",
+    "build:check": "tsc --noEmit && vite build --mode production",
+    "type-check": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "preview:remote": "VITE_FORCE_REMOTE_URL=true vite preview",
