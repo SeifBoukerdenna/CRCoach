@@ -127,7 +127,11 @@ export const useWebRTCWithFrameCapture = () => {
 
       setIsCheckingSession(true);
       try {
-        const response = await fetch(`/api/sessions/${sessionCode}/status`);
+        // Import API config
+        const { getApiUrl } = await import("../config/api");
+        const response = await fetch(
+          getApiUrl(`api/sessions/${sessionCode}/status`)
+        );
         if (response.ok) {
           const status = await response.json();
           setSessionStatus(status);
