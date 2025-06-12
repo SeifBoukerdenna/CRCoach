@@ -1,5 +1,5 @@
 """
-server/services/frame_capture.py - Frame capture service for real-time inference
+server/services/frame_capture.py - Fixed frame capture service
 """
 
 import asyncio
@@ -8,7 +8,6 @@ import time
 import base64
 from typing import Dict, Optional
 from services.yolo_inference import get_inference_service
-from api.inference_routes import session_inference_states, broadcast_inference_result
 
 class FrameCaptureService:
     def __init__(self):
@@ -53,41 +52,73 @@ class FrameCaptureService:
 
     async def update_frame(self, session_code: str, frame_data: str):
         """Update the latest frame data for a session"""
+        if not session_code or not frame_data:
+            logging.warning(f"⚠️ Invalid frame data update: session_code={session_code}, has_data={bool(frame_data)}")
+            return
+
         self.last_frame_data[session_code] = frame_data
 
     async def _capture_loop(self, session_code: str):
         """Main capture loop for a session"""
-        inference_service = get_inference_service()
-        fps = self.capture_intervals.get(session_code, 2.0)
-        interval = 1.0 / fps
+        if not session_code:
+            logging.error("❌ Cannot start capture loop: session_code is empty")
+            return
 
         try:
+            inference_service = get_inference_service()
+            fps = self.capture_intervals.get(session_code, 2.0)
+            interval = 1.0 / fps
+
+            logging.info(f"🎥 Starting capture loop for session {session_code} at {fps} FPS (interval: {interval}s)")
+
             while True:
-                # Check if inference is still enabled
-                if not session_inference_states.get(session_code, False):
-                    logging.info(f"🛑 Inference disabled for session {session_code}, stopping capture")
-                    break
-
-                # Check if we have frame data
-                if session_code not in self.last_frame_data:
-                    await asyncio.sleep(0.1)  # Wait for frame data
-                    continue
-
-                frame_data = self.last_frame_data[session_code]
-
-                # Run inference
                 try:
-                    result = await inference_service.run_inference(frame_data, session_code)
+                    # Import here to avoid circular imports
+                    from api.inference_routes import session_inference_states
 
-                    if result:
-                        # Broadcast result to WebSocket connections
-                        await broadcast_inference_result(session_code, result)
+                    # Check if inference is still enabled
+                    if not session_inference_states.get(session_code, False):
+                        logging.info(f"🛑 Inference disabled for session {session_code}, stopping capture")
+                        break
 
+                    # Check if we have frame data
+                    if session_code not in self.last_frame_data:
+                        await asyncio.sleep(0.1)  # Wait for frame data
+                        continue
+
+                    frame_data = self.last_frame_data[session_code]
+
+                    if not frame_data:
+                        await asyncio.sleep(0.1)  # Wait for valid frame data
+                        continue
+
+                    # Run inference
+                    try:
+                        result = await inference_service.run_inference(frame_data, session_code)
+
+                        if result:
+                            # Store result for HTTP polling
+                            from api.inference_routes import latest_inference_results
+                            latest_inference_results[session_code] = result
+
+                            # Broadcast result to WebSocket connections
+                            from api.inference_routes import broadcast_inference_result
+                            await broadcast_inference_result(session_code, result)
+
+                    except Exception as e:
+                        logging.error(f"❌ Inference error in capture loop for session {session_code}: {e}")
+                        # Continue the loop instead of breaking
+
+                    # Wait for next frame
+                    await asyncio.sleep(interval)
+
+                except asyncio.CancelledError:
+                    logging.info(f"🛑 Frame capture cancelled for session {session_code}")
+                    break
                 except Exception as e:
-                    logging.error(f"❌ Inference error in capture loop: {e}")
-
-                # Wait for next frame
-                await asyncio.sleep(interval)
+                    logging.error(f"❌ Error in capture loop iteration for session {session_code}: {e}")
+                    # Wait a bit before retrying
+                    await asyncio.sleep(1.0)
 
         except asyncio.CancelledError:
             logging.info(f"🛑 Frame capture cancelled for session {session_code}")
@@ -97,6 +128,7 @@ class FrameCaptureService:
             # Cleanup
             if session_code in self.capture_tasks:
                 del self.capture_tasks[session_code]
+            logging.info(f"🧹 Frame capture cleanup completed for session {session_code}")
 
 # Global frame capture service
 frame_capture_service = FrameCaptureService()

@@ -1,5 +1,5 @@
 """
-server/handlers/websocket_handlers.py - Enhanced for viewer frame data support
+server/handlers/websocket_handlers.py - Fixed WebSocket handlers with better error handling
 """
 
 import json
@@ -302,7 +302,6 @@ async def handle_frame_data(ws: WebSocket, msg: dict):
         return
 
     try:
-        from services.frame_capture import get_frame_capture_service
         frame_capture_service = get_frame_capture_service()
 
         # Update frame data for inference processing
@@ -310,12 +309,15 @@ async def handle_frame_data(ws: WebSocket, msg: dict):
 
         # Log successful frame data reception (but don't spam)
         if not hasattr(handle_frame_data, '_last_log_time'):
-            handle_frame_data._last_log_time = 0
+            handle_frame_data._last_log_time = {}
+
+        if session_code not in handle_frame_data._last_log_time:
+            handle_frame_data._last_log_time[session_code] = 0
 
         current_time = time.time()
-        if current_time - handle_frame_data._last_log_time > 5:  # Log every 5 seconds
+        if current_time - handle_frame_data._last_log_time[session_code] > 5:  # Log every 5 seconds per session
             print(f"🎥 Frame data received from {role} {connection_id} for session {session_code}")
-            handle_frame_data._last_log_time = current_time
+            handle_frame_data._last_log_time[session_code] = current_time
 
     except Exception as e:
         print(f"❌ Error processing frame data from {role} {connection_id}: {e}")

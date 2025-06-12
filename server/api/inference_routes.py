@@ -1,5 +1,5 @@
 """
-server/api/inference_routes.py - API Routes for YOLOv8 Inference
+server/api/inference_routes.py - Fixed inference routes with proper data storage
 """
 
 import asyncio
@@ -17,6 +17,8 @@ router = APIRouter()
 # Session inference states
 session_inference_states: Dict[str, bool] = {}
 session_websockets: Dict[str, list] = {}
+# Store latest inference results for HTTP polling
+latest_inference_results: Dict[str, Dict[str, Any]] = {}
 
 class InferenceToggleRequest(BaseModel):
     enabled: bool
@@ -86,6 +88,9 @@ async def run_inference(session_code: str, request: InferenceRequest):
         if result is None:
             raise HTTPException(status_code=500, detail="Inference failed")
 
+        # Store result for HTTP polling
+        latest_inference_results[session_code] = result
+
         # Broadcast to WebSocket connections if any
         await broadcast_inference_result(session_code, result)
 
@@ -101,9 +106,14 @@ async def get_latest_inference(session_code: str):
     if not session_code.isdigit() or len(session_code) != 4:
         raise HTTPException(status_code=400, detail="Invalid session code")
 
-    # This would typically return cached results
-    # For now, return 404 if no recent inference
-    raise HTTPException(status_code=404, detail="No recent inference data")
+    # Check if we have recent inference data
+    if session_code in latest_inference_results:
+        result = latest_inference_results[session_code]
+        # Return the stored result
+        return result
+    else:
+        # Return 404 if no recent inference
+        raise HTTPException(status_code=404, detail="No recent inference data available")
 
 @router.get("/inference/service/stats")
 async def get_service_stats():
@@ -113,7 +123,8 @@ async def get_service_stats():
         "service": inference_service.get_stats(),
         "sessions": {
             "total_active": len([s for s in session_inference_states.values() if s]),
-            "session_states": session_inference_states
+            "session_states": session_inference_states,
+            "sessions_with_data": list(latest_inference_results.keys())
         }
     }
 
@@ -143,8 +154,10 @@ async def toggle_inference(session_code: str, request: InferenceToggleRequest):
         await frame_capture_service.start_capture(session_code, fps=5.0)
         logging.info(f"🔄 Inference and frame capture enabled for session {session_code}")
     else:
-        # Stop frame capture
+        # Stop frame capture and clear stored data
         await frame_capture_service.stop_capture(session_code)
+        if session_code in latest_inference_results:
+            del latest_inference_results[session_code]
         logging.info(f"🔄 Inference and frame capture disabled for session {session_code}")
 
     return {
@@ -183,20 +196,27 @@ async def inference_websocket(websocket: WebSocket, session_code: str):
     try:
         while True:
             # Keep connection alive and handle any incoming messages
-            data = await websocket.receive_text()
-            message = json.loads(data)
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
+                message = json.loads(data)
 
-            if message.get("type") == "ping":
-                await websocket.send_text(json.dumps({"type": "pong"}))
-            elif message.get("type") == "status_request":
-                inference_service = get_inference_service()
-                status = {
-                    "type": "status_update",
-                    "inference_enabled": session_inference_states.get(session_code, False),
-                    "service_ready": inference_service.is_ready(),
-                    "stats": inference_service.get_stats()
-                }
-                await websocket.send_text(json.dumps(status))
+                if message.get("type") == "ping":
+                    await websocket.send_text(json.dumps({"type": "pong"}))
+                elif message.get("type") == "status_request":
+                    inference_service = get_inference_service()
+                    status = {
+                        "type": "status_update",
+                        "inference_enabled": session_inference_states.get(session_code, False),
+                        "service_ready": inference_service.is_ready(),
+                        "stats": inference_service.get_stats()
+                    }
+                    await websocket.send_text(json.dumps(status))
+            except asyncio.TimeoutError:
+                # Send periodic ping to keep connection alive
+                try:
+                    await websocket.send_text(json.dumps({"type": "ping"}))
+                except:
+                    break
 
     except WebSocketDisconnect:
         logging.info(f"🔌❌ Inference WebSocket disconnected for session {session_code}")

@@ -1,10 +1,11 @@
 """
-server/api/websocket.py - Fixed to allow viewers to send frame data for inference
+server/api/websocket.py - Fixed WebSocket handler with better connection management
 """
 
 import json
 import uuid
 import time
+import asyncio
 from fastapi import WebSocket, WebSocketDisconnect
 from handlers.websocket_handlers import (
     handle_connect,
@@ -18,7 +19,7 @@ from handlers.websocket_handlers import (
 from api.routes import session_manager
 
 async def websocket_endpoint(websocket: WebSocket, session_code: str):
-    """Enhanced WebSocket handler with improved multiple viewer support"""
+    """Enhanced WebSocket handler with improved error handling and connection management"""
     await websocket.accept()
 
     # Generate unique connection ID
@@ -35,6 +36,9 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
     print(f"🔌 New WebSocket connection (ID: {connection_id}) for session {session_code}")
 
     try:
+        # Set up ping interval to keep connection alive
+        ping_task = asyncio.create_task(ping_loop(websocket, connection_id))
+
         async for data in websocket.iter_text():
             websocket.is_alive = True
             message_receive_time = time.time() * 1000
@@ -44,7 +48,7 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
 
                 # Basic rate limiting
                 websocket.messages_sent += 1
-                if websocket.messages_sent > 1000:
+                if websocket.messages_sent > 2000:  # Increased limit
                     await send_error(websocket, 'Rate limit exceeded')
                     break
 
@@ -157,6 +161,14 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
     except Exception as e:
         print(f"❌ WebSocket error from {connection_id}: {e}")
     finally:
+        # Cancel ping task
+        if 'ping_task' in locals():
+            ping_task.cancel()
+            try:
+                await ping_task
+            except asyncio.CancelledError:
+                pass
+
         # Cleanup
         disconnect_time = time.time() * 1000
         session_duration = disconnect_time - websocket.connect_time
@@ -176,3 +188,28 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
                       f"broadcaster: {'✅' if remaining_session.broadcaster else '❌'}")
             else:
                 print(f"📊 Session {session_code} was removed during cleanup")
+
+async def ping_loop(websocket: WebSocket, connection_id: str):
+    """Send periodic pings to keep WebSocket connection alive"""
+    try:
+        while True:
+            await asyncio.sleep(30)  # Send ping every 30 seconds
+
+            if hasattr(websocket, 'is_alive') and websocket.is_alive:
+                try:
+                    ping_msg = {
+                        'type': 'server_ping',
+                        'timestamp': time.time() * 1000,
+                        'connection_id': connection_id
+                    }
+                    await websocket.send_text(json.dumps(ping_msg))
+                except Exception as e:
+                    print(f"❌ Failed to send ping to {connection_id}: {e}")
+                    break
+            else:
+                break
+
+    except asyncio.CancelledError:
+        print(f"🔌 Ping loop cancelled for {connection_id}")
+    except Exception as e:
+        print(f"❌ Ping loop error for {connection_id}: {e}")

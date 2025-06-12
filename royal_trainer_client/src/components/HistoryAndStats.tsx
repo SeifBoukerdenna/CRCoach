@@ -1,4 +1,4 @@
-// royal_trainer_client/src/components/HistoryAndStats.tsx
+// royal_trainer_client/src/components/HistoryAndStats.tsx - Fixed null pointer error
 
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -106,7 +106,7 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                                 <motion.button
                                     key={item.id}
                                     onClick={() => onSelectFrame(item)}
-                                    className={`w-full p-2 rounded-lg text-left ${(selectedFrame as unknown as DetectionHistoryItem).id === item.id
+                                    className={`w-full p-2 rounded-lg text-left ${(selectedFrame as any).id === item.id
                                         ? 'bg-purple-600/30 border border-purple-500/50'
                                         : 'bg-slate-700/30 hover:bg-slate-600/30'
                                         }`}
