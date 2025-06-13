@@ -639,7 +639,7 @@ export const useWebRTCWithFrameCapture = () => {
           })
         );
       }
-    }, 25000);
+    }, 20000); // CHANGED from 25000 to 20000 (20 seconds to match server)
     return () => clearInterval(id);
   }, []);
 

@@ -17,6 +17,7 @@ from handlers.websocket_handlers import (
     send_error
 )
 from api.routes import session_manager
+from core.config import Config
 
 async def websocket_endpoint(websocket: WebSocket, session_code: str):
     """Enhanced WebSocket handler with improved error handling and connection management"""
@@ -193,7 +194,8 @@ async def ping_loop(websocket: WebSocket, connection_id: str):
     """Send periodic pings to keep WebSocket connection alive"""
     try:
         while True:
-            await asyncio.sleep(30)  # Send ping every 30 seconds
+            # FIXED: Use Config.PING_INTERVAL instead of hardcoded 30 seconds
+            await asyncio.sleep(Config.PING_INTERVAL)  # Now 20 seconds instead of 30
 
             if hasattr(websocket, 'is_alive') and websocket.is_alive:
                 try:
