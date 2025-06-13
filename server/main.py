@@ -6,6 +6,7 @@ import asyncio
 import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router, session_manager
 from api.websocket import websocket_endpoint
 from tasks.background_tasks import cleanup_task, stats_task
@@ -180,6 +181,20 @@ app = FastAPI(
     version="1.2.0-single-viewer",
     description="WebRTC server with STRICT single viewer enforcement per broadcast session",
     lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://tormentor.dev",
+        "https://www.tormentor.dev",
+        "http://localhost:3000",  # Keep for local development
+        "http://127.0.0.1:3000",  # Keep for local development
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Include routes
