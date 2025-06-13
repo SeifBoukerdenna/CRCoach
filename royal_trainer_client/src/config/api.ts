@@ -16,16 +16,11 @@ const getApiConfig = (): ApiConfig => {
     // Production/Vercel: Direct connection to remote server
     const remoteHost = import.meta.env.VITE_REMOTE_HOST || "35.208.133.112";
     const remotePort = import.meta.env.VITE_REMOTE_PORT || "8080";
-    const protocol =
-      import.meta.env.VITE_USE_HTTPS === "true" ? "https" : "http";
-    const wsProtocol = import.meta.env.VITE_USE_HTTPS === "true" ? "wss" : "ws";
+    const protocol = isProduction === true ? "https" : "http";
+    const wsProtocol = isProduction === true ? "wss" : "ws";
     console.log(
       `The protocol is ${protocol} and the wsProtocol is ${wsProtocol}`
     );
-    // console.log(
-    //   `import.meta.env.VITE_USE_HTTPS: `,
-    //   import.meta.env.VITE_USE_HTTPS
-    // );
     return {
       baseUrl: `${protocol}://${remoteHost}:${remotePort}`,
       wsUrl: `${wsProtocol}://${remoteHost}:${remotePort}`,
