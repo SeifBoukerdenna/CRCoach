@@ -178,7 +178,7 @@ async def monitor_single_viewer_sessions(session_manager):
 # Create FastAPI app with single viewer configuration
 app = FastAPI(
     title="FastAPI WebRTC + AI Analysis Server (Single Viewer)",
-    version="1.2.0-single-viewer",
+    version=Config.VERSION,
     description="WebRTC server with STRICT single viewer enforcement per broadcast session",
     lifespan=lifespan
 )

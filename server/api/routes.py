@@ -10,6 +10,8 @@ from services.session_manager import SessionManager
 from static.viewer_html import get_viewer_html
 from static.viewer_js import get_viewer_js
 from handlers.websocket_handlers import get_session_latency_stats
+from core.config import Config
+
 
 router = APIRouter()
 
@@ -51,7 +53,7 @@ async def health_check():
         "total_viewers": total_viewers,
         "uptime": time.time(),
         "timestamp": datetime.now().isoformat(),
-        "version": "1.0.0-debug",
+        "version": Config.VERSION,
         "latency_info": {
             "average_latency_ms": round(avg_latency, 2),
             "total_frames_measured": total_frames,

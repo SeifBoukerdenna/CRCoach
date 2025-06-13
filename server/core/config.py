@@ -12,6 +12,8 @@ class Config:
     HOST = "0.0.0.0"
     PORT = 8080
 
+    VERSION = "1.2.1-full-dns"  # Version updated for single viewer enforcement
+
     # Session settings - SINGLE VIEWER ENFORCEMENT
     MAX_VIEWERS_PER_SESSION = 1  # STRICTLY ENFORCED - NO EXCEPTIONS
     SESSION_TIMEOUT_MINUTES = int(os.getenv('SESSION_TIMEOUT_MINUTES', '15'))  # Reduced for single viewer sessions
