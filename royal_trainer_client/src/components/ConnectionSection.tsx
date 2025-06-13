@@ -100,13 +100,6 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
         firstInput?.focus();
     };
 
-    const generateRandomCode = () => {
-        const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
-        const newDigits = randomCode.split('');
-        setDigits(newDigits);
-        onSessionCodeChange(randomCode);
-    };
-
     // Determine if connection is possible
     const canConnect = () => {
         if (connectionState === 'live') return false;
@@ -341,13 +334,6 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                         disabled={connectionState === 'live'}
                     >
                         Clear
-                    </button>
-                    <button
-                        onClick={generateRandomCode}
-                        className="px-3 py-1 text-xs text-white/60 hover:text-white transition-colors rounded-lg hover:bg-white/10"
-                        disabled={connectionState === 'live'}
-                    >
-                        Random
                     </button>
                 </div>
             </div>
