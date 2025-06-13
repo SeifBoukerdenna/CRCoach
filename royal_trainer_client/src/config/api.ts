@@ -19,7 +19,13 @@ const getApiConfig = (): ApiConfig => {
     const protocol =
       import.meta.env.VITE_USE_HTTPS === "true" ? "https" : "http";
     const wsProtocol = import.meta.env.VITE_USE_HTTPS === "true" ? "wss" : "ws";
-
+    console.log(
+      `The protocol is ${protocol} and the wsProtocol is ${wsProtocol}`
+    );
+    console.log(
+      `import.meta.env.VITE_USE_HTTPS: `,
+      import.meta.env.VITE_USE_HTTPS
+    );
     return {
       baseUrl: `${protocol}://${remoteHost}:${remotePort}`,
       wsUrl: `${wsProtocol}://${remoteHost}:${remotePort}`,
