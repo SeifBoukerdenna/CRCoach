@@ -252,6 +252,15 @@ async def handle_ping(ws: WebSocket):
 
     try:
         await ws.send_text(json.dumps(pong_msg))
+        # ✅ ADD THIS LOG (but only occasionally to avoid spam)
+        if not hasattr(handle_ping, '_last_log_time'):
+            handle_ping._last_log_time = {}
+
+        current_time = time.time()
+        if connection_id not in handle_ping._last_log_time or current_time - handle_ping._last_log_time[connection_id] > 30:
+            print(f"✅ Sent pong to {role} {connection_id}")
+            handle_ping._last_log_time[connection_id] = current_time
+
     except Exception as e:
         print(f"❌ Failed to send pong to {connection_id}: {e}")
 
