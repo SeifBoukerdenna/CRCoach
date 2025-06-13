@@ -59,8 +59,8 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
     const checkServiceStatus = useCallback(async () => {
         if (!isConnected || !sessionCode) return;
 
+        const { getApiUrl } = await import("../../config/api");
         try {
-            const { getApiUrl } = await import("../../config/api");
             const response = await fetch(getApiUrl(`api/inference/${sessionCode}/status`));
             if (response.ok) {
                 const data = await response.json();
@@ -68,6 +68,8 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
                 setToggleError(null);
             }
         } catch (error) {
+            console.log("-------------------")
+            console.log(getApiUrl(`api/inference/${sessionCode}/status`))
             console.warn('Failed to check service status:', error);
         }
     }, [isConnected, sessionCode]);

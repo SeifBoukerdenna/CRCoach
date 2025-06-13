@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useVideoFrameCapture } from "./useVideoFrameCapture";
+import { getApiUrl } from "../config/api";
 
 interface StreamStats {
   fps?: number;
@@ -141,6 +142,8 @@ export const useWebRTCWithFrameCapture = () => {
           return null;
         }
       } catch (error) {
+        console.log("-------------------");
+        console.log(getApiUrl(`api/inference/${sessionCode}/status`));
         console.error("Error checking session status:", error);
         return null;
       } finally {
