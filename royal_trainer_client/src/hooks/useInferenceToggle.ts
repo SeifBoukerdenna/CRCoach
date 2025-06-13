@@ -196,13 +196,15 @@ export const useInferenceToggle = () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
-        const response = await fetch(`/api/inference/${sessionCode}/status`, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-          },
-          signal: controller.signal,
-        });
+        const { getApiUrl } = await import("../config/api");
+        const response = await fetch(
+          getApiUrl(`api/inference/${sessionCode}/status`),
+          {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            signal: AbortSignal.timeout(5000),
+          }
+        );
 
         clearTimeout(timeoutId);
 

@@ -277,11 +277,15 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
       }
 
       try {
-        const response = await fetch(`/api/inference/${sessionCode}/status`, {
-          method: "GET",
-          headers: { Accept: "application/json" },
-          signal: AbortSignal.timeout(5000),
-        });
+        const { getApiUrl } = await import("../config/api");
+        const response = await fetch(
+          getApiUrl(`api/inference/${sessionCode}/status`),
+          {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            signal: AbortSignal.timeout(5000),
+          }
+        );
 
         if (response.ok) {
           const statusData = await response.json();

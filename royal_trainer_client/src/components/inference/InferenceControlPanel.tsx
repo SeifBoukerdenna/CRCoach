@@ -60,7 +60,8 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
         if (!isConnected || !sessionCode) return;
 
         try {
-            const response = await fetch(`/api/inference/${sessionCode}/status`);
+            const { getApiUrl } = await import("../../config/api");
+            const response = await fetch(getApiUrl(`api/inference/${sessionCode}/status`));
             if (response.ok) {
                 const data = await response.json();
                 setServiceStatus(data.service_stats);
