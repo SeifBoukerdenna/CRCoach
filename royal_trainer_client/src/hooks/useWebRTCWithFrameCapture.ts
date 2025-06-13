@@ -547,14 +547,18 @@ export const useWebRTCWithFrameCapture = () => {
         );
       }
 
-      return new Promise<void>((res, rej) => {
+      return new Promise<void>(async (res, rej) => {
         try {
           sessionCodeRef.current = code;
           setIsConnecting(true);
           setConnectionError(null);
 
-          const proto = location.protocol === "https:" ? "wss:" : "ws:";
-          const ws = new WebSocket(`${proto}//${location.host}/ws/${code}`);
+          // ✅ FIXED: Use API configuration instead of hardcoded location.host
+          const { getWebSocketUrl } = await import("../config/api");
+          const wsUrl = getWebSocketUrl(`ws/${code}`);
+          console.log("🔌 Connecting to WebSocket:", wsUrl); // Debug log
+
+          const ws = new WebSocket(wsUrl);
           webSocketRef.current = ws;
 
           ws.onopen = () => {
@@ -576,11 +580,13 @@ export const useWebRTCWithFrameCapture = () => {
             previousStatsRef.current = null;
             frameTrackingRef.current.clear();
           };
-          ws.onerror = () => {
+          ws.onerror = (error) => {
+            console.error("❌ WebSocket connection error:", error);
             setIsConnecting(false);
             rej(new Error("WebSocket connection failed"));
           };
         } catch (e) {
+          console.error("❌ Connect function error:", e);
           setIsConnecting(false);
           rej(e);
         }
