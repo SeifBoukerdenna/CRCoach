@@ -16,6 +16,7 @@ import {
     Settings
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { getApiUrl } from '../../config/api';
 
 interface InferenceControlPanelProps {
     sessionCode: string;
@@ -58,8 +59,6 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
     // Check service status
     const checkServiceStatus = useCallback(async () => {
         if (!isConnected || !sessionCode) return;
-
-        const { getApiUrl } = await import("../../config/api");
         try {
             const response = await fetch(getApiUrl(`api/inference/${sessionCode}/status`));
             if (response.ok) {
