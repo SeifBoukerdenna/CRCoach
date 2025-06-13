@@ -7,7 +7,7 @@ interface ApiConfig {
 
 const getApiConfig = (): ApiConfig => {
   const isProduction = import.meta.env.PROD;
-  const isDevelopment = import.meta.env.DEV;
+  // const isDevelopment = import.meta.env.DEV;
 
   // Force remote server URL from environment variable if set
   const forceRemoteUrl = import.meta.env.VITE_FORCE_REMOTE_URL === "true";
