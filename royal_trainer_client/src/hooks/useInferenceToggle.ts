@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { getApiUrl } from "../config/api";
 
 interface InferenceStatus {
   session_code: string;
@@ -72,14 +73,17 @@ export const useInferenceToggle = () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-        const response = await fetch(`/api/inference/${sessionCode}/toggle`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ enabled }),
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          getApiUrl(`api/inference/${sessionCode}/toggle`),
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ enabled }),
+            signal: controller.signal,
+          }
+        );
 
         clearTimeout(timeoutId);
 
@@ -196,7 +200,6 @@ export const useInferenceToggle = () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
-        const { getApiUrl } = await import("../config/api");
         const response = await fetch(
           getApiUrl(`api/inference/${sessionCode}/status`),
           {
