@@ -25,12 +25,10 @@ class Config:
     # Background task intervals - More frequent cleanup for single viewer sessions
     CLEANUP_INTERVAL = int(os.getenv('CLEANUP_INTERVAL', '60'))     # INCREASED back to 60 seconds
     STATS_INTERVAL = int(os.getenv('STATS_INTERVAL', '30'))        # INCREASED back to 30 seconds
-    PING_INTERVAL = int(os.getenv('PING_INTERVAL', '30'))          # INCREASED to 30 seconds
 
-
-    #  Single viewer specific timeouts - INCREASED for stability
-    VIEWER_TIMEOUT_SECONDS = int(os.getenv('VIEWER_TIMEOUT_SECONDS', '180'))    # INCREASED from 45 to 60 seconds
-    BROADCASTER_TIMEOUT_SECONDS = int(os.getenv('BROADCASTER_TIMEOUT_SECONDS', '300'))  # INCREASED from 90 to 120 seconds
+    PING_INTERVAL = 60                      # Match uvicorn
+    BROADCASTER_TIMEOUT_SECONDS = 300       # 5 minutes
+    VIEWER_TIMEOUT_SECONDS = 180           # 3 minutes
 
     # Connection settings - Optimized for single viewer
     MAX_RECONNECT_ATTEMPTS = int(os.getenv('MAX_RECONNECT_ATTEMPTS', '5'))

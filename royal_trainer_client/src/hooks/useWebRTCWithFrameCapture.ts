@@ -639,7 +639,7 @@ export const useWebRTCWithFrameCapture = () => {
           })
         );
       }
-    }, 30000); // CHANGED to 30000 (30 seconds) to match server PING_INTERVAL
+    }, 50000); // CHANGED to 30000 (30 seconds) to match server PING_INTERVAL
     return () => clearInterval(id);
   }, []);
 

@@ -270,7 +270,7 @@ if __name__ == "__main__":
         log_level="info" if Config.ENABLE_DETAILED_LOGGING else "warning",
         access_log=Config.ENABLE_DETAILED_LOGGING,
         # Enhanced settings for single viewer sessions
-        ws_ping_interval=Config.PING_INTERVAL,
-        ws_ping_timeout=30,
+        ws_ping_interval=60,
+        ws_ping_timeout=120,
         ws_max_size=16777216  # 16MB for larger frames
     )
