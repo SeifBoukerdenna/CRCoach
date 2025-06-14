@@ -191,24 +191,36 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
                 print(f"📊 Session {session_code} was removed during cleanup")
 
 async def ping_loop(websocket: WebSocket, connection_id: str):
-    """Send periodic pings to keep WebSocket connection alive"""
+    """Send periodic pings to keep WebSocket connection alive - STABLE VERSION"""
     try:
         while True:
-            # FIXED: Use Config.PING_INTERVAL instead of hardcoded 30 seconds
-            await asyncio.sleep(Config.PING_INTERVAL)  # Now 20 seconds instead of 30
+            # Use Config.PING_INTERVAL (now 30 seconds) for stable connections
+            await asyncio.sleep(Config.PING_INTERVAL)
 
             if hasattr(websocket, 'is_alive') and websocket.is_alive:
                 try:
                     ping_msg = {
                         'type': 'server_ping',
                         'timestamp': time.time() * 1000,
-                        'connection_id': connection_id
+                        'connection_id': connection_id,
+                        'interval': Config.PING_INTERVAL  # Let client know our interval
                     }
                     await websocket.send_text(json.dumps(ping_msg))
+
+                    # Only log occasionally to avoid spam
+                    if not hasattr(ping_loop, '_last_log'):
+                        ping_loop._last_log = {}
+
+                    current_time = time.time()
+                    if connection_id not in ping_loop._last_log or current_time - ping_loop._last_log[connection_id] > 120:
+                        print(f"📡 Sent stable ping to {connection_id} (interval: {Config.PING_INTERVAL}s)")
+                        ping_loop._last_log[connection_id] = current_time
+
                 except Exception as e:
                     print(f"❌ Failed to send ping to {connection_id}: {e}")
                     break
             else:
+                print(f"🔌 Connection {connection_id} no longer alive, stopping ping loop")
                 break
 
     except asyncio.CancelledError:

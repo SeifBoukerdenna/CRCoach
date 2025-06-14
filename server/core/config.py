@@ -23,16 +23,17 @@ class Config:
     MAX_CONNECTIONS_PER_IP = int(os.getenv('MAX_CONNECTIONS_PER_IP', '10'))  # Reduced since only 1 viewer per session
 
     # Background task intervals - More frequent cleanup for single viewer sessions
-    CLEANUP_INTERVAL = int(os.getenv('CLEANUP_INTERVAL', '30'))     # Keep at 30 seconds
-    STATS_INTERVAL = int(os.getenv('STATS_INTERVAL', '20'))        # Keep at 20 seconds
-    PING_INTERVAL = int(os.getenv('PING_INTERVAL', '20'))          # REDUCED from 25 to 20 seconds
+    CLEANUP_INTERVAL = int(os.getenv('CLEANUP_INTERVAL', '60'))     # INCREASED back to 60 seconds
+    STATS_INTERVAL = int(os.getenv('STATS_INTERVAL', '30'))        # INCREASED back to 30 seconds
+    PING_INTERVAL = int(os.getenv('PING_INTERVAL', '30'))          # INCREASED to 30 seconds
+
 
     #  Single viewer specific timeouts - INCREASED for stability
-    VIEWER_TIMEOUT_SECONDS = int(os.getenv('VIEWER_TIMEOUT_SECONDS', '60'))    # INCREASED from 45 to 60 seconds
-    BROADCASTER_TIMEOUT_SECONDS = int(os.getenv('BROADCASTER_TIMEOUT_SECONDS', '120'))  # INCREASED from 90 to 120 seconds
+    VIEWER_TIMEOUT_SECONDS = int(os.getenv('VIEWER_TIMEOUT_SECONDS', '180'))    # INCREASED from 45 to 60 seconds
+    BROADCASTER_TIMEOUT_SECONDS = int(os.getenv('BROADCASTER_TIMEOUT_SECONDS', '300'))  # INCREASED from 90 to 120 seconds
 
     # Connection settings - Optimized for single viewer
-    MAX_RECONNECT_ATTEMPTS = int(os.getenv('MAX_RECONNECT_ATTEMPTS', '3'))
+    MAX_RECONNECT_ATTEMPTS = int(os.getenv('MAX_RECONNECT_ATTEMPTS', '5'))
 
 
     # WebRTC settings
