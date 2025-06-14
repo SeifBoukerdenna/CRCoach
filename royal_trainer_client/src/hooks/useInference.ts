@@ -295,7 +295,7 @@ export const useInference = (sessionCode: string, isConnected: boolean) => {
           if (statusData.inference_enabled) {
             try {
               const dataResponse = await fetch(
-                `/api/inference/${sessionCode}`,
+                getApiUrl(`/api/inference/${sessionCode}`),
                 {
                   method: "GET",
                   headers: { Accept: "application/json" },

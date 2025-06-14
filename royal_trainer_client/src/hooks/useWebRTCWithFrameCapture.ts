@@ -161,7 +161,7 @@ export const useWebRTCWithFrameCapture = () => {
 
     try {
       const response = await fetch(
-        `/api/inference/${sessionCodeRef.current}/toggle`,
+        getApiUrl(`/api/inference/${sessionCodeRef.current}/toggle`),
         {
           method: "POST",
           headers: {
