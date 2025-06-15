@@ -47,7 +47,7 @@ const OfflineLanding: React.FC<OfflineProps> = ({
                 className="mb-12"
             >
                 <h2 className="text-5xl font-black bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent mb-6">
-                    AI-Powered Analysis&nbsp;Ready
+                    AI-Powered Analysis&nbsp;
                 </h2>
             </motion.div>
 

@@ -436,7 +436,7 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                     </h4>
                     <div className="space-y-1.5">
                         {[
-                            { icon: "📱", text: "Open Royal Trainer app", step: "1" },
+                            { icon: "📱", text: "Open Tormentor mobile app", step: "1" },
                             { icon: "🎮", text: "Start broadcasting", step: "2" },
                             { icon: "🔢", text: "Get 4-digit code", step: "3" },
                             { icon: "🚀", text: "Connect here", step: "4" }
