@@ -21,15 +21,20 @@ cd "$SCRIPT_DIR" || {
   exit 1
 }
 
-# 3) Build image with layer caching (packages cached unless requirements.txt changes)
+# 3) Stop and remove any existing container
+if docker ps --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}\$"; then
+  echo "🛑 Stopping running container ${CONTAINER_NAME}"
+  docker stop "$CONTAINER_NAME"
+fi
+
+if docker ps -a --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}\$"; then
+  echo "🗑️  Removing old container ${CONTAINER_NAME}"
+  docker rm "$CONTAINER_NAME"
+fi
+
+# 4) Build image with layer caching (packages cached unless requirements.txt changes)
 echo "🔨 Building Docker image ${IMAGE_NAME} with smart caching..."
 docker build -f docker/Dockerfile -t "$IMAGE_NAME" .
-
-# 4) Remove any existing container (so we start fresh)
-if docker ps -a --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}\$"; then
-  echo "🛑 Removing old container ${CONTAINER_NAME}"
-  docker rm -f "$CONTAINER_NAME"
-fi
 
 # 5) Run the new container
 echo "▶️  Launching container ${CONTAINER_NAME} on port ${PORT}"
