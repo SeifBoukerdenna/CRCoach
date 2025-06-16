@@ -1,4 +1,4 @@
-// royal_trainer_client/src/components/Sidebar.tsx - Improved layout and organization
+// royal_trainer_client/src/components/Sidebar.tsx - Compact layout with top-aligned panels
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -69,12 +69,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
     return (
         <motion.div
-            className="h-full flex flex-col gap-4 overflow-y-auto thin-scrollbar"
+            className="h-full flex flex-col gap-3 overflow-y-auto thin-scrollbar pt-1"
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.3 }}
         >
-            {/* Connection Section */}
+            {/* Connection Section - Moved to top */}
             <ConnectionSection
                 sessionCode={sessionCode}
                 onSessionCodeChange={onSessionCodeChange}
@@ -88,7 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onCheckSessionStatus={onCheckSessionStatus}
             />
 
-            {/* AI Control Panel */}
+            {/* AI Control Panel - Right after connection */}
             <InferenceControlPanel
                 isInferenceEnabled={isInferenceEnabled}
                 onToggleInference={onToggleInference}
@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 sessionCode={sessionCode}
             />
 
-            {/* Advanced Controls - Only show when connected */}
+            {/* Advanced Controls - Only show when connected, more compact */}
             <AnimatePresence>
                 {connectionState === 'live' && (
                     <motion.div
@@ -104,48 +104,48 @@ const Sidebar: React.FC<SidebarProps> = ({
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="space-y-4"
+                        className="space-y-3"
                     >
-                        {/* Video Controls */}
+                        {/* Video Controls - More compact */}
                         <motion.div
-                            className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4"
+                            className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-xl p-3"
                             initial={{ y: 10, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.3, delay: 0.1 }}
                         >
-                            <div className="flex items-center gap-3 mb-3">
-                                <Settings className="w-5 h-5 text-blue-400" />
-                                <h3 className="text-lg font-bold text-white">Video Controls</h3>
+                            <div className="flex items-center gap-2 mb-2">
+                                <Settings className="w-4 h-4 text-blue-400" />
+                                <h3 className="text-sm font-bold text-white">Video Controls</h3>
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="space-y-2">
                                 <button
                                     onClick={onToggleVideoSize}
-                                    className="w-full flex items-center justify-between p-3 bg-slate-700/40 border border-slate-600/30 rounded-lg hover:border-blue-500/50 transition-all duration-200 text-white"
+                                    className="w-full flex items-center justify-between p-2 bg-slate-700/40 border border-slate-600/30 rounded-lg hover:border-blue-500/50 transition-all duration-200 text-white text-sm"
                                 >
                                     <span className="flex items-center gap-2">
-                                        {isVideoMin ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+                                        {isVideoMin ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
                                         Video Size
                                     </span>
-                                    <span className="text-sm text-white/60">
+                                    <span className="text-xs text-white/60">
                                         {isVideoMin ? 'Expand' : 'Minimize'}
                                     </span>
                                 </button>
 
                                 <button
                                     onClick={onToggleAdvanced}
-                                    className="w-full flex items-center justify-between p-3 bg-slate-700/40 border border-slate-600/30 rounded-lg hover:border-blue-500/50 transition-all duration-200 text-white"
+                                    className="w-full flex items-center justify-between p-2 bg-slate-700/40 border border-slate-600/30 rounded-lg hover:border-blue-500/50 transition-all duration-200 text-white text-sm"
                                 >
                                     <span className="flex items-center gap-2">
-                                        <Settings className="w-4 h-4" />
+                                        <Settings className="w-3 h-3" />
                                         Advanced
                                     </span>
-                                    {showAdv ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                    {showAdv ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                                 </button>
                             </div>
                         </motion.div>
 
-                        {/* Latency Display */}
+                        {/* Latency Display - Compact */}
                         {showLatency && (
                             <motion.div
                                 initial={{ y: 10, opacity: 0 }}
@@ -161,7 +161,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                             </motion.div>
                         )}
 
-                        {/* Advanced Settings */}
+                        {/* Advanced Settings - Compact */}
                         <AnimatePresence>
                             {showAdv && (
                                 <motion.div
@@ -177,9 +177,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            {/* Spacer to push content up */}
-            <div className="flex-1"></div>
         </motion.div>
     );
 };

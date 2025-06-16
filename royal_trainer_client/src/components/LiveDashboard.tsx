@@ -1,4 +1,4 @@
-// royal_trainer_client/src/components/LiveDashboard.tsx - Improved Layout
+// royal_trainer_client/src/components/LiveDashboard.tsx - Compact layout with moved panels
 
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -97,11 +97,11 @@ const LiveDashboard: React.FC<LiveDashboardProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="h-full flex gap-4"
+            className="h-full flex gap-3"
         >
-            {/* LEFT SIDEBAR - Narrower */}
+            {/* LEFT SIDEBAR - Narrower and more compact */}
             <motion.div
-                className="w-80 flex-shrink-0"
+                className="w-72 flex-shrink-0"
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.3 }}
@@ -134,7 +134,7 @@ const LiveDashboard: React.FC<LiveDashboardProps> = ({
 
             {/* MAIN CONTENT AREA - Much larger for video */}
             <motion.div
-                className="flex-1 flex flex-col gap-4"
+                className="flex-1 flex flex-col gap-3"
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
@@ -154,9 +154,9 @@ const LiveDashboard: React.FC<LiveDashboardProps> = ({
                 />
             </motion.div>
 
-            {/* RIGHT PANEL - AI Analysis */}
+            {/* RIGHT PANEL - AI Analysis - Moved closer to top */}
             <motion.div
-                className="w-96 flex-shrink-0"
+                className="w-80 flex-shrink-0"
                 initial={{ x: 20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.3, delay: 0.2 }}

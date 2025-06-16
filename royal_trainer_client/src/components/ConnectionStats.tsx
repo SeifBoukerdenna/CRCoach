@@ -1,4 +1,4 @@
-// royal_trainer_client/src/components/ConnectionStats.tsx - New Clean Stats Component
+// royal_trainer_client/src/components/ConnectionStats.tsx - Fixed with proper sizing and centering
 
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -31,21 +31,21 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ icon, label, value, color }) => (
     <motion.div
-        className="flex items-center gap-3 p-4 rounded-xl bg-slate-700/40 border border-slate-600/40 hover:border-purple-500/40 transition-all duration-200 backdrop-blur-sm"
+        className="flex flex-col items-center justify-center p-4 rounded-xl bg-slate-700/40 border border-slate-600/40 hover:border-purple-500/40 transition-all duration-200 backdrop-blur-sm h-20"
         whileHover={{ scale: 1.02, y: -2 }}
         whileTap={{ scale: 0.98 }}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
     >
-        <div className={`text-${color}-400 flex-shrink-0`}>
+        <div className={`text-${color}-400 mb-1`}>
             {icon}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="text-center min-w-0 flex-1">
             <div className="text-xs text-white/60 font-medium uppercase tracking-wide mb-1">
                 {label}
             </div>
-            <div className="text-lg font-bold text-white truncate">
+            <div className="text-sm font-bold text-white truncate">
                 {value}
             </div>
         </div>
@@ -68,7 +68,7 @@ const ConnectionStats: React.FC<ConnectionStatsProps> = ({
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
                 {/* Stream FPS */}
                 <StatCard
-                    icon={<Activity className="w-5 h-5" />}
+                    icon={<Activity className="w-4 h-4" />}
                     label="Stream FPS"
                     value={streamStats?.fps ?? 0}
                     color="blue"
@@ -76,7 +76,7 @@ const ConnectionStats: React.FC<ConnectionStatsProps> = ({
 
                 {/* Resolution */}
                 <StatCard
-                    icon={<Monitor className="w-5 h-5" />}
+                    icon={<Monitor className="w-4 h-4" />}
                     label="Resolution"
                     value={streamStats?.resolution ?? 'N/A'}
                     color="green"
@@ -84,7 +84,7 @@ const ConnectionStats: React.FC<ConnectionStatsProps> = ({
 
                 {/* Latency */}
                 <StatCard
-                    icon={<Wifi className="w-5 h-5" />}
+                    icon={<Wifi className="w-4 h-4" />}
                     label="Latency"
                     value={
                         latencyStats.current
@@ -96,10 +96,10 @@ const ConnectionStats: React.FC<ConnectionStatsProps> = ({
 
                 {/* Session Code */}
                 <StatCard
-                    icon={<Users className="w-5 h-5" />}
+                    icon={<Users className="w-4 h-4" />}
                     label="Session"
                     value={
-                        <span className="text-yellow-400 font-mono text-xl">
+                        <span className="text-yellow-400 font-mono text-base">
                             {sessionCode}
                         </span>
                     }
@@ -108,7 +108,7 @@ const ConnectionStats: React.FC<ConnectionStatsProps> = ({
 
                 {/* Detections */}
                 <StatCard
-                    icon={<Target className="w-5 h-5" />}
+                    icon={<Target className="w-4 h-4" />}
                     label="Detections"
                     value={history.length}
                     color="purple"
@@ -116,11 +116,11 @@ const ConnectionStats: React.FC<ConnectionStatsProps> = ({
 
                 {/* AI Status */}
                 <StatCard
-                    icon={<Brain className="w-5 h-5" />}
+                    icon={<Brain className="w-4 h-4" />}
                     label="AI Status"
                     value={
                         <span
-                            className={`font-semibold ${isInferenceEnabled ? 'text-green-400' : 'text-red-400'
+                            className={`font-semibold text-xs ${isInferenceEnabled ? 'text-green-400' : 'text-red-400'
                                 }`}
                         >
                             {isInferenceEnabled ? 'Active' : 'Inactive'}

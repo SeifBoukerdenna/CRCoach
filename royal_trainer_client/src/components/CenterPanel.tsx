@@ -1,10 +1,10 @@
-// royal_trainer_client/src/components/CenterPanel.tsx - Improved Layout
+// royal_trainer_client/src/components/CenterPanel.tsx - Fixed with proper connection stats integration
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import VideoStream from './VideoStream';
 import HistoryAndStats from './HistoryAndStats';
-import ConnectionStats from './ConnectionStats'; // New component for cleaner stats
+import ConnectionStats from './ConnectionStats';
 import type { DetectionHistoryItem, StreamStats } from '../types';
 
 interface LatencyStats {
@@ -78,7 +78,7 @@ const CenterPanel: React.FC<CenterPanelProps> = ({
             {/* Bottom History Panel - Only when frame is selected or history exists */}
             {(selectedFrame || history.length > 0) && (
                 <motion.div
-                    className="h-48 bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4"
+                    className="flex-1 min-h-[400px] bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4"
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.3, delay: 0.2 }}
@@ -91,7 +91,7 @@ const CenterPanel: React.FC<CenterPanelProps> = ({
                         latencyStats={latencyStats}
                         sessionCode={sessionCode}
                         isInferenceEnabled={isInferenceEnabled}
-                        compactMode={true} // New prop for horizontal layout
+                        compactMode={true}
                     />
                 </motion.div>
             )}
