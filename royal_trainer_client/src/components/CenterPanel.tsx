@@ -1,11 +1,11 @@
-// royal_trainer_client/src/components/CenterPanel.tsx
+// royal_trainer_client/src/components/CenterPanel.tsx - Improved Layout
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import VideoStream from './VideoStream';
 import HistoryAndStats from './HistoryAndStats';
-import type { DetectionHistoryItem } from '../hooks/useDetectionHistory';
-import type { StreamStats } from '../types';
+import ConnectionStats from './ConnectionStats'; // New component for cleaner stats
+import type { DetectionHistoryItem, StreamStats } from '../types';
 
 interface LatencyStats {
     current: number;
@@ -42,35 +42,60 @@ const CenterPanel: React.FC<CenterPanelProps> = ({
     isInferenceEnabled,
 }) => {
     return (
-        <motion.div
-            className="col-span-5 flex flex-col"
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-        >
-            {/* Video */}
-            <div className={`transition-all duration-300 ${isVideoMin ? 'h-48' : 'h-3/5'} mb-3`}>
+        <div className="h-full flex flex-col gap-4">
+            {/* Top Connection Stats Bar - Clean and horizontal */}
+            <motion.div
+                className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4"
+                initial={{ y: -10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+            >
+                <ConnectionStats
+                    streamStats={streamStats}
+                    latencyStats={latencyStats}
+                    sessionCode={sessionCode}
+                    isInferenceEnabled={isInferenceEnabled}
+                    history={history}
+                />
+            </motion.div>
+
+            {/* Main Video Area - Much larger and prominent */}
+            <motion.div
+                className={`transition-all duration-300 ${isVideoMin ? 'h-64' : 'flex-1'
+                    } min-h-96`}
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+            >
                 <VideoStream
                     videoRef={videoRef}
                     sessionCode={sessionCode}
                     streamStats={streamStats}
                     remoteStream={remoteStream}
                 />
-            </div>
+            </motion.div>
 
-            {/* History & stats */}
-            <div className="flex-1 bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4">
-                <HistoryAndStats
-                    history={history}
-                    selectedFrame={selectedFrame}
-                    onSelectFrame={onSelectFrame}
-                    streamStats={streamStats}
-                    latencyStats={latencyStats}
-                    sessionCode={sessionCode}
-                    isInferenceEnabled={isInferenceEnabled}
-                />
-            </div>
-        </motion.div>
+            {/* Bottom History Panel - Only when frame is selected or history exists */}
+            {(selectedFrame || history.length > 0) && (
+                <motion.div
+                    className="h-48 bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4"
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.3, delay: 0.2 }}
+                >
+                    <HistoryAndStats
+                        history={history}
+                        selectedFrame={selectedFrame}
+                        onSelectFrame={onSelectFrame}
+                        streamStats={streamStats}
+                        latencyStats={latencyStats}
+                        sessionCode={sessionCode}
+                        isInferenceEnabled={isInferenceEnabled}
+                        compactMode={true} // New prop for horizontal layout
+                    />
+                </motion.div>
+            )}
+        </div>
     );
 };
 

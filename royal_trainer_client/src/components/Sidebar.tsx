@@ -1,8 +1,8 @@
-// royal_trainer_client/src/components/Sidebar.tsx
+// royal_trainer_client/src/components/Sidebar.tsx - Improved layout and organization
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Maximize2, Minimize2, Settings } from 'lucide-react';
 import ConnectionSection from './ConnectionSection';
 import InferenceControlPanel from './inference/InferenceControlPanel';
 import WatermarkSettings from './WatermarkSettings';
@@ -69,11 +69,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
     return (
         <motion.div
-            className="col-span-3 space-y-3 overflow-y-auto overflow-x-hidden thin-scrollbar"
+            className="h-full flex flex-col gap-4 overflow-y-auto thin-scrollbar"
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.3 }}
         >
+            {/* Connection Section */}
             <ConnectionSection
                 sessionCode={sessionCode}
                 onSessionCodeChange={onSessionCodeChange}
@@ -87,61 +88,98 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onCheckSessionStatus={onCheckSessionStatus}
             />
 
+            {/* AI Control Panel */}
             <InferenceControlPanel
-                sessionCode={sessionCode}
-                isConnected={isConnected}
                 isInferenceEnabled={isInferenceEnabled}
                 onToggleInference={onToggleInference}
-                frameStats={getFrameStats()}
+                getFrameStats={getFrameStats}
+                sessionCode={sessionCode}
             />
 
-            <WatermarkSettings />
-
-            {/* Advanced toggle */}
-            <motion.button
-                onClick={onToggleAdvanced}
-                className="w-full py-2 px-3 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white/70 hover:text-white hover:bg-slate-700/50 flex items-center justify-between"
-            >
-                <span className="text-sm">Advanced</span>
-                {showAdv ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </motion.button>
-
+            {/* Advanced Controls - Only show when connected */}
             <AnimatePresence>
-                {showAdv && (
+                {connectionState === 'live' && (
                     <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="space-y-3"
+                        className="space-y-4"
                     >
-                        <motion.button
-                            onClick={onToggleVideoSize}
-                            className="w-full py-2 px-3 bg-blue-600/20 border border-blue-500/40 rounded-lg text-blue-300 hover:bg-blue-600/30 flex items-center justify-center gap-2"
+                        {/* Video Controls */}
+                        <motion.div
+                            className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4"
+                            initial={{ y: 10, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ duration: 0.3, delay: 0.1 }}
                         >
-                            {isVideoMin ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
-                            <span className="text-sm">{isVideoMin ? 'Expand' : 'Minimize'} Video</span>
-                        </motion.button>
+                            <div className="flex items-center gap-3 mb-3">
+                                <Settings className="w-5 h-5 text-blue-400" />
+                                <h3 className="text-lg font-bold text-white">Video Controls</h3>
+                            </div>
 
+                            <div className="space-y-3">
+                                <button
+                                    onClick={onToggleVideoSize}
+                                    className="w-full flex items-center justify-between p-3 bg-slate-700/40 border border-slate-600/30 rounded-lg hover:border-blue-500/50 transition-all duration-200 text-white"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        {isVideoMin ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+                                        Video Size
+                                    </span>
+                                    <span className="text-sm text-white/60">
+                                        {isVideoMin ? 'Expand' : 'Minimize'}
+                                    </span>
+                                </button>
+
+                                <button
+                                    onClick={onToggleAdvanced}
+                                    className="w-full flex items-center justify-between p-3 bg-slate-700/40 border border-slate-600/30 rounded-lg hover:border-blue-500/50 transition-all duration-200 text-white"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <Settings className="w-4 h-4" />
+                                        Advanced
+                                    </span>
+                                    {showAdv ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </motion.div>
+
+                        {/* Latency Display */}
                         {showLatency && (
                             <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.3 }}
-                                className="max-h-96 overflow-y-auto thin-scrollbar"
+                                initial={{ y: 10, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ duration: 0.3, delay: 0.2 }}
                             >
                                 <LatencyDisplay
                                     latencyStats={latencyStats}
                                     streamStats={streamStats}
-                                    isConnected={isConnected}
                                     onPerformLatencyTest={onPerformLatencyTest}
+                                    isConnected={isConnected}
                                 />
                             </motion.div>
                         )}
+
+                        {/* Advanced Settings */}
+                        <AnimatePresence>
+                            {showAdv && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    <WatermarkSettings />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Spacer to push content up */}
+            <div className="flex-1"></div>
         </motion.div>
     );
 };

@@ -1,10 +1,9 @@
-// royal_trainer_client/src/components/ConnectionSection.tsx - Enhanced session state handling
+// royal_trainer_client/src/components/ConnectionSection.tsx - Fixed with read-only connected state
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, AlertCircle, Crown, Smartphone, Zap, Square, Users, Check, X, Loader2, Clock, RefreshCw } from 'lucide-react';
+import { Wifi, AlertCircle, Crown, Square, Users, Check, X, Loader2, Clock, RefreshCw } from 'lucide-react';
 import type { ConnectionError, ConnectionState, SessionStatus } from '../types';
-
 
 interface ConnectionSectionProps {
     sessionCode: string;
@@ -35,16 +34,30 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
     const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
     const [lastCheckedCode, setLastCheckedCode] = useState('');
 
-    // Check session status when code changes
+    // Update digits when sessionCode changes externally or when connecting
     useEffect(() => {
+        if (sessionCode.length === 4) {
+            setDigits(sessionCode.split(''));
+        } else if (sessionCode.length === 0) {
+            setDigits(['', '', '', '']);
+        }
+    }, [sessionCode]);
+
+    // Check session status when code changes (only when not connected)
+    useEffect(() => {
+        if (connectionState === 'live') return; // Don't check when connected
+
         const code = digits.join('');
         if (code.length === 4 && code !== lastCheckedCode && onCheckSessionStatus) {
             setLastCheckedCode(code);
             onCheckSessionStatus(code);
         }
-    }, [digits, lastCheckedCode, onCheckSessionStatus]);
+    }, [digits, lastCheckedCode, onCheckSessionStatus, connectionState]);
 
     const handleDigitChange = (index: number, value: string) => {
+        // Prevent changes when connected
+        if (connectionState === 'live') return;
+
         if (value.length > 1) return;
         if (value && !/^\d$/.test(value)) return;
 
@@ -63,6 +76,12 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
     };
 
     const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+        // Prevent any keyboard interaction when connected
+        if (connectionState === 'live') {
+            e.preventDefault();
+            return;
+        }
+
         if (e.key === 'Backspace' && !digits[index] && index > 0) {
             const prevInput = document.getElementById(`digit-${index - 1}`) as HTMLInputElement;
             prevInput?.focus();
@@ -81,6 +100,12 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
     };
 
     const handlePaste = (e: React.ClipboardEvent) => {
+        // Prevent paste when connected
+        if (connectionState === 'live') {
+            e.preventDefault();
+            return;
+        }
+
         e.preventDefault();
         const paste = e.clipboardData.getData('text');
         const numbers = paste.replace(/\D/g, '').slice(0, 4);
@@ -93,6 +118,9 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
     };
 
     const clearCode = () => {
+        // Prevent clearing when connected
+        if (connectionState === 'live') return;
+
         setDigits(['', '', '', '']);
         onSessionCodeChange('');
         setLastCheckedCode('');
@@ -112,6 +140,7 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
 
     // Get session status display with enhanced error handling
     const getSessionStatusDisplay = () => {
+        if (connectionState === 'live') return null; // Don't show status when connected
         if (sessionCode.length !== 4) return null;
 
         if (isCheckingSession) {
@@ -125,147 +154,114 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
 
         if (!sessionStatus) return null;
 
-        // Handle different error types
-        switch (sessionStatus.error_type) {
-            case 'session_not_found':
-                return (
-                    <div className="flex items-center gap-2 text-red-400 text-sm">
-                        <X className="w-4 h-4" />
-                        Session does not exist
-                        <div className="text-xs text-red-300 ml-1">Check the code</div>
-                    </div>
-                );
-
-            case 'session_expired':
-                return (
-                    <div className="flex items-center gap-2 text-orange-400 text-sm">
-                        <Clock className="w-4 h-4" />
-                        Session expired
-                        <div className="text-xs text-orange-300 ml-1">Generate new broadcast</div>
-                    </div>
-                );
-
-            case 'session_full':
-                return (
-                    <div className="flex items-center gap-2 text-red-400 text-sm">
-                        <Users className="w-4 h-4" />
-                        Session has viewer
-                        <div className="text-xs text-red-300 ml-1">{sessionStatus.viewer_count}/1 MAX</div>
-                    </div>
-                );
-
-            case null:
-                // Session is available
-                return (
-                    <div className="flex items-center gap-2 text-green-400 text-sm">
-                        <Check className="w-4 h-4" />
-                        Session available!
-                        {sessionStatus.has_broadcaster && (
-                            <span className="text-green-300">• Broadcaster online</span>
-                        )}
-                    </div>
-                );
-
-            default:
-                // Fallback for unknown error types
-                return (
-                    <div className="flex items-center gap-2 text-red-400 text-sm">
-                        <X className="w-4 h-4" />
-                        {sessionStatus.message}
-                    </div>
-                );
-        }
-    };
-
-    // Get button text based on session status
-    const getButtonText = () => {
-        if (isConnecting || isCheckingSession) {
-            return isCheckingSession ? 'Checking...' : 'Connecting...';
+        if (sessionStatus.error_type === 'session_not_found') {
+            return (
+                <div className="flex items-center gap-2 text-red-400 text-sm">
+                    <X className="w-4 h-4" />
+                    Session not found
+                </div>
+            );
         }
 
-        if (sessionCode.length !== 4) {
-            return 'Enter Code';
+        if (sessionStatus.error_type === 'session_expired') {
+            return (
+                <div className="flex items-center gap-2 text-orange-400 text-sm">
+                    <Clock className="w-4 h-4" />
+                    Session expired
+                </div>
+            );
         }
 
-        if (!sessionStatus) {
-            return 'Connect Stream';
+        if (sessionStatus.error_type === 'session_full') {
+            return (
+                <div className="flex items-center gap-2 text-yellow-400 text-sm">
+                    <Users className="w-4 h-4" />
+                    Session full
+                </div>
+            );
         }
 
-        switch (sessionStatus.error_type) {
-            case 'session_not_found':
-                return 'Session Not Found';
-            case 'session_expired':
-                return 'Session Expired';
-            case 'session_full':
-                return 'Session Full';
-            default:
-                return 'Connect Stream';
+        if (sessionStatus.available_for_viewer) {
+            return (
+                <div className="flex items-center gap-2 text-green-400 text-sm">
+                    <Check className="w-4 h-4" />
+                    Session available • Broadcaster online
+                </div>
+            );
         }
-    };
 
-    // Manual refresh session status
-    const handleRefreshStatus = () => {
-        if (sessionCode.length === 4 && onCheckSessionStatus) {
-            setLastCheckedCode(''); // Force refresh
-            onCheckSessionStatus(sessionCode);
-        }
+        return (
+            <div className="flex items-center gap-2 text-yellow-400 text-sm">
+                <AlertCircle className="w-4 h-4" />
+                Broadcaster offline
+            </div>
+        );
     };
 
     return (
         <motion.div
-            className="bg-gradient-to-br from-slate-800/90 via-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4 shadow-2xl"
-            whileHover={{ scale: 1.01 }}
-            transition={{ duration: 0.1 }}
+            className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4"
+            initial={{ y: -10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.3 }}
         >
             {/* Header */}
-            <div className="text-center mb-4">
-                <div className="flex items-center justify-center gap-2 mb-2">
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
                     <Crown className="w-5 h-5 text-yellow-400" />
-                    <h3 className="text-lg font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                        Connect
-                    </h3>
-                    {sessionCode.length === 4 && onCheckSessionStatus && (
-                        <motion.button
-                            onClick={handleRefreshStatus}
-                            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            title="Refresh Status"
-                        >
-                            <RefreshCw className="w-3 h-3 text-white/70" />
-                        </motion.button>
-                    )}
+                    <div>
+                        <h3 className="text-lg font-bold text-white">Connect</h3>
+                        {connectionState !== 'live' && (
+                            <p className="text-white/60 text-sm">Enter 4-digit session code</p>
+                        )}
+                    </div>
                 </div>
-                <p className="text-white/70 text-sm">Enter 4-digit session code</p>
+                {connectionState !== 'live' && sessionCode.length > 0 && (
+                    <button
+                        onClick={clearCode}
+                        className="p-1 text-white/50 hover:text-white transition-colors"
+                        title="Clear"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                    </button>
+                )}
             </div>
 
-            {/* Code Input */}
+            {/* Code Input/Display */}
             <div className="mb-4">
-                <div className="flex justify-center gap-2 mb-3">
+                <div className="flex justify-center gap-3 mb-3">
                     {digits.map((digit, index) => (
                         <div key={index} className="relative">
-                            <input
-                                id={`digit-${index}`}
-                                type="text"
-                                value={digit}
-                                onChange={(e) => handleDigitChange(index, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(index, e)}
-                                onPaste={handlePaste}
-                                onFocus={() => setFocusedIndex(index)}
-                                onBlur={() => setFocusedIndex(null)}
-                                className={`w-10 h-10 text-lg font-bold text-center bg-slate-700/50 border-2 rounded-lg text-white focus:outline-none transition-all duration-150 ${focusedIndex === index
-                                    ? 'border-yellow-400 bg-slate-600/50 scale-110'
-                                    : digit
-                                        ? sessionStatus?.error_type
-                                            ? 'border-red-500 bg-slate-600/30'
-                                            : sessionStatus?.available_for_viewer
-                                                ? 'border-green-500 bg-slate-600/30'
-                                                : 'border-orange-500 bg-slate-600/30'
-                                        : 'border-slate-600 hover:border-slate-500'
-                                    }`}
-                                maxLength={1}
-                                disabled={connectionState === 'live'}
-                            />
+                            {connectionState === 'live' ? (
+                                // Read-only display when connected
+                                <div className="w-12 h-12 text-xl font-bold text-center bg-green-900/30 border-2 border-green-500 rounded-xl text-green-400 flex items-center justify-center">
+                                    {digit}
+                                </div>
+                            ) : (
+                                // Interactive input when not connected
+                                <input
+                                    id={`digit-${index}`}
+                                    type="text"
+                                    value={digit}
+                                    onChange={(e) => handleDigitChange(index, e.target.value)}
+                                    onKeyDown={(e) => handleKeyDown(index, e)}
+                                    onPaste={handlePaste}
+                                    onFocus={() => setFocusedIndex(index)}
+                                    onBlur={() => setFocusedIndex(null)}
+                                    className={`w-12 h-12 text-xl font-bold text-center bg-slate-700/50 border-2 rounded-xl text-white focus:outline-none transition-all duration-150 ${focusedIndex === index
+                                        ? 'border-yellow-400 bg-slate-600/50 scale-105'
+                                        : digit
+                                            ? sessionStatus?.error_type
+                                                ? 'border-red-500 bg-slate-600/30'
+                                                : sessionStatus?.available_for_viewer
+                                                    ? 'border-green-500 bg-slate-600/30'
+                                                    : 'border-orange-500 bg-slate-600/30'
+                                            : 'border-slate-600 hover:border-slate-500'
+                                        }`}
+                                    maxLength={1}
+                                    placeholder="0"
+                                />
+                            )}
                         </div>
                     ))}
                 </div>
@@ -279,13 +275,15 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                             exit={{ opacity: 0, height: 0 }}
                             className="mb-3 flex justify-center"
                         >
-                            <div className={`p-2 rounded-lg border ${sessionStatus?.error_type === 'session_not_found'
-                                ? 'bg-red-900/30 border-red-500/50'
+                            <div className={`px-3 py-2 rounded-lg border text-center ${sessionStatus?.error_type === 'session_not_found'
+                                ? 'bg-red-900/20 border-red-500/30'
                                 : sessionStatus?.error_type === 'session_expired'
-                                    ? 'bg-orange-900/30 border-orange-500/50'
+                                    ? 'bg-orange-900/20 border-orange-500/30'
                                     : sessionStatus?.error_type === 'session_full'
-                                        ? 'bg-red-900/30 border-red-500/50'
-                                        : 'bg-green-900/30 border-green-500/50'
+                                        ? 'bg-yellow-900/20 border-yellow-500/30'
+                                        : sessionStatus?.available_for_viewer
+                                            ? 'bg-green-900/20 border-green-500/30'
+                                            : 'bg-slate-900/20 border-slate-500/30'
                                 }`}>
                                 {getSessionStatusDisplay()}
                             </div>
@@ -293,191 +291,111 @@ const ConnectionSection: React.FC<ConnectionSectionProps> = ({
                     )}
                 </AnimatePresence>
 
-                {/* Enhanced Session Info for Error Cases */}
-                <AnimatePresence>
-                    {sessionStatus?.error_type && sessionCode.length === 4 && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="mb-3 p-3 bg-black/20 rounded-lg border border-white/10"
-                        >
-                            <div className="text-xs text-white/60 space-y-1">
-                                {sessionStatus.error_type === 'session_not_found' && (
-                                    <>
-                                        <div>❌ Code <span className="font-mono text-white">{sessionCode}</span> not found</div>
-                                        <div>💡 Double-check the code or start a new broadcast</div>
-                                    </>
-                                )}
-                                {sessionStatus.error_type === 'session_expired' && (
-                                    <>
-                                        <div>⏰ Session <span className="font-mono text-white">{sessionCode}</span> expired</div>
-                                        <div>📱 Previous viewer disconnected - create new broadcast</div>
-                                    </>
-                                )}
-                                {sessionStatus.error_type === 'session_full' && (
-                                    <>
-                                        <div>👥 Session <span className="font-mono text-white">{sessionCode}</span> is full</div>
-                                        <div>🚫 Only 1 viewer allowed per broadcast session</div>
-                                    </>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Quick Action Buttons */}
-                <div className="flex justify-center gap-2 mb-3">
-                    <button
-                        onClick={clearCode}
-                        className="px-3 py-1 text-xs text-white/60 hover:text-white transition-colors rounded-lg hover:bg-white/10"
-                        disabled={connectionState === 'live'}
+                {/* Connected Status Banner */}
+                {connectionState === 'live' && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mb-4 p-3 bg-green-900/30 border border-green-500/50 rounded-lg"
                     >
-                        Clear
-                    </button>
-                </div>
+                        <div className="flex items-center gap-2 text-green-400 justify-center">
+                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                            <span className="font-medium">Session available! • Broadcaster online</span>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Clear Button */}
+                {connectionState !== 'live' && sessionCode.length > 0 && (
+                    <div className="text-center mb-3">
+                        <button
+                            onClick={clearCode}
+                            className="text-white/60 hover:text-white text-sm transition-colors"
+                        >
+                            Clear
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Connection Button */}
-            <div className="space-y-3">
-                {connectionState !== 'live' ? (
+            <AnimatePresence mode="wait">
+                {connectionState === 'live' ? (
                     <motion.button
-                        onClick={onConnect}
-                        disabled={!canConnect()}
-                        className={`w-full py-3 px-4 rounded-lg font-bold text-sm transition-all duration-150 flex items-center justify-center gap-2 border-2 shadow-lg ${canConnect()
-                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 border-yellow-400 hover:shadow-xl hover:scale-105 active:scale-95'
-                            : 'bg-slate-700 text-slate-400 cursor-not-allowed border-slate-600'
-                            }`}
-                        whileHover={canConnect() ? { scale: 1.02 } : {}}
-                        whileTap={canConnect() ? { scale: 0.98 } : {}}
-                    >
-                        {isConnecting || isCheckingSession ? (
-                            <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                {getButtonText()}
-                            </>
-                        ) : (
-                            <>
-                                <Wifi className="w-4 h-4" />
-                                {getButtonText()}
-                            </>
-                        )}
-                    </motion.button>
-                ) : (
-                    <motion.button
+                        key="disconnect"
                         onClick={onDisconnect}
-                        className="w-full py-3 px-4 rounded-lg font-bold text-sm bg-gradient-to-r from-red-600 to-red-700 text-white border-2 border-red-500 shadow-lg hover:shadow-xl transition-all duration-150 flex items-center justify-center gap-2"
+                        className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 border border-red-500/30"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                     >
                         <Square className="w-4 h-4" />
                         Disconnect
                     </motion.button>
+                ) : (
+                    <motion.button
+                        key="connect"
+                        onClick={onConnect}
+                        disabled={!canConnect()}
+                        className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${canConnect()
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-500/30'
+                            : 'bg-slate-700/50 text-white/50 cursor-not-allowed border border-slate-600/30'
+                            }`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        whileHover={canConnect() ? { scale: 1.02 } : {}}
+                        whileTap={canConnect() ? { scale: 0.98 } : {}}
+                    >
+                        {isConnecting ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Connecting...
+                            </>
+                        ) : (
+                            <>
+                                <Wifi className="w-4 h-4" />
+                                Connect
+                            </>
+                        )}
+                    </motion.button>
                 )}
-            </div>
+            </AnimatePresence>
 
-            {/* Status Indicator */}
-            <div className="mt-3 flex items-center justify-center gap-2 text-xs">
-                <div className={`w-2 h-2 rounded-full transition-all ${connectionState === 'live' ? 'bg-green-500 animate-pulse' :
-                    connectionState === 'connecting' ? 'bg-yellow-500 animate-pulse' :
-                        'bg-gray-500'
-                    }`} />
-                <span className="text-white/60">
-                    <span className="capitalize font-medium text-white/80">{connectionState}</span>
-                </span>
-            </div>
+            {/* Live Status Indicator */}
+            {connectionState === 'live' && (
+                <motion.div
+                    className="mt-3 flex items-center justify-center gap-2 text-green-400"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                >
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium">Live</span>
+                </motion.div>
+            )}
 
-            {/* Enhanced Error Display */}
+            {/* Connection Error */}
             <AnimatePresence>
                 {connectionError && (
                     <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.9 }}
-                        transition={{ duration: 0.2 }}
-                        className="mt-3 p-3 bg-red-900/30 border border-red-500/50 rounded-lg backdrop-blur-sm"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-3 p-3 bg-red-900/30 border border-red-500/50 rounded-lg"
                     >
-                        <div className="flex items-start gap-2">
-                            <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-                            <div className="flex-1">
-                                <p className="text-red-300 font-semibold text-sm">
-                                    {connectionError.message.includes('already has a viewer')
-                                        ? '🚫 Viewer Limit Reached'
-                                        : connectionError.message.includes('does not exist')
-                                            ? '❓ Session Not Found'
-                                            : connectionError.message.includes('expired')
-                                                ? '⏰ Session Expired'
-                                                : 'Connection Failed'}
-                                </p>
-                                <p className="text-red-200 text-xs mt-1">{connectionError.message}</p>
-                                {connectionError.code && (
-                                    <p className="text-red-400/70 text-xs mt-1">Error: {connectionError.code}</p>
-                                )}
-                                <p className="text-red-400/50 text-xs mt-1">
-                                    {connectionError.timestamp.toLocaleTimeString()}
-                                </p>
+                        <div className="flex items-start gap-2 text-red-400 text-sm">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <div className="font-medium">Connection Failed</div>
+                                <div className="text-red-400/80">{connectionError.message}</div>
                             </div>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            {/* Quick Guide - Only when offline */}
-            {connectionState === 'offline' && (
-                <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    transition={{ delay: 0.3 }}
-                    className="mt-4 p-3 bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-lg backdrop-blur-sm"
-                >
-                    <h4 className="font-bold text-blue-300 mb-2 flex items-center gap-2 text-sm">
-                        <Smartphone className="w-4 h-4" />
-                        Quick Start
-                    </h4>
-                    <div className="space-y-1.5">
-                        {[
-                            { icon: "📱", text: "Open Tormentor mobile app", step: "1" },
-                            { icon: "🎮", text: "Start broadcasting", step: "2" },
-                            { icon: "🔢", text: "Get 4-digit code", step: "3" },
-                            { icon: "🚀", text: "Connect here", step: "4" }
-                        ].map((item, index) => (
-                            <motion.div
-                                key={index}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.4 + index * 0.1 }}
-                                className="flex items-center gap-2 text-white/70 text-xs"
-                            >
-                                <div className="w-5 h-5 bg-gradient-to-r from-purple-400 to-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                                    {item.step}
-                                </div>
-                                <span className="text-sm">{item.icon}</span>
-                                <span className="text-sm">{item.text}</span>
-                            </motion.div>
-                        ))}
-                    </div>
-
-                    <div className="mt-3 p-2 bg-red-900/30 rounded-lg border border-red-500/30">
-                        <div className="flex items-center gap-2 text-red-400 text-xs font-medium mb-1">
-                            <Users className="w-3 h-3" />
-                            Single Use Sessions
-                        </div>
-                        <p className="text-red-200 text-xs">
-                            Sessions expire after viewer disconnects. Generate new broadcast for each viewing session.
-                        </p>
-                    </div>
-
-                    <div className="mt-2 p-2 bg-black/20 rounded-lg border border-yellow-500/30">
-                        <div className="flex items-center gap-2 text-yellow-400 text-xs font-medium mb-1">
-                            <Zap className="w-3 h-3" />
-                            Pro Tip
-                        </div>
-                        <p className="text-white/60 text-xs">
-                            Use same WiFi network for best performance
-                        </p>
-                    </div>
-                </motion.div>
-            )}
         </motion.div>
     );
 };

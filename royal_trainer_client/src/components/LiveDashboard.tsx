@@ -1,12 +1,11 @@
-// royal_trainer_client/src/components/LiveDashboard.tsx
+// royal_trainer_client/src/components/LiveDashboard.tsx - Improved Layout
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import Sidebar from './Sidebar';
 import CenterPanel from './CenterPanel';
 import InferencePanel from './InferencePanel';
-import type { DetectionHistoryItem } from '../hooks/useDetectionHistory';
-import type { ConnectionState, ConnectionError, SessionStatus, StreamStats, InferenceData, InferenceStats } from '../types';
+import type { ConnectionState, ConnectionError, SessionStatus, StreamStats, InferenceData, InferenceStats, DetectionHistoryItem } from '../types';
 
 interface LatencyStats {
     current: number;
@@ -98,51 +97,66 @@ const LiveDashboard: React.FC<LiveDashboardProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="h-full grid gap-3 grid-cols-12"
+            className="h-full flex gap-4"
         >
-            {/* LEFT SIDEBAR */}
-            <Sidebar
-                sessionCode={sessionCode}
-                onSessionCodeChange={onSessionCodeChange}
-                connectionState={connectionState}
-                onConnect={onConnect}
-                onDisconnect={onDisconnect}
-                isConnecting={isConnecting}
-                connectionError={connectionError}
-                sessionStatus={sessionStatus}
-                isCheckingSession={isCheckingSession}
-                onCheckSessionStatus={onCheckSessionStatus}
-                isConnected={isConnected}
-                isInferenceEnabled={isInferenceEnabled}
-                onToggleInference={onToggleInference}
-                getFrameStats={getFrameStats}
-                showAdv={showAdv}
-                onToggleAdvanced={onToggleAdvanced}
-                isVideoMin={isVideoMin}
-                onToggleVideoSize={onToggleVideoSize}
-                showLatency={showLatency}
-                latencyStats={latencyStats}
-                streamStats={streamStats}
-                onPerformLatencyTest={onPerformLatencyTest}
-            />
-
-            {/* CENTER PANEL */}
-            <CenterPanel
-                videoRef={videoRef}
-                sessionCode={sessionCode}
-                streamStats={streamStats}
-                remoteStream={remoteStream}
-                isVideoMin={isVideoMin}
-                history={history}
-                selectedFrame={selectedFrame}
-                onSelectFrame={onSelectFrame}
-                latencyStats={latencyStats}
-                isInferenceEnabled={isInferenceEnabled}
-            />
-
-            {/* RIGHT PANEL */}
+            {/* LEFT SIDEBAR - Narrower */}
             <motion.div
-                className="col-span-4 overflow-hidden"
+                className="w-80 flex-shrink-0"
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+            >
+                <Sidebar
+                    sessionCode={sessionCode}
+                    onSessionCodeChange={onSessionCodeChange}
+                    connectionState={connectionState}
+                    onConnect={onConnect}
+                    onDisconnect={onDisconnect}
+                    isConnecting={isConnecting}
+                    connectionError={connectionError}
+                    sessionStatus={sessionStatus}
+                    isCheckingSession={isCheckingSession}
+                    onCheckSessionStatus={onCheckSessionStatus}
+                    isConnected={isConnected}
+                    isInferenceEnabled={isInferenceEnabled}
+                    onToggleInference={onToggleInference}
+                    getFrameStats={getFrameStats}
+                    showAdv={showAdv}
+                    onToggleAdvanced={onToggleAdvanced}
+                    isVideoMin={isVideoMin}
+                    onToggleVideoSize={onToggleVideoSize}
+                    showLatency={showLatency}
+                    latencyStats={latencyStats}
+                    streamStats={streamStats}
+                    onPerformLatencyTest={onPerformLatencyTest}
+                />
+            </motion.div>
+
+            {/* MAIN CONTENT AREA - Much larger for video */}
+            <motion.div
+                className="flex-1 flex flex-col gap-4"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+            >
+                {/* Enhanced Center Panel with better proportions */}
+                <CenterPanel
+                    videoRef={videoRef}
+                    sessionCode={sessionCode}
+                    streamStats={streamStats}
+                    remoteStream={remoteStream}
+                    isVideoMin={isVideoMin}
+                    history={history}
+                    selectedFrame={selectedFrame}
+                    onSelectFrame={onSelectFrame}
+                    latencyStats={latencyStats}
+                    isInferenceEnabled={isInferenceEnabled}
+                />
+            </motion.div>
+
+            {/* RIGHT PANEL - AI Analysis */}
+            <motion.div
+                className="w-96 flex-shrink-0"
                 initial={{ x: 20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.3, delay: 0.2 }}

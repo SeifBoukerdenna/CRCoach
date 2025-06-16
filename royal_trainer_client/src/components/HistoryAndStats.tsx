@@ -1,11 +1,10 @@
-// royal_trainer_client/src/components/HistoryAndStats.tsx
+// royal_trainer_client/src/components/HistoryAndStats.tsx - Improved for new layout
+
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Target, Eye, Activity } from 'lucide-react';
-
+import { Target, Eye, History, Image } from 'lucide-react';
 import type { DetectionHistoryItem, StreamStats } from '../types';
 
-/* ── LOCAL TYPES ────────────────────────────────────── */
 interface LatencyStats {
     current: number;
     average: number;
@@ -23,32 +22,15 @@ interface HistoryAndStatsProps {
     latencyStats: LatencyStats;
     sessionCode: string;
     isInferenceEnabled: boolean;
+    compactMode?: boolean; // New prop for layout mode
 }
 
-/* ── SMALL REUSABLE COMPONENT ───────────────────────── */
-const Stat: React.FC<{ label: string; value: React.ReactNode }> = ({
-    label,
-    value,
-}) => (
-    <div className="flex justify-between">
-        <span className="text-white/70">{label}:</span>
-        <span className="text-white font-bold">{value}</span>
-    </div>
-);
-
-/* ── MAIN COMPONENT ─────────────────────────────────── */
 const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
     history,
     selectedFrame,
     onSelectFrame,
-    streamStats,
-    latencyStats,
-    sessionCode,
-    isInferenceEnabled,
+    compactMode = false,
 }) => {
-    /* cache for easier type-safe use below */
-    const selectedFrameId = selectedFrame?.id;
-
     /* ────────── FRAME ANALYSIS VIEW ──────────────────── */
     if (selectedFrame) {
         return (
@@ -60,134 +42,122 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                     </h4>
                     <button
                         onClick={() => onSelectFrame(null)}
-                        className="text-white/60 hover:text-white"
+                        className="text-white/60 hover:text-white transition-colors"
                     >
                         ✕
                     </button>
                 </div>
 
-                <div className="flex-1 min-h-0 flex gap-4">
-                    <img
-                        src={`data:image/jpeg;base64,${selectedFrame.annotatedFrame}`}
-                        alt="Annotated"
-                        className="flex-1 object-contain bg-black rounded-lg border border-slate-600"
-                    />
+                <div className={`flex-1 min-h-0 flex gap-4 ${compactMode ? 'flex-row' : 'flex-col lg:flex-row'}`}>
+                    <div className="flex-1 min-h-0">
+                        <img
+                            src={`data:image/jpeg;base64,${selectedFrame.annotatedFrame}`}
+                            alt="Annotated"
+                            className="w-full h-full object-contain bg-black rounded-lg border border-slate-600"
+                        />
+                    </div>
 
-                    <div className="w-64 space-y-2 overflow-y-auto thin-scrollbar">
-                        <div className="text-sm text-white/60">
-                            {new Date(selectedFrame.timestamp).toLocaleString()}
-                        </div>
+                    <div className={`${compactMode ? 'w-64' : 'w-full lg:w-64'} space-y-2 overflow-y-auto thin-scrollbar`}>
+                        <h5 className="font-semibold text-white/80 text-sm mb-3 flex items-center gap-2">
+                            <Target className="w-4 h-4" />
+                            Detections ({selectedFrame.detections?.length || 0})
+                        </h5>
 
-                        {selectedFrame.detections.map((d, i) => (
-                            <div key={i} className="bg-slate-700/50 rounded-lg p-2">
-                                <div className="flex justify-between">
-                                    <span className="text-white capitalize">{d.class}</span>
-                                    <span className="text-green-400 text-sm">
-                                        {Math.round(d.confidence * 100)}%
+                        {selectedFrame.detections?.map((detection, idx) => (
+                            <motion.div
+                                key={idx}
+                                className="p-3 bg-slate-700/40 rounded-lg border border-slate-600/30"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.05 }}
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="font-medium text-white text-sm">
+                                        {detection.class}
+                                    </span>
+                                    <span className="text-xs text-green-400 font-bold">
+                                        {Math.round(detection.confidence * 100)}%
                                     </span>
                                 </div>
-                                <div className="text-xs text-white/60">
-                                    {Math.round(d.bbox.width)}×{Math.round(d.bbox.height)}
+                                <div className="text-xs text-white/60 space-y-1">
+                                    <div>X: {Math.round(detection.bbox.x1)}</div>
+                                    <div>Y: {Math.round(detection.bbox.y1)}</div>
+                                    <div>W: {Math.round(detection.bbox.width)}</div>
+                                    <div>H: {Math.round(detection.bbox.height)}</div>
                                 </div>
-                            </div>
+                            </motion.div>
                         ))}
+
+                        {(!selectedFrame.detections || selectedFrame.detections.length === 0) && (
+                            <div className="text-white/50 text-sm italic text-center py-4">
+                                No detections in this frame
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
         );
     }
 
-    /* ────────── HISTORY + LIVE-STATS GRID ─────────────── */
+    /* ────────── HISTORY VIEW ─────────────────────────── */
     return (
-        <div className="grid grid-cols-4 gap-4 h-full">
-            {/* History list */}
-            <div className="col-span-2 space-y-4">
-                {!!history.length && (
-                    <motion.div
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-3"
-                    >
-                        <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                            <Target className="w-4 h-4 text-purple-400" />
-                            Detection History ({history.length})
-                        </h4>
-
-                        <div className="space-y-2 max-h-48 overflow-y-auto thin-scrollbar">
-                            {history
-                                .slice(0, 10)
-                                .filter(
-                                    (item): item is DetectionHistoryItem => !!item?.id
-                                )
-                                .map(item => (
-                                    <motion.button
-                                        key={item.id}
-                                        onClick={() => onSelectFrame(item)}
-                                        className={`w-full p-2 rounded-lg text-left ${selectedFrameId === item.id
-                                            ? 'bg-purple-600/30 border border-purple-500/50'
-                                            : 'bg-slate-700/30 hover:bg-slate-600/30'
-                                            }`}
-                                    >
-                                        <div className="flex justify-between">
-                                            <div>
-                                                <div className="text-xs text-white/80">
-                                                    {item.detections.length} objects
-                                                </div>
-                                                <div className="text-xs text-white/60">
-                                                    {new Date(item.timestamp).toLocaleTimeString()}
-                                                </div>
-                                            </div>
-                                            <div className="text-xs text-green-400">
-                                                {Math.round(item.inferenceTime)}ms
-                                            </div>
-                                        </div>
-                                    </motion.button>
-                                ))}
-                        </div>
-                    </motion.div>
-                )}
+        <div className="h-full flex flex-col">
+            <div className="flex justify-between items-center mb-3">
+                <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                    <History className="w-5 h-5 text-blue-400" />
+                    Detection History
+                    {history.length > 0 && (
+                        <span className="text-sm font-normal text-white/60">
+                            ({history.length} frames)
+                        </span>
+                    )}
+                </h4>
             </div>
 
-            {/* Live stats */}
-            <div className="col-span-2 space-y-4">
-                <h4 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-green-400" />
-                    Connection Stats
-                </h4>
-
-                <div className="space-y-3">
-                    <Stat label="Stream FPS" value={streamStats?.fps ?? 0} />
-                    <Stat label="Resolution" value={streamStats?.resolution ?? 'N/A'} />
-                    <Stat
-                        label="Latency"
-                        value={
-                            latencyStats.current
-                                ? `${Math.round(latencyStats.current)}ms`
-                                : 'N/A'
-                        }
-                    />
-                    <Stat
-                        label="Session"
-                        value={
-                            <span className="text-yellow-400 font-mono">{sessionCode}</span>
-                        }
-                    />
-                    <Stat label="Detections" value={history.length} />
-                    <Stat
-                        label="AI Status"
-                        value={
-                            <span
-                                className={isInferenceEnabled ? 'text-green-400' : 'text-red-400'}
+            <div className="flex-1 min-h-0 overflow-y-auto thin-scrollbar">
+                {history.length > 0 ? (
+                    <div className={`grid gap-3 ${compactMode ? 'grid-cols-4 lg:grid-cols-6' : 'grid-cols-3 lg:grid-cols-4'}`}>
+                        {history.map((frame) => (
+                            <motion.button
+                                key={frame.id}
+                                onClick={() => onSelectFrame(frame)}
+                                className="group relative aspect-square bg-slate-700/30 border border-slate-600/30 rounded-lg overflow-hidden hover:border-purple-500/50 transition-all duration-200"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.3 }}
                             >
-                                {isInferenceEnabled ? 'Active' : 'Inactive'}
-                            </span>
-                        }
-                    />
-                    <Stat
-                        label="Viewer Limit"
-                        value={<span className="text-orange-400">1/1&nbsp;MAX</span>}
-                    />
-                </div>
+                                <img
+                                    src={`data:image/jpeg;base64,${frame.annotatedFrame}`}
+                                    alt={`Frame ${frame.id}`}
+                                    className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="absolute bottom-1 left-1 right-1">
+                                        <div className="text-xs text-white font-medium">
+                                            {frame.detections?.length || 0} detections
+                                        </div>
+                                        <div className="text-xs text-white/60">
+                                            {new Date(frame.timestamp).toLocaleTimeString()}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="absolute top-1 right-1">
+                                    <Eye className="w-3 h-3 text-white/60 group-hover:text-white transition-colors" />
+                                </div>
+                            </motion.button>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-white/50">
+                        <Image className="w-12 h-12 mb-2" />
+                        <p className="text-sm">No detection history yet</p>
+                        <p className="text-xs text-white/40 mt-1">
+                            Frames with detections will appear here
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );
