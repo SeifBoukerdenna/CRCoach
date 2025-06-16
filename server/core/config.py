@@ -1,8 +1,4 @@
-"""
-server/core/config.py - Updated configuration for single viewer enforcement
-"""
-
-import os
+# server/core/config.py - Hardcoded values, no environment variables
 from datetime import datetime
 
 class Config:
@@ -11,28 +7,27 @@ class Config:
     # Server settings
     HOST = "0.0.0.0"
     PORT = 8080
-
-    VERSION = "1.2.1-full-dns"  # Version updated for single viewer enforcement
+    VERSION = "1.2.1-full-dns"
 
     # Session settings - SINGLE VIEWER ENFORCEMENT
     MAX_VIEWERS_PER_SESSION = 1  # STRICTLY ENFORCED - NO EXCEPTIONS
-    SESSION_TIMEOUT_MINUTES = int(os.getenv('SESSION_TIMEOUT_MINUTES', '15'))  # Reduced for single viewer sessions
+    SESSION_TIMEOUT_MINUTES = 15
 
     # Rate limiting - Optimized for single viewer sessions
-    MAX_MESSAGES_PER_CONNECTION = int(os.getenv('MAX_MESSAGES_PER_CONNECTION', '1500'))
-    MAX_CONNECTIONS_PER_IP = int(os.getenv('MAX_CONNECTIONS_PER_IP', '10'))  # Reduced since only 1 viewer per session
+    MAX_MESSAGES_PER_CONNECTION = 1500
+    MAX_CONNECTIONS_PER_IP = 10
 
-    # Background task intervals - More frequent cleanup for single viewer sessions
-    CLEANUP_INTERVAL = int(os.getenv('CLEANUP_INTERVAL', '60'))     # INCREASED back to 60 seconds
-    STATS_INTERVAL = int(os.getenv('STATS_INTERVAL', '30'))        # INCREASED back to 30 seconds
+    # Background task intervals
+    CLEANUP_INTERVAL = 60
+    STATS_INTERVAL = 30
+    PING_INTERVAL = 60
 
-    PING_INTERVAL = 60                      # Match uvicorn
-    BROADCASTER_TIMEOUT_SECONDS = 300       # 5 minutes
-    VIEWER_TIMEOUT_SECONDS = 180           # 3 minutes
+    # Infinite timeouts for inference streams
+    BROADCASTER_TIMEOUT_SECONDS = 0  # 0 = infinite
+    VIEWER_TIMEOUT_SECONDS = 0       # 0 = infinite
 
-    # Connection settings - Optimized for single viewer
-    MAX_RECONNECT_ATTEMPTS = int(os.getenv('MAX_RECONNECT_ATTEMPTS', '5'))
-
+    # Connection settings
+    MAX_RECONNECT_ATTEMPTS = 5
 
     # WebRTC settings
     WEBRTC_STUN_SERVERS = [
@@ -42,13 +37,13 @@ class Config:
         "stun:stun3.l.google.com:19302"
     ]
 
-    # Performance settings - Optimized for single viewer sessions
-    ENABLE_DETAILED_LOGGING = os.getenv('ENABLE_DETAILED_LOGGING', 'true').lower() == 'true'  # Enable by default for monitoring
-    LOG_VIEWER_CONNECTIONS = os.getenv('LOG_VIEWER_CONNECTIONS', 'true').lower() == 'true'
+    # Performance settings
+    ENABLE_DETAILED_LOGGING = True
+    LOG_VIEWER_CONNECTIONS = True
 
-    # Inference settings - Single viewer optimized
-    INFERENCE_FPS_LIMIT = int(os.getenv('INFERENCE_FPS_LIMIT', '8'))  # Reduced from 10 to 8 for single viewer
-    MAX_INFERENCE_SESSIONS = int(os.getenv('MAX_INFERENCE_SESSIONS', '10'))  # Can support more sessions since only 1 viewer each
+    # Inference settings
+    INFERENCE_FPS_LIMIT = 8
+    MAX_INFERENCE_SESSIONS = 100  # Support many concurrent inference streams
 
     # Single viewer enforcement flags
     STRICT_SINGLE_VIEWER_ENFORCEMENT = True
@@ -57,39 +52,32 @@ class Config:
 
     @staticmethod
     def get_session_timeout_seconds():
-        """Get session timeout in seconds"""
         return Config.SESSION_TIMEOUT_MINUTES * 60
 
     @staticmethod
     def get_viewer_timeout_seconds():
-        """Get viewer-specific timeout in seconds"""
         return Config.VIEWER_TIMEOUT_SECONDS
 
     @staticmethod
     def get_broadcaster_timeout_seconds():
-        """Get broadcaster-specific timeout in seconds"""
         return Config.BROADCASTER_TIMEOUT_SECONDS
 
     @staticmethod
     def get_max_viewers_per_session():
-        """Get maximum viewers per session - ALWAYS 1"""
         return 1  # HARDCODED - NO EXCEPTIONS
 
     @staticmethod
     def should_log_viewer_details():
-        """Check if detailed viewer logging is enabled"""
         return Config.ENABLE_DETAILED_LOGGING and Config.LOG_VIEWER_CONNECTIONS
 
     @staticmethod
     def get_webrtc_config():
-        """Get WebRTC configuration"""
         return {
             "iceServers": [{"urls": server} for server in Config.WEBRTC_STUN_SERVERS]
         }
 
     @staticmethod
     def validate_session_code(session_code: str) -> bool:
-        """Validate session code format"""
         return (
             session_code and
             session_code.isdigit() and
@@ -99,9 +87,8 @@ class Config:
 
     @staticmethod
     def get_performance_config():
-        """Get performance-related configuration"""
         return {
-            "max_viewers_per_session": 1,  # ALWAYS 1
+            "max_viewers_per_session": 1,
             "single_viewer_enforcement": True,
             "strict_enforcement": Config.STRICT_SINGLE_VIEWER_ENFORCEMENT,
             "reject_multiple_viewers": Config.REJECT_MULTIPLE_VIEWERS,
@@ -118,7 +105,6 @@ class Config:
 
     @staticmethod
     def get_single_viewer_config():
-        """Get single viewer specific configuration"""
         return {
             "enforcement_enabled": Config.STRICT_SINGLE_VIEWER_ENFORCEMENT,
             "max_viewers_per_session": 1,
@@ -138,7 +124,6 @@ class Config:
 
     @staticmethod
     def log_config():
-        """Log current configuration with single viewer emphasis"""
         print("🔧 Server Configuration (SINGLE VIEWER ENFORCEMENT):")
         print(f"   📡 Host: {Config.HOST}:{Config.PORT}")
         print(f"   👤 Max viewers per session: {Config.get_max_viewers_per_session()} (STRICTLY ENFORCED)")
@@ -150,8 +135,8 @@ class Config:
         print(f"   🧹 Cleanup interval: {Config.CLEANUP_INTERVAL} seconds")
         print(f"   🧠 Max inference sessions: {Config.MAX_INFERENCE_SESSIONS}")
         print(f"   🎯 Inference FPS limit: {Config.INFERENCE_FPS_LIMIT}")
-        print(f"   ⏱️ Viewer timeout: {Config.VIEWER_TIMEOUT_SECONDS}s")
-        print(f"   ⏱️ Broadcaster timeout: {Config.BROADCASTER_TIMEOUT_SECONDS}s")
+        print(f"   ⏱️ Viewer timeout: {Config.VIEWER_TIMEOUT_SECONDS}s (0=infinite)")
+        print(f"   ⏱️ Broadcaster timeout: {Config.BROADCASTER_TIMEOUT_SECONDS}s (0=infinite)")
         if Config.ENABLE_DETAILED_LOGGING:
             print(f"   📝 Detailed logging: ENABLED")
         else:
@@ -166,15 +151,12 @@ class Config:
 
     @staticmethod
     def is_single_viewer_enforcement_enabled():
-        """Check if single viewer enforcement is enabled"""
         return Config.STRICT_SINGLE_VIEWER_ENFORCEMENT
 
     @staticmethod
     def should_reject_multiple_viewers():
-        """Check if multiple viewers should be rejected"""
         return Config.REJECT_MULTIPLE_VIEWERS
 
     @staticmethod
     def should_check_session_availability():
-        """Check if session availability should be verified before connection"""
         return Config.ENABLE_SESSION_AVAILABILITY_CHECK
