@@ -9,7 +9,7 @@ const Footer: React.FC = () => (
         transition={{ duration: 0.3 }}
     >
         <div className="flex items-center justify-center gap-3">
-            <span>🏆 Royal Trainer AI</span>
+            <span>🏆 Obelisk Tormentor</span>
             <span>•</span>
             <span>🧠 YOLOv8 Detection</span>
             <span>•</span>

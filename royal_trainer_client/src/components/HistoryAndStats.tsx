@@ -207,15 +207,18 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                 </h4>
             </div>
 
-            {/* Global Confidence Control - Compact for history view */}
+            {/* Global Confidence Control - For filtering which frames to show */}
             {history.length > 0 && (
                 <div className="mb-4 p-4 bg-slate-700/30 rounded-lg border border-slate-600/30">
-                    <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-3 mb-2">
                         <Filter className="w-4 h-4 text-blue-400" />
-                        <span className="font-semibold text-white text-sm">Filter by Confidence</span>
+                        <span className="font-semibold text-white text-sm">History Filter</span>
                         <span className="text-blue-400 font-mono text-sm">
                             {Math.round(confidenceThreshold * 100)}%+
                         </span>
+                    </div>
+                    <div className="text-xs text-white/60 mb-2">
+                        Show only frames with detections above this confidence
                     </div>
                     <input
                         type="range"
@@ -230,9 +233,8 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                         }}
                     />
                     <div className="flex justify-between text-xs text-white/50 mt-1">
-                        <span>0%</span>
-                        <span>50%</span>
-                        <span>100%</span>
+                        <span>Show all frames</span>
+                        <span>High confidence only</span>
                     </div>
                 </div>
             )}
@@ -240,53 +242,60 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
             <div className="flex-1 min-h-0 overflow-y-auto thin-scrollbar">
                 {history.length > 0 ? (
                     <div className="grid grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {history.map((frame) => {
-                            // Filter detections for this frame based on confidence
-                            const frameFilteredDetections = frame.detections?.filter(
-                                detection => detection.confidence >= confidenceThreshold
-                            ) || [];
+                        {history
+                            .slice(-50) // Show only last 50 frames
+                            .map((frame) => {
+                                // Filter detections for this frame based on confidence
+                                const frameFilteredDetections = frame.detections?.filter(
+                                    detection => detection.confidence >= confidenceThreshold
+                                ) || [];
 
-                            return (
-                                <motion.button
-                                    key={frame.id}
-                                    onClick={() => onSelectFrame(frame)}
-                                    className="group relative aspect-square bg-slate-700/30 border-2 border-slate-600/30 rounded-xl overflow-hidden hover:border-purple-500/60 hover:scale-105 transition-all duration-200 cursor-pointer"
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ duration: 0.3 }}
-                                >
-                                    <img
-                                        src={`data:image/jpeg;base64,${frame.annotatedFrame}`}
-                                        alt={`Frame ${frame.id}`}
-                                        className="w-full h-full object-cover"
-                                    />
+                                // Skip this frame if no detections meet the threshold
+                                if (frameFilteredDetections.length === 0 && confidenceThreshold > 0) {
+                                    return null;
+                                }
 
-                                    {/* Hover Overlay */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                        <div className="absolute bottom-3 left-3 right-3">
-                                            <div className="text-sm text-white font-bold">
-                                                {frameFilteredDetections.length} detections
-                                            </div>
-                                            <div className="text-xs text-white/80">
-                                                {new Date(frame.timestamp).toLocaleTimeString()}
-                                            </div>
-                                            {frameFilteredDetections.length !== (frame.detections?.length || 0) && (
-                                                <div className="text-xs text-yellow-400">
-                                                    (filtered from {frame.detections?.length || 0})
+                                return (
+                                    <motion.button
+                                        key={frame.id}
+                                        onClick={() => onSelectFrame(frame)}
+                                        className="group relative aspect-square bg-slate-700/30 border-2 border-slate-600/30 rounded-xl overflow-hidden hover:border-purple-500/60 hover:scale-105 transition-all duration-200 cursor-pointer"
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ duration: 0.3 }}
+                                    >
+                                        <img
+                                            src={`data:image/jpeg;base64,${frame.annotatedFrame}`}
+                                            alt={`Frame ${frame.id}`}
+                                            className="w-full h-full object-cover"
+                                        />
+
+                                        {/* Hover Overlay */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                            <div className="absolute bottom-3 left-3 right-3">
+                                                <div className="text-sm text-white font-bold">
+                                                    {frameFilteredDetections.length} detections
                                                 </div>
-                                            )}
+                                                <div className="text-xs text-white/80">
+                                                    {new Date(frame.timestamp).toLocaleTimeString()}
+                                                </div>
+                                                {frameFilteredDetections.length !== (frame.detections?.length || 0) && (
+                                                    <div className="text-xs text-yellow-400">
+                                                        (filtered from {frame.detections?.length || 0})
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Click Indicator - Only show on hover */}
-                                    <div className="absolute top-3 right-3 bg-black/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                        <Eye className="w-4 h-4 text-white" />
-                                    </div>
-                                </motion.button>
-                            );
-                        })}
+                                        {/* Click Indicator - Only show on hover */}
+                                        <div className="absolute top-3 right-3 bg-black/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                            <Eye className="w-4 h-4 text-white" />
+                                        </div>
+                                    </motion.button>
+                                );
+                            }).filter(Boolean)} {/* Remove null entries */}
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full text-white/50">
@@ -294,6 +303,9 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                         <p className="text-xl font-medium">No detection history yet</p>
                         <p className="text-sm text-white/40 mt-2">
                             Frames with detections will appear here
+                        </p>
+                        <p className="text-xs text-white/30 mt-1">
+                            Showing last 50 frames when available
                         </p>
                     </div>
                 )}
