@@ -1,4 +1,4 @@
-// royal_trainer_client/src/components/HistoryAndStats.tsx - Larger thumbnails, no purple badges
+// royal_trainer_client/src/components/HistoryAndStats.tsx - Full component with scrollable content
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -40,8 +40,9 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
     /* ────────── FRAME ANALYSIS VIEW ──────────────────── */
     if (selectedFrame) {
         return (
-            <div className="h-full flex flex-col overflow-hidden">
-                <div className="flex justify-between items-center mb-4">
+            <div className="space-y-4">
+                {/* Header */}
+                <div className="flex justify-between items-center">
                     <h4 className="text-xl font-bold text-white flex items-center gap-2">
                         <Eye className="w-6 h-6 text-purple-400" />
                         Frame Analysis
@@ -55,45 +56,51 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                     </button>
                 </div>
 
-                <div className="flex-1 min-h-0 flex gap-6">
-                    {/* Large Image Display - Takes most of the space */}
-                    <div className="flex-1 min-h-0 flex flex-col">
-                        {/* Confidence Threshold Control */}
-                        <div className="mb-4 p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
-                            <div className="flex items-center gap-3 mb-2">
-                                <Sliders className="w-4 h-4 text-blue-400" />
-                                <span className="font-semibold text-white text-sm">Confidence Threshold</span>
-                                <span className="text-blue-400 font-mono text-sm">
-                                    {Math.round(confidenceThreshold * 100)}%
-                                </span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.05"
-                                value={confidenceThreshold}
-                                onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
-                                className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer slider"
-                                style={{
-                                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${confidenceThreshold * 100}%, #475569 ${confidenceThreshold * 100}%, #475569 100%)`
-                                }}
-                            />
-                        </div>
+                {/* Confidence Threshold Control */}
+                <div className="p-4 bg-slate-700/30 rounded-lg border border-slate-600/30">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Sliders className="w-4 h-4 text-blue-400" />
+                        <span className="font-semibold text-white">Detection Filter</span>
+                        <span className="text-blue-400 font-mono">
+                            {Math.round(confidenceThreshold * 100)}%+
+                        </span>
+                    </div>
+                    <div className="text-sm text-white/60 mb-3">
+                        Filter detections by confidence level
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={confidenceThreshold}
+                        onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
+                        className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer mb-2"
+                        style={{
+                            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${confidenceThreshold * 100}%, #475569 ${confidenceThreshold * 100}%, #475569 100%)`
+                        }}
+                    />
+                    <div className="flex justify-between text-xs text-white/50">
+                        <span>Show all detections</span>
+                        <span>High confidence only</span>
+                    </div>
+                </div>
 
-                        {/* Large Image Container */}
-                        <div className="flex-1 bg-black rounded-xl border-2 border-slate-600/50 overflow-hidden">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Large Image Display */}
+                    <div className="space-y-4">
+                        <h5 className="text-lg font-bold text-white">Frame Preview</h5>
+                        <div className="bg-black rounded-xl border border-slate-600/50 overflow-hidden">
                             <img
                                 src={`data:image/jpeg;base64,${selectedFrame.annotatedFrame}`}
-                                alt="Annotated Frame"
-                                className="w-full h-full object-contain"
-                                style={{ minHeight: '500px' }}
+                                alt="Selected frame"
+                                className="w-full h-auto object-contain max-h-80"
                             />
                         </div>
 
-                        {/* Image Metadata */}
-                        <div className="mt-3 p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                        {/* Frame Info */}
+                        <div className="bg-slate-700/40 border border-slate-600/30 rounded-xl p-4">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <span className="text-white/60">Captured:</span>
                                     <div className="text-white font-medium">
@@ -122,16 +129,16 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                         </div>
                     </div>
 
-                    {/* Detection Details Panel - Fixed width sidebar */}
-                    <div className="w-80 flex flex-col">
-                        <div className="flex items-center gap-2 mb-3">
+                    {/* Detection Details Panel - Scrollable */}
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2">
                             <Target className="w-5 h-5 text-purple-400" />
                             <h5 className="font-bold text-white text-lg">
                                 Detections ({filteredDetections.length})
                             </h5>
                         </div>
 
-                        <div className="flex-1 space-y-3 overflow-y-auto thin-scrollbar">
+                        <div className="max-h-96 overflow-y-auto thin-scrollbar space-y-3">
                             {filteredDetections.map((detection, idx) => (
                                 <motion.div
                                     key={idx}
@@ -148,7 +155,7 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                                             {Math.round(detection.confidence * 100)}%
                                         </span>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2 text-sm text-white/70">
+                                    <div className="grid grid-cols-2 gap-3 text-sm text-white/70">
                                         <div className="bg-slate-800/30 p-2 rounded">
                                             <span className="text-white/50 text-xs">X Position</span>
                                             <div className="font-mono text-white">{Math.round(detection.bbox.x1)}</div>
@@ -170,7 +177,7 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                             ))}
 
                             {filteredDetections.length === 0 && (
-                                <div className="text-white/50 text-center py-8">
+                                <div className="text-white/50 text-center py-8 bg-slate-700/20 rounded-xl">
                                     <Filter className="w-8 h-8 mx-auto mb-3 opacity-50" />
                                     <div className="text-lg font-medium mb-2">
                                         {selectedFrame.detections?.length
@@ -194,8 +201,9 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
 
     /* ────────── HISTORY VIEW ─────────────────────────── */
     return (
-        <div className="h-full flex flex-col">
-            <div className="flex justify-between items-center mb-4">
+        <div className="space-y-4">
+            {/* Header */}
+            <div className="flex justify-between items-center">
                 <h4 className="text-xl font-bold text-white flex items-center gap-2">
                     <History className="w-6 h-6 text-blue-400" />
                     Detection History
@@ -209,15 +217,15 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
 
             {/* Global Confidence Control - For filtering which frames to show */}
             {history.length > 0 && (
-                <div className="mb-4 p-4 bg-slate-700/30 rounded-lg border border-slate-600/30">
-                    <div className="flex items-center gap-3 mb-2">
+                <div className="p-4 bg-slate-700/30 rounded-lg border border-slate-600/30">
+                    <div className="flex items-center gap-3 mb-3">
                         <Filter className="w-4 h-4 text-blue-400" />
-                        <span className="font-semibold text-white text-sm">History Filter</span>
-                        <span className="text-blue-400 font-mono text-sm">
+                        <span className="font-semibold text-white">History Filter</span>
+                        <span className="text-blue-400 font-mono">
                             {Math.round(confidenceThreshold * 100)}%+
                         </span>
                     </div>
-                    <div className="text-xs text-white/60 mb-2">
+                    <div className="text-sm text-white/60 mb-3">
                         Show only frames with detections above this confidence
                     </div>
                     <input
@@ -227,21 +235,22 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                         step="0.05"
                         value={confidenceThreshold}
                         onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
-                        className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer"
+                        className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer mb-2"
                         style={{
                             background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${confidenceThreshold * 100}%, #475569 ${confidenceThreshold * 100}%, #475569 100%)`
                         }}
                     />
-                    <div className="flex justify-between text-xs text-white/50 mt-1">
+                    <div className="flex justify-between text-xs text-white/50">
                         <span>Show all frames</span>
                         <span>High confidence only</span>
                     </div>
                 </div>
             )}
 
-            <div className="flex-1 min-h-0 overflow-y-auto thin-scrollbar">
+            {/* History Grid - Scrollable */}
+            <div className="max-h-96 overflow-y-auto thin-scrollbar">
                 {history.length > 0 ? (
-                    <div className="grid grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-2">
                         {history
                             .slice(-50) // Show only last 50 frames
                             .map((frame) => {
@@ -266,39 +275,45 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ duration: 0.3 }}
                                     >
+                                        {/* Thumbnail Image */}
                                         <img
                                             src={`data:image/jpeg;base64,${frame.annotatedFrame}`}
-                                            alt={`Frame ${frame.id}`}
+                                            alt="Detection frame"
                                             className="w-full h-full object-cover"
                                         />
 
-                                        {/* Hover Overlay */}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                            <div className="absolute bottom-3 left-3 right-3">
-                                                <div className="text-sm text-white font-bold">
-                                                    {frameFilteredDetections.length} detections
-                                                </div>
-                                                <div className="text-xs text-white/80">
-                                                    {new Date(frame.timestamp).toLocaleTimeString()}
-                                                </div>
-                                                {frameFilteredDetections.length !== (frame.detections?.length || 0) && (
-                                                    <div className="text-xs text-yellow-400">
-                                                        (filtered from {frame.detections?.length || 0})
-                                                    </div>
+                                        {/* Detection Count Badge */}
+                                        <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-sm rounded-lg px-2 py-1">
+                                            <div className="text-xs font-bold text-white">
+                                                {frameFilteredDetections.length}
+                                                {confidenceThreshold > 0 && frameFilteredDetections.length !== (frame.detections?.length || 0) && (
+                                                    <span className="text-white/60">
+                                                        /{frame.detections?.length || 0}
+                                                    </span>
                                                 )}
                                             </div>
                                         </div>
 
+                                        {/* Timestamp */}
+                                        <div className="absolute bottom-2 left-2 right-2 bg-black/80 backdrop-blur-sm rounded px-2 py-1">
+                                            <div className="text-xs text-white/80 truncate">
+                                                {new Date(frame.timestamp).toLocaleTimeString()}
+                                            </div>
+                                        </div>
+
                                         {/* Click Indicator - Only show on hover */}
-                                        <div className="absolute top-3 right-3 bg-black/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                        <div className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                             <Eye className="w-4 h-4 text-white" />
                                         </div>
+
+                                        {/* Hover Overlay */}
+                                        <div className="absolute inset-0 bg-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                                     </motion.button>
                                 );
                             }).filter(Boolean)} {/* Remove null entries */}
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-white/50">
+                    <div className="flex flex-col items-center justify-center py-12 text-white/50">
                         <Image className="w-16 h-16 mb-4" />
                         <p className="text-xl font-medium">No detection history yet</p>
                         <p className="text-sm text-white/40 mt-2">

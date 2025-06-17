@@ -423,3 +423,234 @@ textarea:focus {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Main scrollbar class for all scrollable containers */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 85, 247, 0.4) rgba(51, 65, 85, 0.2);
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Webkit scrollbar styling */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: rgba(51, 65, 85, 0.2);
+  border-radius: 4px;
+  margin: 2px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.6), rgba(139, 92, 246, 0.4));
+  border-radius: 4px;
+  border: 1px solid rgba(51, 65, 85, 0.3);
+  transition: all 0.2s ease;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.8), rgba(139, 92, 246, 0.6));
+  transform: scale(1.1);
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 1), rgba(139, 92, 246, 0.8));
+}
+
+.thin-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Alternative scrollbar for dark content areas */
+.dark-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.5) rgba(30, 41, 59, 0.3);
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dark-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dark-scrollbar::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.3);
+  border-radius: 3px;
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.5), rgba(100, 116, 139, 0.3));
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.7), rgba(100, 116, 139, 0.5));
+}
+
+/* Fancy scrollbar for special containers */
+.fancy-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 197, 94, 0.6) rgba(15, 23, 42, 0.4);
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fancy-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.fancy-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 5px;
+  margin: 4px;
+}
+
+.fancy-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg,
+      rgba(34, 197, 94, 0.8) 0%,
+      rgba(59, 130, 246, 0.6) 50%,
+      rgba(168, 85, 247, 0.8) 100%);
+  border-radius: 5px;
+  border: 2px solid rgba(15, 23, 42, 0.6);
+  transition: all 0.3s ease;
+}
+
+.fancy-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg,
+      rgba(34, 197, 94, 1) 0%,
+      rgba(59, 130, 246, 0.8) 50%,
+      rgba(168, 85, 247, 1) 100%);
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+}
+
+/* Invisible scrollbar for seamless scrolling */
+.invisible-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.invisible-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth scrolling for all containers */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar animations */
+@keyframes scrollbar-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animated-scrollbar::-webkit-scrollbar-thumb {
+  animation: scrollbar-fade-in 0.3s ease-out;
+}
+
+/* Responsive scrollbar sizing */
+@media (max-width: 768px) {
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .fancy-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .fancy-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* Container-specific styles */
+.inference-panel-scroll {
+  max-height: calc(100vh - 8rem);
+  overflow-y: auto;
+}
+
+.history-panel-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.detection-list-scroll {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* Utility classes for different scroll behaviors */
+.scroll-snap-y {
+  scroll-snap-type: y mandatory;
+}
+
+.scroll-snap-item {
+  scroll-snap-align: start;
+}
+
+.scroll-padding-top {
+  scroll-padding-top: 1rem;
+}
+
+/* Focus styles for accessibility */
+.thin-scrollbar:focus-visible {
+  outline: 2px solid rgba(168, 85, 247, 0.6);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background: #ffffff;
+    border: 1px solid #000000;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: #000000;
+    border: 1px solid #ffffff;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+
+  .thin-scrollbar,
+  .dark-scrollbar,
+  .fancy-scrollbar {
+    scroll-behavior: auto;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-thumb,
+  .dark-scrollbar::-webkit-scrollbar-thumb,
+  .fancy-scrollbar::-webkit-scrollbar-thumb {
+    transition: none;
+  }
+}

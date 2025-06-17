@@ -1,11 +1,13 @@
-// royal_trainer_client/src/components/CenterPanel.tsx - Fixed with proper connection stats integration
+// royal_trainer_client/src/components/CenterPanel.tsx - Full component with scrollable content
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import VideoStream from './VideoStream';
 import HistoryAndStats from './HistoryAndStats';
 import ConnectionStats from './ConnectionStats';
+
 import type { DetectionHistoryItem, StreamStats } from '../types';
+import ElixirAndCards from './game/ElixirAndCards';
 
 interface LatencyStats {
     current: number;
@@ -27,6 +29,7 @@ interface CenterPanelProps {
     onSelectFrame: (frame: DetectionHistoryItem | null) => void;
     latencyStats: LatencyStats;
     isInferenceEnabled: boolean;
+    isConnected: boolean;
 }
 
 const CenterPanel: React.FC<CenterPanelProps> = ({
@@ -40,12 +43,13 @@ const CenterPanel: React.FC<CenterPanelProps> = ({
     onSelectFrame,
     latencyStats,
     isInferenceEnabled,
+    isConnected,
 }) => {
     return (
-        <div className="h-full flex flex-col gap-4">
+        <div className="space-y-4 pb-4">
             {/* Top Connection Stats Bar - Clean and horizontal */}
             <motion.div
-                className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4"
+                className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4 sticky top-0 z-10"
                 initial={{ y: -10, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.3 }}
@@ -61,11 +65,13 @@ const CenterPanel: React.FC<CenterPanelProps> = ({
 
             {/* Main Video Area - Much larger and prominent */}
             <motion.div
-                className={`transition-all duration-300 ${isVideoMin ? 'h-64' : 'flex-1'
-                    } min-h-96`}
+                className={`transition-all duration-300 ${isVideoMin
+                    ? 'h-48'
+                    : 'h-96'
+                    } bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl overflow-hidden`}
                 initial={{ scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.1 }}
+                transition={{ duration: 0.4 }}
             >
                 <VideoStream
                     videoRef={videoRef}
@@ -75,26 +81,39 @@ const CenterPanel: React.FC<CenterPanelProps> = ({
                 />
             </motion.div>
 
-            {/* Bottom History Panel - Only when frame is selected or history exists */}
-            {(selectedFrame || history.length > 0) && (
-                <motion.div
-                    className="flex-1 min-h-[400px] bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4"
-                    initial={{ y: 10, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.3, delay: 0.2 }}
-                >
-                    <HistoryAndStats
-                        history={history}
-                        selectedFrame={selectedFrame}
-                        onSelectFrame={onSelectFrame}
-                        streamStats={streamStats}
-                        latencyStats={latencyStats}
-                        sessionCode={sessionCode}
-                        isInferenceEnabled={isInferenceEnabled}
-                        compactMode={true}
-                    />
-                </motion.div>
-            )}
+            {/* Elixir and Cards Component */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+            >
+                <ElixirAndCards isConnected={isConnected} />
+            </motion.div>
+
+            {/* History and Stats Section - Scrollable */}
+            <motion.div
+                className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl overflow-hidden"
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+            >
+                <div className={`${isVideoMin
+                    ? 'h-96'
+                    : 'h-80'
+                    } overflow-y-auto thin-scrollbar`}>
+                    <div className="p-4">
+                        <HistoryAndStats
+                            history={history}
+                            selectedFrame={selectedFrame}
+                            onSelectFrame={onSelectFrame}
+                            streamStats={streamStats}
+                            latencyStats={latencyStats}
+                            sessionCode={sessionCode}
+                            isInferenceEnabled={isInferenceEnabled}
+                        />
+                    </div>
+                </div>
+            </motion.div>
         </div>
     );
 };
