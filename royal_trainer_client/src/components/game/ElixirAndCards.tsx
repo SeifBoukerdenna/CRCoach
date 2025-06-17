@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Crown, Swords } from 'lucide-react';
+import { Zap, Crown, Swords, Clock } from 'lucide-react';
 
 interface ElixirAndCardsProps {
     isConnected: boolean;
@@ -158,23 +158,43 @@ const CardSlot: React.FC<{
 };
 
 const ElixirAndCards: React.FC<ElixirAndCardsProps> = ({ isConnected }) => {
-    const [playerElixir, setPlayerElixir] = useState(5.0);
     const [opponentElixir, setOpponentElixir] = useState(3.0);
+    const [gameTime, setGameTime] = useState(180); // 3 minutes in seconds
 
     // Simulate elixir generation (normal game speed: +1 elixir per 2.8 seconds)
     useEffect(() => {
         if (!isConnected) return;
 
         const interval = setInterval(() => {
-            setPlayerElixir(prev => Math.min(10, prev + (1 / 2.8)));
             setOpponentElixir(prev => Math.min(10, prev + (1 / 2.8)));
         }, 1000);
 
         return () => clearInterval(interval);
     }, [isConnected]);
 
-    // Determine which cards are available (first 4 for player, random for opponent)
-    const availablePlayerCards = [0, 1, 2, 3]; // First 4 cards are available
+    // Game timer countdown
+    useEffect(() => {
+        if (!isConnected) return;
+
+        const interval = setInterval(() => {
+            setGameTime(prev => {
+                if (prev <= 0) {
+                    return 180; // Reset to 3 minutes when it reaches 0
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [isConnected]);
+
+    // Format time as MM:SS
+    const formatTime = (seconds: number) => {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
+
     const availableOpponentCards = [0, 2, 4, 6]; // Example pattern for opponent
 
     if (!isConnected) {
@@ -185,6 +205,25 @@ const ElixirAndCards: React.FC<ElixirAndCardsProps> = ({ isConnected }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
             >
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <Swords className="w-5 h-5 text-purple-400/50" />
+                        <h3 className="text-lg font-bold text-white/50">Battle Deck</h3>
+                    </div>
+
+                    {/* Placeholder Timer */}
+                    <div className="flex items-center gap-2 bg-slate-700/20 px-4 py-2 rounded-lg border border-slate-600/20">
+                        <div className="w-3 h-3 rounded-full bg-slate-500/50" />
+                        <span className="text-xl font-bold font-mono text-white/50">--:--</span>
+                        <span className="text-xs text-white/40">WAITING</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-white/40">
+                        <Crown className="w-4 h-4" />
+                        Disconnected
+                    </div>
+                </div>
+
                 <div className="flex items-center justify-center h-32 text-white/50">
                     <div className="text-center">
                         <Swords className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -205,10 +244,34 @@ const ElixirAndCards: React.FC<ElixirAndCardsProps> = ({ isConnected }) => {
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                         <Swords className="w-5 h-5 text-purple-400" />
-                        Battle Deck
-                    </h3>
+                        <h3 className="text-lg font-bold text-white">Battle Deck</h3>
+                    </div>
+
+                    {/* Game Timer in the middle */}
+                    <div className="flex items-center gap-2 bg-slate-700/40 px-4 py-2 rounded-lg border border-slate-600/30">
+                        <motion.div
+                            className={`w-3 h-3 rounded-full ${gameTime <= 30 ? 'bg-red-500' : gameTime <= 60 ? 'bg-yellow-500' : 'bg-green-500'
+                                }`}
+                            animate={{
+                                scale: gameTime <= 30 ? [1, 1.2, 1] : 1,
+                                opacity: gameTime <= 10 ? [1, 0.5, 1] : 1
+                            }}
+                            transition={{
+                                duration: gameTime <= 30 ? 0.8 : 0,
+                                repeat: gameTime <= 30 ? Infinity : 0
+                            }}
+                        />
+                        <span className={`text-xl font-bold font-mono ${gameTime <= 30 ? 'text-red-400' : gameTime <= 60 ? 'text-yellow-400' : 'text-white'
+                            }`}>
+                            {formatTime(gameTime)}
+                        </span>
+                        <span className="text-xs text-white/60">
+                            {gameTime <= 60 ? 'OVERTIME' : 'MATCH TIME'}
+                        </span>
+                    </div>
+
                     <div className="flex items-center gap-2 text-xs text-white/60">
                         <Crown className="w-4 h-4" />
                         Live Match Data
@@ -254,6 +317,12 @@ const ElixirAndCards: React.FC<ElixirAndCardsProps> = ({ isConnected }) => {
                         <div className="flex items-center gap-1">
                             <div className="w-2 h-2 bg-blue-400 rounded-full" />
                             Auto-tracking
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-purple-400" />
+                            <span className={gameTime <= 30 ? 'text-red-400' : 'text-white/50'}>
+                                {gameTime <= 60 ? 'Overtime phase' : 'Regular time'}
+                            </span>
                         </div>
                     </div>
                     <div>
