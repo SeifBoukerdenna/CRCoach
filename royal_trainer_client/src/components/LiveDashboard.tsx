@@ -142,6 +142,7 @@ const LiveDashboard: React.FC<LiveDashboardProps> = ({
             latencyStats={latencyStats}
             isInferenceEnabled={isInferenceEnabled}
             isConnected={isConnected}
+            inferenceStats={inferenceStats}
           />
         </div>
 

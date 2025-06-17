@@ -1,9 +1,9 @@
-// royal_trainer_client/src/components/ConnectionStats.tsx - Fixed with proper sizing and centering
+// royal_trainer_client/src/components/ConnectionStats.tsx - Updated to show total detections
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Activity, Monitor, Wifi, Target, Brain, Users } from 'lucide-react';
-import type { DetectionHistoryItem, StreamStats } from '../types';
+import type { DetectionHistoryItem, StreamStats, InferenceStats } from '../types';
 
 interface LatencyStats {
     current: number;
@@ -20,6 +20,7 @@ interface ConnectionStatsProps {
     sessionCode: string;
     isInferenceEnabled: boolean;
     history: DetectionHistoryItem[];
+    inferenceStats?: InferenceStats; // Add inference stats to get total detections
 }
 
 interface StatCardProps {
@@ -57,8 +58,11 @@ const ConnectionStats: React.FC<ConnectionStatsProps> = ({
     latencyStats,
     sessionCode,
     isInferenceEnabled,
-    history,
+    inferenceStats,
 }) => {
+    // Calculate total detections from the entire session
+    const totalDetections = inferenceStats?.totalDetections ?? 0;
+
     return (
         <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -106,11 +110,15 @@ const ConnectionStats: React.FC<ConnectionStatsProps> = ({
                     color="yellow"
                 />
 
-                {/* Detections */}
+                {/* Total Detections - Now shows ALL detections from entire session */}
                 <StatCard
                     icon={<Target className="w-4 h-4" />}
                     label="Detections"
-                    value={history.length}
+                    value={
+                        <span className="text-purple-400 font-bold">
+                            {totalDetections.toLocaleString()}
+                        </span>
+                    }
                     color="purple"
                 />
 

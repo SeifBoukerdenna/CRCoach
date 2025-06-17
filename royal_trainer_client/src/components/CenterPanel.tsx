@@ -5,8 +5,7 @@ import { motion } from 'framer-motion';
 import VideoStream from './VideoStream';
 import HistoryAndStats from './HistoryAndStats';
 import ConnectionStats from './ConnectionStats';
-
-import type { DetectionHistoryItem, StreamStats } from '../types';
+import type { DetectionHistoryItem, StreamStats, InferenceStats } from '../types';
 import ElixirAndCards from './game/ElixirAndCards';
 
 interface LatencyStats {
@@ -30,6 +29,7 @@ interface CenterPanelProps {
     latencyStats: LatencyStats;
     isInferenceEnabled: boolean;
     isConnected: boolean;
+    inferenceStats: InferenceStats;
 }
 
 const CenterPanel: React.FC<CenterPanelProps> = ({
@@ -44,6 +44,7 @@ const CenterPanel: React.FC<CenterPanelProps> = ({
     latencyStats,
     isInferenceEnabled,
     isConnected,
+    inferenceStats,
 }) => {
     return (
         <div className="space-y-4 pb-4">
@@ -60,6 +61,7 @@ const CenterPanel: React.FC<CenterPanelProps> = ({
                     sessionCode={sessionCode}
                     isInferenceEnabled={isInferenceEnabled}
                     history={history}
+                    inferenceStats={inferenceStats}
                 />
             </motion.div>
 
