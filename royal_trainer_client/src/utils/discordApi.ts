@@ -1,4 +1,5 @@
 // royal_trainer_client/src/utils/discordApi.ts
+import { getApiUrl } from "../config/api";
 import type {
   DiscordUser,
   DiscordConfig,
@@ -43,7 +44,7 @@ export const discordApi = {
     user?: DiscordUser;
   }> {
     try {
-      const response = await fetch(`${API_BASE}/status`, {
+      const response = await fetch(getApiUrl(`${API_BASE}/status`), {
         credentials: "include",
         cache: "no-cache",
       });
@@ -67,7 +68,7 @@ export const discordApi = {
    * Get Discord login URL
    */
   async getLoginUrl(): Promise<string> {
-    const response = await fetch(`${API_BASE}/login`, {
+    const response = await fetch(getApiUrl(`${API_BASE}/login`), {
       credentials: "include",
     });
 
@@ -79,7 +80,7 @@ export const discordApi = {
    * Get current user info (requires authentication)
    */
   async getCurrentUser(): Promise<DiscordUser> {
-    const response = await fetch(`${API_BASE}/me`, {
+    const response = await fetch(getApiUrl(`${API_BASE}/me`), {
       credentials: "include",
     });
 
@@ -90,7 +91,7 @@ export const discordApi = {
    * Logout user
    */
   async logout(): Promise<void> {
-    const response = await fetch(`${API_BASE}/logout`, {
+    const response = await fetch(getApiUrl(`${API_BASE}/logout`), {
       method: "POST",
       credentials: "include",
     });
@@ -125,7 +126,7 @@ export const discordApi = {
   ): Promise<{ authenticated: boolean; user?: DiscordUser }> {
     try {
       const response = await fetch(
-        `${API_BASE}/callback?code=${encodeURIComponent(code)}`,
+        getApiUrl(`${API_BASE}/callback?code=${encodeURIComponent(code)}`),
         {
           credentials: "include",
         }
