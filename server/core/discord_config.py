@@ -10,24 +10,25 @@ class DiscordConfig:
     """Discord OAuth2 and API configuration"""
 
     # OAuth2 Configuration
-    CLIENT_ID: str = os.getenv('DISCORD_CLIENT_ID', '')
-    CLIENT_SECRET: str = os.getenv('DISCORD_CLIENT_SECRET', '')
+    CLIENT_ID: str = os.getenv('DISCORD_CLIENT_ID', '1384713368971120690')
+    CLIENT_SECRET: str = os.getenv('DISCORD_CLIENT_SECRET', 'Rf6pQKhytE-TMzwK4Mv_ddBx6iD-7Iwl')
 
     # Redirect URI with environment-aware defaults
     REDIRECT_URI: str = os.getenv(
         'DISCORD_REDIRECT_URI',
-        'http://localhost:5173/auth/discord/callback'  # Default for development
+        'http://www.api.tormentor.dev/auth/discord/callback'  # Default for development
+
     )
 
     # Optional server configuration
-    SERVER_ID: str = os.getenv('DISCORD_SERVER_ID', '')
-    BOT_TOKEN: str = os.getenv('DISCORD_BOT_TOKEN', '')
+    SERVER_ID: str = os.getenv('DISCORD_SERVER_ID', '1383863618482995280')
+    BOT_TOKEN: str = os.getenv('DISCORD_BOT_TOKEN', 'MTM4NDcxMzM2ODk3MTEyMDY5MA.GEzzLc.igazG0hIYmGERtVn4CJ2w87XvqSslca_3-c4WI')
 
     # OAuth2 Scopes - THIS WAS MISSING!
     OAUTH_SCOPES: List[str] = ['identify', 'guilds']
 
     # JWT Configuration
-    JWT_SECRET_KEY: str = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-this')
+    JWT_SECRET_KEY: str = os.getenv('JWT_SECRET_KEY', 'D_IUI!6pUQ{W^S+e5&}Y5>pCctpU50kH@nUx-7rQ(xvm^{rjTfYVP^Pn(iRMnvJk')
     JWT_ALGORITHM: str = 'HS256'
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRE_MINUTES', '10080'))  # 7 days default
 
