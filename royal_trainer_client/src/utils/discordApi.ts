@@ -106,7 +106,7 @@ export const discordApi = {
    */
   async getConfig(): Promise<DiscordConfig> {
     try {
-      const response = await fetch("/health");
+      const response = await fetch(getApiUrl("/health"));
       if (response.ok) {
         const data = await response.json();
         return data.discord_auth || { configured: false };
