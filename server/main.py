@@ -17,7 +17,7 @@ from services.yolo_inference import get_inference_service
 # NEW: Discord authentication imports
 from api.discord_routes import router as discord_router
 from core.discord_config import DiscordConfig
-from services.discord_service import get_discord_service
+from core.discord_service import get_discord_service
 
 from core.cors import setup_cors
 

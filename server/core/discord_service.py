@@ -1,4 +1,4 @@
-# server/core/discord_service.py
+# server/core/discord_service.py - CREATE THIS FILE
 
 import aiohttp
 import logging
@@ -35,10 +35,10 @@ class DiscordService:
 
         params = {
             'client_id': DiscordConfig.CLIENT_ID,
-            'redirect_uri': DiscordConfig.get_redirect_uri(),  # Use the method instead of direct access
+            'redirect_uri': DiscordConfig.get_redirect_uri(),  # NOW THIS METHOD EXISTS!
             'response_type': 'code',
-            'scope': ' '.join(DiscordConfig.OAUTH_SCOPES),
-            'state': 'secure_random_state'  # You should generate a proper random state
+            'scope': ' '.join(DiscordConfig.OAUTH_SCOPES),  # NOW THIS ATTRIBUTE EXISTS!
+            'state': 'secure_random_state'
         }
 
         auth_url = f"{self.oauth_url}?{urlencode(params)}"
@@ -52,7 +52,7 @@ class DiscordService:
             'client_secret': DiscordConfig.CLIENT_SECRET,
             'grant_type': 'authorization_code',
             'code': code,
-            'redirect_uri': DiscordConfig.get_redirect_uri(),  # Use the method
+            'redirect_uri': DiscordConfig.get_redirect_uri(),
             'scope': ' '.join(DiscordConfig.OAUTH_SCOPES)
         }
 
@@ -130,31 +130,6 @@ class DiscordService:
         except Exception as e:
             logger.error(f"❌ Server membership check error: {e}")
             return False, None
-
-    async def get_server_member_info(self, bot_token: str, user_id: str) -> Optional[Dict[str, Any]]:
-        """Get detailed server member information (requires bot token)"""
-        if not DiscordConfig.SERVER_ID or not bot_token:
-            return None
-
-        headers = {
-            'Authorization': f'Bot {bot_token}',
-            'Content-Type': 'application/json'
-        }
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                url = f"{self.base_url}/guilds/{DiscordConfig.SERVER_ID}/members/{user_id}"
-                async with session.get(url, headers=headers) as response:
-                    if response.status == 200:
-                        member_data = await response.json()
-                        logger.info(f"✅ Retrieved server member info for user {user_id}")
-                        return member_data
-                    else:
-                        logger.warning(f"⚠️ Could not get server member info: {response.status}")
-                        return None
-        except Exception as e:
-            logger.error(f"❌ Get server member info error: {e}")
-            return None
 
     async def create_discord_user(self, token_data: Dict[str, Any]) -> Optional[DiscordUser]:
         """Create DiscordUser object with complete information"""
