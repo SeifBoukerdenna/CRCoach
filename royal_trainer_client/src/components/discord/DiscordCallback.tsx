@@ -1,4 +1,4 @@
-// royal_trainer_client/src/components/discord/DiscordCallback.tsx
+// royal_trainer_client/src/components/discord/DiscordCallback.tsx - FIXED
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
@@ -13,6 +13,8 @@ const DiscordCallback: React.FC = () => {
                 const code = urlParams.get('code');
                 const error = urlParams.get('error');
 
+                console.log('🔐 Discord callback received:', { code: code ? 'present' : 'missing', error });
+
                 if (error) {
                     throw new Error(error === 'access_denied' ? 'Authentication cancelled' : `OAuth error: ${error}`);
                 }
@@ -21,29 +23,37 @@ const DiscordCallback: React.FC = () => {
                     throw new Error('No authorization code received');
                 }
 
-                // Send success message to parent window
+                console.log('✅ Processing Discord authentication...');
+
+                // Send success message to parent window FIRST
                 if (window.opener) {
+                    console.log('📤 Sending success message to parent window');
                     window.opener.postMessage({
                         type: 'DISCORD_AUTH_SUCCESS',
                         code: code
                     }, window.location.origin);
                 }
 
+                // Wait a bit for the parent to process
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
                 setStatus('success');
-                setMessage('Authentication successful! You can close this window.');
+                setMessage('Authentication successful! Closing window...');
 
                 // Auto-close after 2 seconds
                 setTimeout(() => {
+                    console.log('🪟 Closing Discord auth popup');
                     window.close();
                 }, 2000);
 
             } catch (error) {
-                console.error('Discord callback error:', error);
+                console.error('❌ Discord callback error:', error);
                 setStatus('error');
                 setMessage(error instanceof Error ? error.message : 'Authentication failed');
 
                 // Send error message to parent window
                 if (window.opener) {
+                    console.log('📤 Sending error message to parent window');
                     window.opener.postMessage({
                         type: 'DISCORD_AUTH_ERROR',
                         error: error instanceof Error ? error.message : 'Authentication failed'
@@ -52,6 +62,7 @@ const DiscordCallback: React.FC = () => {
 
                 // Auto-close after 3 seconds even on error
                 setTimeout(() => {
+                    console.log('🪟 Closing Discord auth popup (error)');
                     window.close();
                 }, 3000);
             }
@@ -84,6 +95,12 @@ const DiscordCallback: React.FC = () => {
                 <p className="text-slate-300 text-sm leading-relaxed">
                     {message}
                 </p>
+
+                {status === 'success' && (
+                    <div className="mt-4 text-green-400 text-sm">
+                        You should now see your Discord profile in the main window.
+                    </div>
+                )}
 
                 {(status === 'success' || status === 'error') && (
                     <div className="mt-6">

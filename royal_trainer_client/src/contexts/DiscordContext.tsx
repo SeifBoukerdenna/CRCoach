@@ -1,4 +1,4 @@
-// royal_trainer_client/src/contexts/DiscordContext.tsx
+// royal_trainer_client/src/contexts/DiscordContext.tsx - FIXED to properly update UI
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { discordApi, DiscordApiError } from '../utils/discordApi';
 import type { DiscordUser, DiscordAuthState, DiscordConfig } from '../types/discord';
@@ -36,6 +36,7 @@ function discordReducer(state: DiscordAuthState, action: DiscordAction): Discord
                 user: action.payload,
                 isAuthenticated: action.payload !== null,
                 error: null,
+                isLoading: false, // FIXED: Always stop loading when user is set
             };
         case 'SET_ERROR':
             return { ...state, error: action.payload, isLoading: false };
@@ -63,10 +64,18 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
     // Check authentication status on mount and periodically
     const checkAuthStatus = useCallback(async () => {
         try {
+            console.log('🔍 Checking Discord authentication status...');
             const result = await discordApi.checkAuthStatus();
-            dispatch({ type: 'SET_USER', payload: result.user || null });
+
+            if (result.authenticated && result.user) {
+                console.log('✅ User is authenticated:', result.user.username);
+                dispatch({ type: 'SET_USER', payload: result.user });
+            } else {
+                console.log('❌ User is not authenticated');
+                dispatch({ type: 'SET_USER', payload: null });
+            }
         } catch (error) {
-            console.error('Auth status check failed:', error);
+            console.error('❌ Auth status check failed:', error);
             dispatch({ type: 'SET_ERROR', payload: 'Failed to check authentication status' });
         } finally {
             dispatch({ type: 'SET_LOADING', payload: false });
@@ -78,6 +87,7 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
         try {
             const configData = await discordApi.getConfig();
             setConfig(configData);
+            console.log('⚙️ Discord config loaded:', configData);
         } catch (error) {
             console.error('Failed to load Discord config:', error);
         }
@@ -85,27 +95,46 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
 
     // Initialize on mount
     useEffect(() => {
+        console.log('🔐 Initializing Discord authentication...');
         checkAuthStatus();
         loadConfig();
     }, [checkAuthStatus, loadConfig]);
 
     // Periodic auth check (every 5 minutes)
     useEffect(() => {
-        const interval = setInterval(checkAuthStatus, 5 * 60 * 1000);
+        const interval = setInterval(() => {
+            console.log('🔄 Periodic Discord auth check...');
+            checkAuthStatus();
+        }, 5 * 60 * 1000);
         return () => clearInterval(interval);
     }, [checkAuthStatus]);
 
-    // Handle OAuth popup messages
+    // Handle OAuth popup messages - FIXED: More robust message handling
     useEffect(() => {
         const handleMessage = async (event: MessageEvent) => {
-            if (event.origin !== window.location.origin) return;
+            // Security check
+            if (event.origin !== window.location.origin) {
+                console.warn('⚠️ Ignored message from different origin:', event.origin);
+                return;
+            }
+
+            console.log('📨 Received message:', event.data);
 
             if (event.data.type === 'DISCORD_AUTH_SUCCESS') {
-                console.log('✅ Discord authentication successful');
-                await checkAuthStatus();
+                console.log('✅ Discord authentication successful - refreshing user data...');
+
+                // Clear any existing errors
+                dispatch({ type: 'SET_ERROR', payload: null });
+
+                // Wait a moment for the backend to process the token
+                setTimeout(async () => {
+                    await checkAuthStatus();
+                }, 500);
+
             } else if (event.data.type === 'DISCORD_AUTH_ERROR') {
                 console.error('❌ Discord authentication failed:', event.data.error);
                 dispatch({ type: 'SET_ERROR', payload: event.data.error || 'Authentication failed' });
+                dispatch({ type: 'SET_LOADING', payload: false });
             }
         };
 
@@ -120,10 +149,12 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
         }
 
         try {
+            console.log('🔐 Starting Discord login process...');
             dispatch({ type: 'SET_LOADING', payload: true });
             dispatch({ type: 'SET_ERROR', payload: null });
 
             const authUrl = await discordApi.getLoginUrl();
+            console.log('🔗 Opening Discord auth popup...');
 
             // Open popup for OAuth flow
             const popup = window.open(
@@ -140,12 +171,13 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
             const checkClosed = setInterval(() => {
                 if (popup.closed) {
                     clearInterval(checkClosed);
+                    console.log('🪟 Discord auth popup closed');
                     dispatch({ type: 'SET_LOADING', payload: false });
                 }
             }, 1000);
 
         } catch (error) {
-            console.error('Login failed:', error);
+            console.error('❌ Login failed:', error);
             const errorMessage = error instanceof DiscordApiError
                 ? error.message
                 : 'Failed to initiate Discord login';
@@ -155,12 +187,13 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
 
     const logout = useCallback(async () => {
         try {
+            console.log('🚪 Logging out of Discord...');
             dispatch({ type: 'SET_LOADING', payload: true });
             await discordApi.logout();
             dispatch({ type: 'RESET' });
             console.log('✅ Logged out successfully');
         } catch (error) {
-            console.error('Logout failed:', error);
+            console.error('❌ Logout failed:', error);
             // Even if logout fails on server, clear local state
             dispatch({ type: 'RESET' });
         }
@@ -170,12 +203,15 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
         if (!state.isAuthenticated) return;
 
         try {
+            console.log('🔄 Refreshing Discord user data...');
             const user = await discordApi.getCurrentUser();
             dispatch({ type: 'SET_USER', payload: user });
+            console.log('✅ User data refreshed');
         } catch (error) {
-            console.error('Failed to refresh user:', error);
+            console.error('❌ Failed to refresh user:', error);
             if (error instanceof DiscordApiError && error.status === 401) {
                 // User is no longer authenticated
+                console.log('🚪 User session expired, logging out...');
                 dispatch({ type: 'RESET' });
             }
         }
