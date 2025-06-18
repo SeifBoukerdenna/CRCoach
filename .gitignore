@@ -5,6 +5,7 @@ server/app/__pycache__
 server/routers/__pycache__
 server/services/__pycache__
 server/debug_outputs
+server/.env
 model
 
 **/__pycache__/

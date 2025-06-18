@@ -1,4 +1,4 @@
-# server/main.py - Cleaned and simplified
+# server/main.py - Fixed background task calls
 import asyncio
 import uvicorn
 import logging
@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# Existing imports
 from api.routes import router, session_manager
 from api.websocket import websocket_endpoint
 from api.inference_routes import router as inference_router
@@ -13,18 +14,33 @@ from tasks.background_tasks import cleanup_task, stats_task, monitor_single_view
 from core.config import Config
 from services.yolo_inference import get_inference_service
 
+# NEW: Discord authentication imports
+from api.discord_routes import router as discord_router
+from core.discord_config import DiscordConfig
+from services.discord_service import get_discord_service
+
 # Setup logging
 log_level = logging.INFO if Config.ENABLE_DETAILED_LOGGING else logging.WARNING
 logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan management"""
+    """Application lifespan management with Discord auth"""
     print("🚀 FastAPI WebRTC + AI Analysis Server starting...")
     print("👤 SINGLE VIEWER ENFORCEMENT ENABLED")
+    print("🔐 Discord Authentication Enabled")
 
     # Log configuration
     Config.log_config()
+
+    # NEW: Validate Discord configuration
+    try:
+        DiscordConfig.validate_config()
+        print("✅ Discord OAuth2 configuration validated")
+        print(f"🎮 Target Discord Server ID: {DiscordConfig.SERVER_ID}")
+    except ValueError as e:
+        print(f"⚠️ Discord configuration issue: {e}")
+        print("⚠️ Discord authentication will be unavailable")
 
     # Initialize YOLO inference service
     print("🧠 Initializing YOLOv8 inference service...")
@@ -38,67 +54,41 @@ async def lifespan(app: FastAPI):
         print(f"🎯 Inference FPS limit: {Config.INFERENCE_FPS_LIMIT}")
         print(f"🧠 Max concurrent inference sessions: {Config.MAX_INFERENCE_SESSIONS}")
     else:
-        print("⚠️ YOLOv8 model not available - inference features disabled")
+        print("⚠️ YOLOv8 model not available - inference disabled")
 
-    # Start background tasks
-    print("🔄 Starting background tasks...")
-    background_tasks = [
-        asyncio.create_task(cleanup_task(session_manager)),
-        asyncio.create_task(stats_task(session_manager)),
+    # FIXED: Start background tasks with proper arguments
+    print("🔄 Starting background cleanup tasks...")
+    try:
+        # Pass session_manager to tasks that need it
+        asyncio.create_task(cleanup_task(session_manager))
+        asyncio.create_task(stats_task(session_manager))
         asyncio.create_task(monitor_single_viewer_sessions(session_manager))
-    ]
-
-    print("✅ Server startup complete")
+        print("✅ Background tasks started successfully")
+    except Exception as e:
+        print(f"⚠️ Failed to start some background tasks: {e}")
 
     yield
 
     # Cleanup on shutdown
-    print("🛑 Server shutting down...")
+    print("🛑 Shutting down server...")
 
-    if inference_service:
-        inference_service.cleanup()
-
-    # Cancel background tasks
-    for task in background_tasks:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-
-    # Close all sessions
-    total_connections_closed = 0
-    for session in list(session_manager.sessions.values()):
-        connections = 0
-
-        if session.broadcaster:
-            try:
-                await session.broadcaster.close(code=1000, reason="Server shutting down")
-                connections += 1
-            except Exception as e:
-                print(f"⚠️ Error closing broadcaster: {e}")
-
-        for viewer in list(session.viewers):
-            try:
-                await viewer.close(code=1000, reason="Server shutting down")
-                connections += 1
-            except Exception as e:
-                print(f"⚠️ Error closing viewer: {e}")
-
-        total_connections_closed += connections
-
-    session_manager.sessions.clear()
-    print(f"✅ Server shutdown complete - closed {total_connections_closed} connections")
+    # NEW: Close Discord service
+    try:
+        discord_service = get_discord_service()
+        await discord_service.close()
+        print("✅ Discord service closed")
+    except Exception as e:
+        print(f"⚠️ Error closing Discord service: {e}")
 
 # Create FastAPI app
 app = FastAPI(
-    title="FastAPI WebRTC + AI Analysis Server (Single Viewer)",
+    title="FastAPI WebRTC + AI Analysis Server (Single Viewer + Discord Auth)",
     version=Config.VERSION,
-    description="WebRTC server with STRICT single viewer enforcement per broadcast session",
+    description="WebRTC server with STRICT single viewer enforcement per broadcast session and Discord authentication",
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS middleware - Updated for Discord OAuth2
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -106,6 +96,8 @@ app.add_middleware(
         "https://www.tormentor.dev",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:8080",  # For Discord callback
+        "http://127.0.0.1:8080",  # For Discord callback
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -117,8 +109,45 @@ app.add_middleware(
 app.include_router(router, tags=["sessions"])
 app.include_router(inference_router, prefix="/api")
 
+# NEW: Include Discord authentication routes
+app.include_router(discord_router, tags=["Discord Authentication"])
+
 # WebSocket endpoint
 app.websocket("/ws/{session_code}")(websocket_endpoint)
+
+# Health check endpoint with Discord status
+@app.get("/health")
+async def enhanced_health_check():
+    """Enhanced health check with Discord authentication status"""
+    # Existing health check logic
+    total_broadcasters = sum(1 for s in session_manager.sessions.values() if s.broadcaster)
+    total_viewers = sum(len(s.viewers) for s in session_manager.sessions.values())
+
+    # Discord auth status
+    discord_configured = False
+    try:
+        DiscordConfig.validate_config()
+        discord_configured = True
+    except:
+        pass
+
+    return {
+        "status": "healthy",
+        "version": Config.VERSION,
+        "sessions": {
+            "total": len(session_manager.sessions),
+            "broadcasters": total_broadcasters,
+            "viewers": total_viewers
+        },
+        "inference": {
+            "available": get_inference_service().is_ready(),
+            "model_loaded": get_inference_service().is_ready()
+        },
+        "discord_auth": {
+            "configured": discord_configured,
+            "server_id": DiscordConfig.SERVER_ID if discord_configured else None
+        }
+    }
 
 # Development server runner
 if __name__ == "__main__":
@@ -126,6 +155,7 @@ if __name__ == "__main__":
     print("👤 SINGLE VIEWER ENFORCEMENT ENABLED")
     print("🚫 STRICT LIMIT: Only 1 viewer per broadcast session")
     print("🧠 YOLOv8 Clash Royale troop detection enabled")
+    print("🔐 Discord OAuth2 authentication enabled")
     print(f"📊 Supporting EXACTLY 1 viewer per session (NO EXCEPTIONS)")
 
     uvicorn.run(

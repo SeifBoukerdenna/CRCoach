@@ -1,4 +1,4 @@
-# server/api/routes.py - Enhanced with additional endpoints from main.py
+# server/api/routes.py - Updated with Discord auth JS endpoint
 import time
 import asyncio
 from datetime import datetime
@@ -18,7 +18,7 @@ session_manager = SessionManager()
 
 @router.get("/", response_class=HTMLResponse)
 async def serve_viewer():
-    """Serve the debug viewer page"""
+    """Serve the debug viewer page with Discord auth"""
     return get_viewer_html()
 
 @router.get("/static/viewer.js", response_class=PlainTextResponse)
@@ -26,9 +26,16 @@ async def serve_viewer_js():
     """Serve the viewer JavaScript"""
     return get_viewer_js()
 
+@router.get("/static/discord_auth.js", response_class=PlainTextResponse)
+async def serve_discord_auth_js():
+    """Serve the Discord authentication JavaScript"""
+    # Read the Discord auth JS file content
+    from static.discord_auth_js import get_discord_auth_js
+    return get_discord_auth_js()
+
 @router.get("/health")
 async def health_check():
-    """Health check endpoint with latency info"""
+    """Health check endpoint with latency info and Discord status"""
     total_broadcasters = sum(1 for s in session_manager.sessions.values() if s.broadcaster)
     total_viewers = sum(len(s.viewers) for s in session_manager.sessions.values())
 
@@ -44,87 +51,102 @@ async def health_check():
 
     avg_latency = total_latency / total_frames if total_frames > 0 else 0
 
+    # Discord configuration status
+    from core.discord_config import DiscordConfig
+    discord_configured = False
+    try:
+        DiscordConfig.validate_config()
+        discord_configured = True
+    except:
+        pass
+
     return {
         "status": "healthy",
-        "active_sessions": len(session_manager.sessions),
-        "total_broadcasters": total_broadcasters,
-        "total_viewers": total_viewers,
-        "uptime": time.time(),
-        "timestamp": datetime.now().isoformat(),
         "version": Config.VERSION,
-        "latency_info": {
-            "average_latency_ms": round(avg_latency, 2),
-            "total_frames_measured": total_frames,
-        }
-    }
-
-@router.get("/health-single-viewer")
-async def single_viewer_health_check():
-    """Health check with single viewer statistics"""
-    capacity_info = session_manager.get_server_capacity_info()
-    available_sessions = session_manager.get_available_sessions()
-    full_sessions = session_manager.get_full_sessions()
-
-    return {
-        "status": "healthy",
-        "version": "1.2.0-single-viewer",
-        "timestamp": asyncio.get_event_loop().time(),
-        "single_viewer_enforcement": {
-            "enabled": True,
-            "max_viewers_per_session": 1,
-            "total_sessions": len(session_manager.sessions),
-            "available_sessions": len(available_sessions),
-            "full_sessions": len(full_sessions),
-            "capacity_utilization_percent": capacity_info['capacity_utilization_percent']
+        "timestamp": datetime.now().isoformat(),
+        "sessions": {
+            "total": len(session_manager.sessions),
+            "broadcasters": total_broadcasters,
+            "viewers": total_viewers,
+            "average_latency_ms": round(avg_latency, 2) if avg_latency > 0 else None
         },
-        "server_capacity": capacity_info,
-        "configuration": Config.get_performance_config(),
-        "features": {
-            "single_viewer_limit": True,
-            "ai_inference": get_inference_service().is_ready(),
-            "detailed_logging": Config.ENABLE_DETAILED_LOGGING,
-            "strict_session_enforcement": True
+        "inference": {
+            "available": get_inference_service().is_ready(),
+            "model_loaded": get_inference_service().is_ready()
+        },
+        "discord_auth": {
+            "configured": discord_configured,
+            "server_id": DiscordConfig.SERVER_ID if discord_configured else None
         }
-    }
-
-@router.get("/api/sessions/available")
-async def get_available_sessions():
-    """Get sessions available for new viewers"""
-    return {
-        "available_sessions": session_manager.get_available_sessions(),
-        "single_viewer_limit": True,
-        "max_viewers_per_session": 1
-    }
-
-@router.get("/api/sessions/full")
-async def get_full_sessions():
-    """Get sessions that are at capacity"""
-    return {
-        "full_sessions": session_manager.get_full_sessions(),
-        "single_viewer_limit": True,
-        "max_viewers_per_session": 1
     }
 
 @router.get("/session/{session_code}/status")
 async def get_session_status(session_code: str):
-    """Get status of a specific session"""
-    if not Config.validate_session_code(session_code):
-        raise HTTPException(status_code=400, detail="Invalid session code")
+    """Get detailed session status"""
+    if not session_code.isdigit() or len(session_code) != 4:
+        raise HTTPException(status_code=400, detail="Invalid session code format")
 
     session = session_manager.get_session(session_code)
+
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        return {
+            "session_code": session_code,
+            "exists": False,
+            "broadcaster_online": False,
+            "viewer_count": 0,
+            "created_at": None
+        }
 
-    return session.get_stats()
+    # Get latency stats
+    latency_stats = get_session_latency_stats(session)
 
-@router.get("/session/{session_code}/latency")
-async def get_session_latency(session_code: str):
-    """Get latency statistics for a session"""
-    if not Config.validate_session_code(session_code):
-        raise HTTPException(status_code=400, detail="Invalid session code")
+    return {
+        "session_code": session_code,
+        "exists": True,
+        "broadcaster_online": bool(session.broadcaster),
+        "viewer_count": len(session.viewers),
+        "max_viewers": session.max_viewers,
+        "created_at": session.created_at.isoformat() if session.created_at else None,
+        "connection_attempts": session.connection_attempts,
+        "messages_exchanged": session.messages_exchanged,
+        "latency_stats": latency_stats
+    }
 
-    session = session_manager.get_session(session_code)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+@router.post("/session/{session_code}/clear")
+async def clear_session(session_code: str):
+    """Clear a session (admin endpoint)"""
+    if not session_code.isdigit() or len(session_code) != 4:
+        raise HTTPException(status_code=400, detail="Invalid session code format")
 
-    return get_session_latency_stats(session)
+    removed = session_manager.remove_session(session_code)
+
+    return {
+        "session_code": session_code,
+        "removed": removed,
+        "timestamp": datetime.now().isoformat()
+    }
+
+@router.get("/sessions")
+async def list_active_sessions():
+    """List all active sessions"""
+    sessions_data = []
+
+    for session_code, session in session_manager.sessions.items():
+        latency_stats = get_session_latency_stats(session)
+
+        sessions_data.append({
+            "session_code": session_code,
+            "broadcaster_online": bool(session.broadcaster),
+            "viewer_count": len(session.viewers),
+            "max_viewers": session.max_viewers,
+            "created_at": session.created_at.isoformat() if session.created_at else None,
+            "connection_attempts": session.connection_attempts,
+            "messages_exchanged": session.messages_exchanged,
+            "latency_stats": latency_stats
+        })
+
+    return {
+        "total_sessions": len(sessions_data),
+        "sessions": sessions_data,
+        "timestamp": datetime.now().isoformat()
+    }

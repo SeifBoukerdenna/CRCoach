@@ -1,141 +1,319 @@
+# server/static/viewer_html.py - Updated with Discord authentication
 def get_viewer_html() -> str:
-    """Get the debug viewer HTML"""
-    return """<!DOCTYPE html>
+    """Get the viewer HTML with Discord authentication integration"""
+    return """
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title>FastAPI WebRTC Debug Viewer</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRCoach Viewer - Real-time Screen Streaming</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+            color: #ffffff;
             min-height: 100vh;
-            color: #333;
-            overflow-x: hidden;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            color: white;
-        }
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        .controls {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+            flex-direction: column;
         }
-        input, button {
-            padding: 12px 16px;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: all 0.3s ease;
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
-        input {
+
+        .title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #4f46e5, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .main-container {
+            display: flex;
             flex: 1;
-            min-width: 120px;
+            gap: 1rem;
+            padding: 1rem;
         }
-        button {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+
+        .video-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .connection-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        #sessionCode {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
             color: white;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #sessionCode:focus {
+            border-color: #4f46e5;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
             border: none;
-            cursor: pointer;
+            border-radius: 8px;
             font-weight: 600;
-            min-width: 120px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
         }
-        button:hover {
+
+        .btn-primary {
+            background: linear-gradient(45deg, #4f46e5, #7c3aed);
+            color: white;
+        }
+
+        .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
         }
-        button:disabled {
-            background: #95a5a6;
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
         }
+
+        .video-container {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 400px;
+        }
+
+        #remoteVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
         .status {
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
             font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .status.connecting {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid #fbbf24;
+        }
+
+        .status.connected {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid #22c55e;
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+
+        .status.disconnected {
+            background: rgba(107, 114, 128, 0.2);
+            color: #9ca3af;
+            border: 1px solid #9ca3af;
+        }
+
+        .sidebar {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .stats-panel, .log-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #e5e7eb;
+        }
+
+        #stats {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #d1d5db;
+        }
+
+        .log-panel {
+            flex: 1;
+            min-height: 300px;
+        }
+
+        #log {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            height: 250px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            color: #d1d5db;
+            resize: vertical;
+        }
+
+        #log::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #log::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        #log::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .clear-log-btn {
+            margin-top: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+        }
+
+        .placeholder {
+            color: #9ca3af;
+            font-size: 1.1rem;
             text-align: center;
         }
-        .status.connected { background: #00b894; color: white; }
-        .status.connecting { background: #fdcb6e; color: white; }
-        .status.disconnected { background: #e17055; color: white; }
-        .status.error { background: #d63031; color: white; }
-        video {
-            width: 100%;
-            max-height: 500px;
-            background: #000;
-            border-radius: 10px;
-            margin: 15px 0;
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
         }
-        .card {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin: 20px 0;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-        .stats, .log {
-            background: #2d3436;
-            color: #ddd;
-            border-radius: 10px;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            line-height: 1.4;
-            white-space: pre-line;
-            max-height: 400px;
-            overflow-y: auto;
-            margin: 10px 0;
-        }
+
+        /* NEW: Discord auth styles are in discord_auth.js */
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🔍 FastAPI WebRTC Debug Viewer</h1>
-            <p>Enhanced logging to diagnose video stream issues</p>
-        </div>
+    <div class="header">
+        <h1 class="title">🎮 CRCoach Viewer</h1>
+    </div>
 
-        <div class="card">
-            <div class="controls">
-                <input type="text" id="sessionCode" placeholder="4-digit session code" maxlength="4" />
-                <button onclick="connectToSession()" id="connectBtn">Connect</button>
-                <button onclick="disconnectFromSession()" id="disconnectBtn" disabled>Disconnect</button>
-                <button onclick="clearConnectionLog()">Clear Log</button>
+    <div class="main-container">
+        <div class="video-section">
+            <!-- Connection Panel -->
+            <div class="connection-panel">
+                <div id="status" class="status disconnected">Disconnected</div>
+
+                <div class="input-group">
+                    <input
+                        type="text"
+                        id="sessionCode"
+                        placeholder="Enter 4-digit session code"
+                        maxlength="4"
+                        pattern="\\d{4}"
+                    >
+                    <button id="connectBtn" class="btn btn-primary">Connect</button>
+                    <button id="disconnectBtn" class="btn btn-danger" disabled>Disconnect</button>
+                </div>
             </div>
 
-            <div id="status" class="status disconnected">Ready to connect</div>
-            <video id="remoteVideo" autoplay playsinline muted controls></video>
+            <!-- Video Container -->
+            <div class="video-container">
+                <video id="remoteVideo" autoplay playsinline muted></video>
+                <div id="videoPlaceholder" class="placeholder">
+                    Waiting for connection...
+                </div>
+            </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <div class="card">
-                <h3>📈 Statistics & Debug Info</h3>
-                <div class="stats" id="stats">No connection statistics available</div>
+        <div class="sidebar">
+            <!-- Stats Panel -->
+            <div class="stats-panel">
+                <h3 class="panel-title">📊 Connection Stats</h3>
+                <div id="stats">No connection data</div>
             </div>
 
-            <div class="card">
-                <h3>📝 Connection Log</h3>
-                <div class="log" id="log">Waiting for connection...\\n</div>
+            <!-- Log Panel -->
+            <div class="log-panel">
+                <h3 class="panel-title">📝 Connection Log</h3>
+                <div id="log">Ready to connect...\n</div>
+                <button onclick="clearConnectionLog()" class="btn btn-primary clear-log-btn">Clear Log</button>
             </div>
         </div>
     </div>
 
+    <!-- Discord Authentication Script -->
+    <script src="/static/discord_auth.js"></script>
+
+    <!-- Main Viewer Script -->
     <script src="/static/viewer.js"></script>
 </body>
-</html>"""
+</html>
+    """
