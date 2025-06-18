@@ -1,4 +1,4 @@
-// royal_trainer_client/src/components/discord/DiscordCallback.tsx - FIXED
+// royal_trainer_client/src/components/discord/DiscordCallback.tsx - COMPLETE FIX
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
@@ -23,22 +23,37 @@ const DiscordCallback: React.FC = () => {
                     throw new Error('No authorization code received');
                 }
 
-                console.log('✅ Processing Discord authentication...');
+                console.log('✅ Sending authorization code to backend...');
+                setMessage('Exchanging authorization code...');
 
-                // Send success message to parent window FIRST
+                // FIXED: Actually call the backend callback endpoint!
+                const response = await fetch(`/auth/discord/callback?code=${encodeURIComponent(code)}`, {
+                    method: 'GET',
+                    credentials: 'include', // Important for cookies
+                });
+
+                console.log('📡 Backend response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Backend callback failed:', errorText);
+                    throw new Error(`Authentication failed: ${response.status}`);
+                }
+
+                const callbackData = await response.json();
+                console.log('✅ Backend authentication successful:', callbackData);
+
+                // Send success message to parent window
                 if (window.opener) {
                     console.log('📤 Sending success message to parent window');
                     window.opener.postMessage({
                         type: 'DISCORD_AUTH_SUCCESS',
-                        code: code
+                        user: callbackData.user
                     }, window.location.origin);
                 }
 
-                // Wait a bit for the parent to process
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
                 setStatus('success');
-                setMessage('Authentication successful! Closing window...');
+                setMessage('Authentication successful! You are now logged in.');
 
                 // Auto-close after 2 seconds
                 setTimeout(() => {
