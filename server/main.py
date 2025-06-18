@@ -19,6 +19,9 @@ from api.discord_routes import router as discord_router
 from core.discord_config import DiscordConfig
 from services.discord_service import get_discord_service
 
+from core.cors import setup_cors
+
+
 # Setup logging
 log_level = logging.INFO if Config.ENABLE_DETAILED_LOGGING else logging.WARNING
 logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -94,6 +97,7 @@ app.add_middleware(
     allow_origins=[
         "https://tormentor.dev",
         "https://www.tormentor.dev",
+        "https://api.tormentor.dev",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:8080",  # For Discord callback
@@ -104,6 +108,8 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"]
 )
+
+setup_cors(app)
 
 # Include routes
 app.include_router(router, tags=["sessions"])

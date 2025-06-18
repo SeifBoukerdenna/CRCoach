@@ -30,16 +30,19 @@ class DiscordService:
 
     async def get_oauth_url(self) -> str:
         """Generate Discord OAuth2 authorization URL"""
+        # Validate configuration first
+        DiscordConfig.validate_config()
+
         params = {
             'client_id': DiscordConfig.CLIENT_ID,
-            'redirect_uri': DiscordConfig.REDIRECT_URI,
+            'redirect_uri': DiscordConfig.get_redirect_uri(),  # Use the method instead of direct access
             'response_type': 'code',
             'scope': ' '.join(DiscordConfig.OAUTH_SCOPES),
             'state': 'secure_random_state'  # You should generate a proper random state
         }
 
         auth_url = f"{self.oauth_url}?{urlencode(params)}"
-        logger.info(f"🔗 Generated Discord OAuth URL")
+        logger.info(f"🔗 Generated Discord OAuth URL with redirect: {DiscordConfig.get_redirect_uri()}")
         return auth_url
 
     async def exchange_code_for_token(self, code: str) -> Optional[Dict[str, Any]]:
@@ -49,7 +52,7 @@ class DiscordService:
             'client_secret': DiscordConfig.CLIENT_SECRET,
             'grant_type': 'authorization_code',
             'code': code,
-            'redirect_uri': DiscordConfig.REDIRECT_URI,
+            'redirect_uri': DiscordConfig.get_redirect_uri(),  # Use the method
             'scope': ' '.join(DiscordConfig.OAUTH_SCOPES)
         }
 
@@ -181,7 +184,7 @@ class DiscordService:
             server_nickname=server_nickname
         )
 
-        logger.info(f"✅ Created DiscordUser for {discord_user.username}")
+        logger.info(f"✅ Created DiscordUser for {discord_user.username} (Server member: {is_in_server})")
         return discord_user
 
 # Singleton instance
@@ -192,4 +195,5 @@ def get_discord_service() -> DiscordService:
     global _discord_service
     if _discord_service is None:
         _discord_service = DiscordService()
+        logger.info("🔐 Discord service initialized")
     return _discord_service
