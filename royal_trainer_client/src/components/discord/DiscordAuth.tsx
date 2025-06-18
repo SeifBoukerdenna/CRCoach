@@ -1,8 +1,8 @@
-// royal_trainer_client/src/components/discord/DiscordAuth.tsx
+// royal_trainer_client/src/components/discord/DiscordAuth.tsx - UPDATED with server status
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDiscord } from '../../contexts/DiscordContext';
-import { LogIn, LogOut, User, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { LogIn, LogOut, User, CheckCircle, XCircle, AlertCircle, Loader2, Shield, UserX } from 'lucide-react';
 
 interface DiscordAuthProps {
     className?: string;
@@ -68,7 +68,7 @@ const DiscordAuth: React.FC<DiscordAuthProps> = ({ className = '', compact = fal
                         transition={{ duration: 0.2 }}
                         className="space-y-3"
                     >
-                        {/* User Info */}
+                        {/* User Info with Server Status Indicator */}
                         <div className="flex items-center gap-3">
                             <div className="relative">
                                 <img
@@ -79,11 +79,18 @@ const DiscordAuth: React.FC<DiscordAuthProps> = ({ className = '', compact = fal
                                         e.currentTarget.src = `https://cdn.discordapp.com/embed/avatars/0.png`;
                                     }}
                                 />
+                                {/* Server Status Badge */}
                                 <div
-                                    className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-800 ${user.is_in_server ? 'bg-green-500' : 'bg-red-500'
+                                    className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-800 flex items-center justify-center ${user.is_in_server ? 'bg-green-500' : 'bg-red-500'
                                         }`}
-                                    title={user.is_in_server ? 'In server' : 'Not in server'}
-                                />
+                                    title={user.is_in_server ? 'Member of Discord server' : 'Not in Discord server'}
+                                >
+                                    {user.is_in_server ? (
+                                        <Shield size={8} className="text-white" />
+                                    ) : (
+                                        <UserX size={8} className="text-white" />
+                                    )}
+                                </div>
                             </div>
 
                             <div className="flex-1 min-w-0">
@@ -92,6 +99,12 @@ const DiscordAuth: React.FC<DiscordAuthProps> = ({ className = '', compact = fal
                                         {user.username}
                                     </span>
                                     <User size={14} className="text-slate-500 flex-shrink-0" />
+                                    {/* Quick Server Status Indicator */}
+                                    {user.is_in_server ? (
+                                        <CheckCircle size={12} className="text-green-400 flex-shrink-0" />
+                                    ) : (
+                                        <XCircle size={12} className="text-red-400 flex-shrink-0" />
+                                    )}
                                 </div>
                                 {user.server_nickname && (
                                     <div className="text-xs text-slate-400 truncate">
@@ -101,32 +114,30 @@ const DiscordAuth: React.FC<DiscordAuthProps> = ({ className = '', compact = fal
                             </div>
                         </div>
 
-                        {/* Server Status */}
-                        {!compact && (
-                            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${user.is_in_server
-                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                }`}>
-                                {user.is_in_server ? (
-                                    <>
-                                        <CheckCircle size={14} />
-                                        <span>Server Member</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <XCircle size={14} />
-                                        <span>Not in Server</span>
-                                    </>
-                                )}
-                            </div>
-                        )}
+                        {/* Detailed Server Status */}
+                        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${user.is_in_server
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                            : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                            }`}>
+                            {user.is_in_server ? (
+                                <>
+                                    <Shield size={14} />
+                                    <span>VIP Server Member</span>
+                                </>
+                            ) : (
+                                <>
+                                    <UserX size={14} />
+                                    <span>Join Server for Full Access</span>
+                                </>
+                            )}
+                        </div>
 
                         {/* Disconnect Button */}
                         <motion.button
                             onClick={logout}
                             className={`w-full flex items-center justify-center gap-2 ${compact ? 'px-3 py-2' : 'px-4 py-2'}
-                         bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30
-                         rounded-lg transition-all duration-200 text-sm font-medium group`}
+                                     bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30
+                                     rounded-lg transition-all duration-200 text-sm font-medium group`}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             disabled={isLoading}
@@ -165,9 +176,9 @@ const DiscordAuth: React.FC<DiscordAuthProps> = ({ className = '', compact = fal
                         <motion.button
                             onClick={login}
                             className={`w-full flex items-center justify-center gap-2 ${compact ? 'px-3 py-2' : 'px-4 py-3'}
-                         bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30
-                         rounded-lg transition-all duration-200 font-medium group disabled:opacity-50
-                         disabled:cursor-not-allowed ${compact ? 'text-sm' : 'text-base'}`}
+                                     bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30
+                                     rounded-lg transition-all duration-200 font-medium group disabled:opacity-50
+                                     disabled:cursor-not-allowed ${compact ? 'text-sm' : 'text-base'}`}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             disabled={isLoading}

@@ -80,7 +80,7 @@ async def health_check():
         }
     }
 
-@router.get("/session/{session_code}/status")
+@router.get("/api/session/{session_code}/status")
 async def get_session_status(session_code: str):
     """Get detailed session status"""
     if not session_code.isdigit() or len(session_code) != 4:
@@ -112,7 +112,7 @@ async def get_session_status(session_code: str):
         "latency_stats": latency_stats
     }
 
-@router.post("/session/{session_code}/clear")
+@router.post("/api/session/{session_code}/clear")
 async def clear_session(session_code: str):
     """Clear a session (admin endpoint)"""
     if not session_code.isdigit() or len(session_code) != 4:
@@ -126,7 +126,7 @@ async def clear_session(session_code: str):
         "timestamp": datetime.now().isoformat()
     }
 
-@router.get("/sessions")
+@router.get("/api/sessions")
 async def list_active_sessions():
     """List all active sessions"""
     sessions_data = []
