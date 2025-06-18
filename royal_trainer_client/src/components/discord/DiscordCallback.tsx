@@ -1,6 +1,7 @@
 // royal_trainer_client/src/components/discord/DiscordCallback.tsx - COMPLETE FIX
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { getApiUrl } from '../../config/api';
 
 const DiscordCallback: React.FC = () => {
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -27,7 +28,7 @@ const DiscordCallback: React.FC = () => {
                 setMessage('Exchanging authorization code...');
 
                 // FIXED: Actually call the backend callback endpoint!
-                const response = await fetch(`/auth/discord/callback?code=${encodeURIComponent(code)}`, {
+                const response = await fetch(getApiUrl(`/auth/discord/callback?code=${encodeURIComponent(code)}`), {
                     method: 'GET',
                     credentials: 'include', // Important for cookies
                 });
