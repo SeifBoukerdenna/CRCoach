@@ -1,7 +1,10 @@
-// royal_trainer_client/src/App.tsx - Refactored for better maintainability
+// royal_trainer_client/src/App.tsx - Refactored with Discord integration
 
 import React from 'react';
 import { AnimatePresence } from 'framer-motion';
+
+/* ── DISCORD INTEGRATION ─────────────────────────────────────────── */
+import { DiscordProvider } from './contexts/DiscordContext';
 
 /* ── LAYOUT / OVERLAYS ─────────────────────────────────────────────── */
 import AnimatedBackground from './components/layout/AnimatedBackground';
@@ -23,7 +26,7 @@ import { useConnectionState } from './hooks/useConnectionState';
 import { useDetectionHistory } from './hooks/useDetectionHistory';
 import { useUIState } from './hooks/useUIState';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   /* ────────── CUSTOM HOOKS ─────────────────────────── */
   const uiState = useUIState();
 
@@ -66,6 +69,7 @@ const App: React.FC = () => {
       <AntiPiracyWatermark />
 
       <div className="relative z-10 flex flex-col min-h-screen p-3">
+        {/* Header with Discord Integration */}
         <Header />
 
         {/* STATUS BAR */}
@@ -162,6 +166,14 @@ const App: React.FC = () => {
         html { display: block!important }
       `}</style>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <DiscordProvider>
+      <AppContent />
+    </DiscordProvider>
   );
 };
 

@@ -1,0 +1,103 @@
+// royal_trainer_client/src/components/discord/DiscordCallback.tsx
+import React, { useEffect, useState } from 'react';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+
+const DiscordCallback: React.FC = () => {
+    const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+    const [message, setMessage] = useState('Processing Discord authentication...');
+
+    useEffect(() => {
+        const handleCallback = async () => {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                const error = urlParams.get('error');
+
+                if (error) {
+                    throw new Error(error === 'access_denied' ? 'Authentication cancelled' : `OAuth error: ${error}`);
+                }
+
+                if (!code) {
+                    throw new Error('No authorization code received');
+                }
+
+                // Send success message to parent window
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'DISCORD_AUTH_SUCCESS',
+                        code: code
+                    }, window.location.origin);
+                }
+
+                setStatus('success');
+                setMessage('Authentication successful! You can close this window.');
+
+                // Auto-close after 2 seconds
+                setTimeout(() => {
+                    window.close();
+                }, 2000);
+
+            } catch (error) {
+                console.error('Discord callback error:', error);
+                setStatus('error');
+                setMessage(error instanceof Error ? error.message : 'Authentication failed');
+
+                // Send error message to parent window
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'DISCORD_AUTH_ERROR',
+                        error: error instanceof Error ? error.message : 'Authentication failed'
+                    }, window.location.origin);
+                }
+
+                // Auto-close after 3 seconds even on error
+                setTimeout(() => {
+                    window.close();
+                }, 3000);
+            }
+        };
+
+        handleCallback();
+    }, []);
+
+    return (
+        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-md w-full text-center">
+                <div className="mb-6">
+                    {status === 'loading' && (
+                        <Loader2 size={48} className="mx-auto animate-spin text-blue-400" />
+                    )}
+                    {status === 'success' && (
+                        <CheckCircle size={48} className="mx-auto text-green-400" />
+                    )}
+                    {status === 'error' && (
+                        <XCircle size={48} className="mx-auto text-red-400" />
+                    )}
+                </div>
+
+                <h1 className="text-xl font-bold text-white mb-4">
+                    {status === 'loading' && 'Processing...'}
+                    {status === 'success' && 'Success!'}
+                    {status === 'error' && 'Error'}
+                </h1>
+
+                <p className="text-slate-300 text-sm leading-relaxed">
+                    {message}
+                </p>
+
+                {(status === 'success' || status === 'error') && (
+                    <div className="mt-6">
+                        <button
+                            onClick={() => window.close()}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors duration-200"
+                        >
+                            Close Window
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default DiscordCallback;

@@ -1,55 +1,59 @@
-# server/api/discord_routes.py
+# server/api/discord_routes.py - Updated with logout endpoint
+
+from fastapi import APIRouter, HTTPException, Depends, Request, status
+from fastapi.responses import JSONResponse, RedirectResponse
 from datetime import timedelta
-from fastapi import APIRouter, HTTPException, Request, Response, Depends, Cookie
-from fastapi.responses import RedirectResponse, JSONResponse
-from typing import Optional, Dict, Any
+from typing import Optional
 import logging
 
+from core.discord_service import get_discord_service, DiscordUser
 from core.discord_config import DiscordConfig
-from services.discord_service import get_discord_service
-from models.discord_user import DiscordUser, JWTToken, create_access_token, verify_token, extract_user_from_token
+from core.auth import create_access_token, get_current_user
+
+# User sessions storage
+user_sessions = {}
 
 logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/auth/discord", tags=["discord"])
 
-# In-memory user session storage (replace with Redis in production)
-user_sessions: Dict[str, DiscordUser] = {}
-
-router = APIRouter(prefix="/auth/discord", tags=["Discord Auth"])
-
-# Dependency to get current user from JWT token
-async def get_current_user(access_token: Optional[str] = Cookie(None)) -> Optional[DiscordUser]:
-    """Get current authenticated user from JWT token"""
-    if not access_token:
-        return None
-
-    user_id = extract_user_from_token(access_token)
-    if not user_id:
-        return None
-
-    # Get user from session storage
-    user = user_sessions.get(user_id)
-    if not user:
-        return None
-
-    # Refresh server membership check (optional)
-    discord_service = get_discord_service()
-    membership_info = await discord_service.check_server_membership(user_id)
-    user.is_in_server = membership_info.get("is_member", False)
-
-    return user
+@router.get("/status")
+async def get_auth_status(current_user: Optional[DiscordUser] = Depends(get_current_user)):
+    """Get current authentication status"""
+    if current_user:
+        return {
+            "authenticated": True,
+            "user": {
+                "id": current_user.id,
+                "username": current_user.username,
+                "discriminator": current_user.discriminator,
+                "avatar": current_user.avatar,
+                "is_in_server": current_user.is_in_server,
+                "server_nickname": current_user.server_nickname
+            }
+        }
+    else:
+        return {"authenticated": False}
 
 @router.get("/login")
 async def discord_login():
-    """Initiate Discord OAuth2 login"""
-    try:
-        DiscordConfig.validate_config()
-        oauth_url = DiscordConfig.get_oauth2_url()
+    """Generate Discord OAuth2 login URL"""
+    discord_service = get_discord_service()
 
-        logger.info("🔗 Generated Discord OAuth2 URL")
+    try:
+        # Validate Discord configuration
+        DiscordConfig.validate_config()
+
+        # Generate OAuth2 URL
+        auth_url = await discord_service.get_oauth_url()
+        if not auth_url:
+            raise HTTPException(status_code=500, detail="Failed to generate authentication URL")
+
+        logger.info(f"✅ Generated Discord login URL: {auth_url[:50]}...")
 
         return {
-            "auth_url": oauth_url,
-            "status": "redirect_to_discord"
+            "auth_url": auth_url,
+            "state": "secure_random_state",  # You should implement proper state validation
+            "scope": DiscordConfig.OAUTH_SCOPES
         }
 
     except ValueError as e:
@@ -140,52 +144,76 @@ async def get_current_user_info(current_user: Optional[DiscordUser] = Depends(ge
         "discriminator": current_user.discriminator,
         "avatar": current_user.avatar,
         "is_in_server": current_user.is_in_server,
-        "server_nickname": current_user.server_nickname,
-        "authenticated": True
+        "server_nickname": current_user.server_nickname
     }
 
 @router.post("/logout")
-async def discord_logout(response: Response, current_user: Optional[DiscordUser] = Depends(get_current_user)):
+async def discord_logout(request: Request, current_user: Optional[DiscordUser] = Depends(get_current_user)):
     """Logout current user"""
-    if current_user:
-        # Remove from session storage
-        user_sessions.pop(current_user.id, None)
-        logger.info(f"✅ User {current_user.username} logged out")
+    try:
+        # Remove user from sessions if exists
+        if current_user and current_user.id in user_sessions:
+            del user_sessions[current_user.id]
+            logger.info(f"✅ User {current_user.username} logged out successfully")
 
-    # Clear cookie
-    response.delete_cookie(key="access_token")
+        # Create response
+        response = JSONResponse({
+            "status": "success",
+            "message": "Logged out successfully"
+        })
 
-    return {"status": "logged_out"}
+        # Clear the access token cookie
+        response.delete_cookie(
+            key="access_token",
+            httponly=True,
+            secure=False,  # Set to True in production with HTTPS
+            samesite="lax"
+        )
 
-@router.get("/check-server/{user_id}")
-async def check_server_membership_endpoint(user_id: str):
-    """Manually check if a user is in the Discord server (admin endpoint)"""
+        return response
+
+    except Exception as e:
+        logger.error(f"❌ Logout failed: {e}")
+        # Still return success even if there's an error, as we want to clear client state
+        response = JSONResponse({
+            "status": "success",
+            "message": "Logged out successfully"
+        })
+
+        response.delete_cookie(
+            key="access_token",
+            httponly=True,
+            secure=False,
+            samesite="lax"
+        )
+
+        return response
+
+@router.get("/refresh")
+async def refresh_user_info(current_user: Optional[DiscordUser] = Depends(get_current_user)):
+    """Refresh current user information from Discord"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
     discord_service = get_discord_service()
-    membership_info = await discord_service.check_server_membership(user_id)
 
-    return {
-        "user_id": user_id,
-        "server_id": DiscordConfig.SERVER_ID,
-        **membership_info
-    }
+    try:
+        # Get fresh user data from Discord
+        # Note: This would require storing and using the refresh token
+        # For now, just return the cached user data
 
-@router.get("/status")
-async def discord_auth_status(current_user: Optional[DiscordUser] = Depends(get_current_user)):
-    """Get Discord authentication status"""
-    if current_user:
+        # Update session cache
+        user_sessions[current_user.id] = current_user
+
         return {
-            "authenticated": True,
-            "user": {
-                "id": current_user.id,
-                "username": current_user.username,
-                "discriminator": current_user.discriminator,
-                "avatar": current_user.avatar,
-                "is_in_server": current_user.is_in_server,
-                "server_nickname": current_user.server_nickname
-            }
+            "id": current_user.id,
+            "username": current_user.username,
+            "discriminator": current_user.discriminator,
+            "avatar": current_user.avatar,
+            "is_in_server": current_user.is_in_server,
+            "server_nickname": current_user.server_nickname
         }
-    else:
-        return {
-            "authenticated": False,
-            "user": None
-        }
+
+    except Exception as e:
+        logger.error(f"❌ Failed to refresh user info: {e}")
+        raise HTTPException(status_code=500, detail="Failed to refresh user information")
