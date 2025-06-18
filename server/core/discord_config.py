@@ -16,7 +16,7 @@ class DiscordConfig:
     # Redirect URI with environment-aware defaults
     REDIRECT_URI: str = os.getenv(
         'DISCORD_REDIRECT_URI',
-        'http://www.api.tormentor.dev/auth/discord/callback'  # Default for development
+        'http://www.tormentor.dev/auth/discord/callback'  # Default for development
 
     )
 
