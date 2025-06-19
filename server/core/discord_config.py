@@ -3,6 +3,9 @@
 import os
 from typing import List
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +14,7 @@ class DiscordConfig:
 
     # OAuth2 Configuration
     CLIENT_ID: str = os.getenv('DISCORD_CLIENT_ID', '1384713368971120690')
-    CLIENT_SECRET: str = os.getenv('DISCORD_CLIENT_SECRET', 'Rf6pQKhytE-TMzwK4Mv_ddBx6iD-7Iwl')
+    CLIENT_SECRET: str = os.getenv('DISCORD_CLIENT_SECRET')
 
     # Redirect URI with environment-aware defaults
     REDIRECT_URI: str = os.getenv(
