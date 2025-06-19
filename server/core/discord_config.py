@@ -22,7 +22,7 @@ class DiscordConfig:
 
     # Optional server configuration
     SERVER_ID: str = os.getenv('DISCORD_SERVER_ID', '1383863618482995280')
-    BOT_TOKEN: str = os.getenv('DISCORD_BOT_TOKEN', 'MTM4NDcxMzM2ODk3MTEyMDY5MA.GEzzLc.igazG0hIYmGERtVn4CJ2w87XvqSslca_3-c4WI')
+    BOT_TOKEN: str = os.getenv('DISCORD_BOT_TOKEN')
 
     # OAuth2 Scopes - THIS WAS MISSING!
     OAUTH_SCOPES: List[str] = ['identify', 'guilds']
