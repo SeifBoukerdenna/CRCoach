@@ -1,4 +1,4 @@
-// royal_trainer_client/src/contexts/DiscordContext.tsx - FIXED to properly update UI
+// royal_trainer_client/src/contexts/DiscordContext.tsx - FIXED VERSION
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { discordApi, DiscordApiError } from '../utils/discordApi';
 import type { DiscordUser, DiscordAuthState, DiscordConfig } from '../types/discord';
@@ -17,6 +17,7 @@ type DiscordAction =
     | { type: 'SET_USER'; payload: DiscordUser | null }
     | { type: 'SET_ERROR'; payload: string | null }
     | { type: 'SET_AUTHENTICATED'; payload: boolean }
+    | { type: 'IMMEDIATE_AUTH_SUCCESS'; payload: DiscordUser } // NEW: For immediate updates
     | { type: 'RESET' };
 
 const initialState: DiscordAuthState = {
@@ -36,7 +37,15 @@ function discordReducer(state: DiscordAuthState, action: DiscordAction): Discord
                 user: action.payload,
                 isAuthenticated: action.payload !== null,
                 error: null,
-                isLoading: false, // FIXED: Always stop loading when user is set
+                isLoading: false,
+            };
+        case 'IMMEDIATE_AUTH_SUCCESS': // NEW: Handle immediate auth success
+            return {
+                ...state,
+                user: action.payload,
+                isAuthenticated: true,
+                error: null,
+                isLoading: false,
             };
         case 'SET_ERROR':
             return { ...state, error: action.payload, isLoading: false };
@@ -45,6 +54,8 @@ function discordReducer(state: DiscordAuthState, action: DiscordAction): Discord
                 ...state,
                 isAuthenticated: action.payload,
                 user: action.payload ? state.user : null,
+                error: null,
+                isLoading: false,
             };
         case 'RESET':
             return { ...initialState, isLoading: false };
@@ -53,36 +64,34 @@ function discordReducer(state: DiscordAuthState, action: DiscordAction): Discord
     }
 }
 
-interface DiscordProviderProps {
-    children: React.ReactNode;
-}
-
-export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) => {
+export const DiscordProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [state, dispatch] = useReducer(discordReducer, initialState);
-    const [config, setConfig] = React.useState<DiscordConfig>({ configured: false });
+    const [config, setConfig] = React.useState<DiscordConfig>({
+        configured: false,
+        server_id: '',
+        server_name: '',
+        client_id: '',
+        redirect_uri: ''
+    });
 
-    // Check authentication status on mount and periodically
     const checkAuthStatus = useCallback(async () => {
         try {
             console.log('🔍 Checking Discord authentication status...');
-            const result = await discordApi.checkAuthStatus();
+            const authStatus = await discordApi.checkAuthStatus();
 
-            if (result.authenticated && result.user) {
-                console.log('✅ User is authenticated:', result.user.username);
-                dispatch({ type: 'SET_USER', payload: result.user });
+            if (authStatus.authenticated && authStatus.user) {
+                console.log('✅ User authenticated:', authStatus.user.username, 'Server member:', authStatus.user.is_in_server);
+                dispatch({ type: 'SET_USER', payload: authStatus.user });
             } else {
-                console.log('❌ User is not authenticated');
+                console.log('ℹ️ User not authenticated');
                 dispatch({ type: 'SET_USER', payload: null });
             }
         } catch (error) {
             console.error('❌ Auth status check failed:', error);
             dispatch({ type: 'SET_ERROR', payload: 'Failed to check authentication status' });
-        } finally {
-            dispatch({ type: 'SET_LOADING', payload: false });
         }
     }, []);
 
-    // Get Discord configuration
     const loadConfig = useCallback(async () => {
         try {
             const configData = await discordApi.getConfig();
@@ -109,7 +118,7 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
         return () => clearInterval(interval);
     }, [checkAuthStatus]);
 
-    // Handle OAuth popup messages - FIXED: More robust message handling
+    // FIXED: Handle OAuth popup messages with immediate state update
     useEffect(() => {
         const handleMessage = async (event: MessageEvent) => {
             // Security check
@@ -118,18 +127,22 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
                 return;
             }
 
-            console.log('📨 Received message:', event.data);
+            console.log('📨 Received popup message:', event.data);
 
             if (event.data.type === 'DISCORD_AUTH_SUCCESS') {
-                console.log('✅ Discord authentication successful - refreshing user data...');
+                console.log('✅ Discord authentication successful - immediately updating state!');
 
-                // Clear any existing errors
-                dispatch({ type: 'SET_ERROR', payload: null });
+                // FIXED: Immediately update state with user data from popup
+                if (event.data.user) {
+                    dispatch({ type: 'IMMEDIATE_AUTH_SUCCESS', payload: event.data.user });
+                    console.log('🚀 Immediately set user:', event.data.user.username, 'Server member:', event.data.user.is_in_server);
+                }
 
-                // Wait a moment for the backend to process the token
+                // Also refresh from server after a short delay to ensure consistency
                 setTimeout(async () => {
+                    console.log('🔄 Double-checking auth status from server...');
                     await checkAuthStatus();
-                }, 500);
+                }, 1000);
 
             } else if (event.data.type === 'DISCORD_AUTH_ERROR') {
                 console.error('❌ Discord authentication failed:', event.data.error);
@@ -138,8 +151,12 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
             }
         };
 
+        console.log('🎧 Setting up popup message listener...');
         window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
+        return () => {
+            console.log('🎧 Removing popup message listener...');
+            window.removeEventListener('message', handleMessage);
+        };
     }, [checkAuthStatus]);
 
     const login = useCallback(async () => {
@@ -172,7 +189,11 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
                 if (popup.closed) {
                     clearInterval(checkClosed);
                     console.log('🪟 Discord auth popup closed');
-                    dispatch({ type: 'SET_LOADING', payload: false });
+
+                    // Only set loading to false if we haven't already received success/error
+                    if (state.isLoading) {
+                        dispatch({ type: 'SET_LOADING', payload: false });
+                    }
                 }
             }, 1000);
 
@@ -183,7 +204,7 @@ export const DiscordProvider: React.FC<DiscordProviderProps> = ({ children }) =>
                 : 'Failed to initiate Discord login';
             dispatch({ type: 'SET_ERROR', payload: errorMessage });
         }
-    }, [config.configured]);
+    }, [config.configured, state.isLoading]);
 
     const logout = useCallback(async () => {
         try {

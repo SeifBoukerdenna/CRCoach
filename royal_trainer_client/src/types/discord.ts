@@ -1,4 +1,4 @@
-// royal_trainer_client/src/types/discord.ts
+// royal_trainer_client/src/types/discord.ts - FIXED VERSION
 export interface DiscordUser {
   id: string;
   username: string;
@@ -29,7 +29,11 @@ export interface DiscordError {
   detail: string;
 }
 
+// FIXED: Updated DiscordConfig to match what we actually use
 export interface DiscordConfig {
-  server_id?: string;
   configured: boolean;
+  server_id?: string;
+  server_name?: string;
+  client_id?: string;
+  redirect_uri?: string;
 }

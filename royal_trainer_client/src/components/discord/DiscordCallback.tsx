@@ -1,4 +1,4 @@
-// royal_trainer_client/src/components/discord/DiscordCallback.tsx - COMPLETE FIX
+// royal_trainer_client/src/components/discord/DiscordCallback.tsx - FIXED VERSION
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { getApiUrl } from '../../config/api';
@@ -27,7 +27,7 @@ const DiscordCallback: React.FC = () => {
                 console.log('✅ Sending authorization code to backend...');
                 setMessage('Exchanging authorization code...');
 
-                // FIXED: Actually call the backend callback endpoint!
+                // Call the backend callback endpoint
                 const response = await fetch(getApiUrl(`/auth/discord/callback?code=${encodeURIComponent(code)}`), {
                     method: 'GET',
                     credentials: 'include', // Important for cookies
@@ -44,13 +44,29 @@ const DiscordCallback: React.FC = () => {
                 const callbackData = await response.json();
                 console.log('✅ Backend authentication successful:', callbackData);
 
-                // Send success message to parent window
-                if (window.opener) {
-                    console.log('📤 Sending success message to parent window');
-                    window.opener.postMessage({
-                        type: 'DISCORD_AUTH_SUCCESS',
-                        user: callbackData.user
-                    }, window.location.origin);
+                // FIXED: Immediately send success message to parent window with user data
+                if (window.opener && !window.opener.closed) {
+                    console.log('📤 Sending success message to parent window with user data:', callbackData.user);
+
+                    // Send the message multiple times to ensure it's received
+                    const sendMessage = () => {
+                        window.opener.postMessage({
+                            type: 'DISCORD_AUTH_SUCCESS',
+                            user: callbackData.user,
+                            timestamp: Date.now()
+                        }, window.location.origin);
+                    };
+
+                    // Send immediately
+                    sendMessage();
+
+                    // Send again after a short delay to ensure it's caught
+                    setTimeout(sendMessage, 100);
+                    setTimeout(sendMessage, 300);
+
+                    console.log('✅ Success messages sent to parent window');
+                } else {
+                    console.warn('⚠️ No parent window found or parent window is closed');
                 }
 
                 setStatus('success');
@@ -59,6 +75,15 @@ const DiscordCallback: React.FC = () => {
                 // Auto-close after 2 seconds
                 setTimeout(() => {
                     console.log('🪟 Closing Discord auth popup');
+                    if (window.opener && !window.opener.closed) {
+                        // Send one final message before closing
+                        window.opener.postMessage({
+                            type: 'DISCORD_AUTH_SUCCESS',
+                            user: callbackData.user,
+                            timestamp: Date.now(),
+                            final: true
+                        }, window.location.origin);
+                    }
                     window.close();
                 }, 2000);
 
@@ -68,12 +93,15 @@ const DiscordCallback: React.FC = () => {
                 setMessage(error instanceof Error ? error.message : 'Authentication failed');
 
                 // Send error message to parent window
-                if (window.opener) {
+                if (window.opener && !window.opener.closed) {
                     console.log('📤 Sending error message to parent window');
                     window.opener.postMessage({
                         type: 'DISCORD_AUTH_ERROR',
-                        error: error instanceof Error ? error.message : 'Authentication failed'
+                        error: error instanceof Error ? error.message : 'Authentication failed',
+                        timestamp: Date.now()
                     }, window.location.origin);
+                } else {
+                    console.warn('⚠️ No parent window found for error message');
                 }
 
                 // Auto-close after 3 seconds even on error
@@ -115,6 +143,16 @@ const DiscordCallback: React.FC = () => {
                 {status === 'success' && (
                     <div className="mt-4 text-green-400 text-sm">
                         You should now see your Discord profile in the main window.
+                        <br />
+                        <span className="text-slate-400">This window will close automatically...</span>
+                    </div>
+                )}
+
+                {status === 'error' && (
+                    <div className="mt-4 text-red-400 text-sm">
+                        Please try again or contact support if the problem persists.
+                        <br />
+                        <span className="text-slate-400">This window will close automatically...</span>
                     </div>
                 )}
 
