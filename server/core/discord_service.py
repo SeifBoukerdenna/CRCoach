@@ -1,4 +1,4 @@
-# server/core/discord_service.py - CREATE THIS FILE
+# server/core/discord_service.py - FIXED server membership detection
 
 import aiohttp
 import logging
@@ -35,9 +35,9 @@ class DiscordService:
 
         params = {
             'client_id': DiscordConfig.CLIENT_ID,
-            'redirect_uri': DiscordConfig.get_redirect_uri(),  # NOW THIS METHOD EXISTS!
+            'redirect_uri': DiscordConfig.get_redirect_uri(),
             'response_type': 'code',
-            'scope': ' '.join(DiscordConfig.OAUTH_SCOPES),  # NOW THIS ATTRIBUTE EXISTS!
+            'scope': ' '.join(DiscordConfig.OAUTH_SCOPES),
             'state': 'secure_random_state'
         }
 
@@ -103,6 +103,10 @@ class DiscordService:
             logger.warning("⚠️ No Discord server ID configured, skipping membership check")
             return False, None
 
+        # Convert server ID to string for comparison (Discord IDs are always strings)
+        target_server_id = str(DiscordConfig.SERVER_ID)
+        logger.info(f"🔍 Checking membership for server ID: {target_server_id}")
+
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json'
@@ -114,19 +118,35 @@ class DiscordService:
                 async with session.get(f"{self.base_url}/users/@me/guilds", headers=headers) as response:
                     if response.status == 200:
                         guilds = await response.json()
+                        logger.info(f"📊 User is in {len(guilds)} Discord servers")
+
+                        # Debug: Log all guild IDs
+                        guild_ids = [str(guild.get('id', 'unknown')) for guild in guilds]
+                        logger.info(f"🏠 User's server IDs: {guild_ids}")
 
                         # Check if user is in the target server
                         for guild in guilds:
-                            if guild['id'] == DiscordConfig.SERVER_ID:
-                                logger.info(f"✅ User is member of server {guild['name']}")
+                            guild_id = str(guild.get('id', ''))
+                            guild_name = guild.get('name', 'Unknown Server')
+
+                            logger.info(f"🔍 Checking guild: {guild_name} (ID: {guild_id})")
+
+                            if guild_id == target_server_id:
+                                logger.info(f"✅ User IS a member of target server: {guild_name} (ID: {guild_id})")
                                 return True, None
 
-                        logger.info("❌ User is not a member of the target server")
+                        logger.warning(f"❌ User is NOT a member of target server (ID: {target_server_id})")
+
+                        # FIXED: Proper string formatting without nested f-strings
+                        available_servers = [f"{g.get('name', 'Unknown')} ({g.get('id', 'Unknown')})" for g in guilds]
+                        logger.info(f"💡 Available servers: {available_servers}")
                         return False, None
+
                     else:
                         error_text = await response.text()
-                        logger.error(f"❌ Failed to check server membership: {response.status} - {error_text}")
+                        logger.error(f"❌ Failed to get user guilds: {response.status} - {error_text}")
                         return False, None
+
         except Exception as e:
             logger.error(f"❌ Server membership check error: {e}")
             return False, None
@@ -142,6 +162,8 @@ class DiscordService:
         user_info = await self.get_user_info(access_token)
         if not user_info:
             return None
+
+        logger.info(f"🔍 Checking server membership for user: {user_info.get('username')}")
 
         # Check server membership
         is_in_server, server_nickname = await self.check_server_membership(
@@ -160,6 +182,12 @@ class DiscordService:
         )
 
         logger.info(f"✅ Created DiscordUser for {discord_user.username} (Server member: {is_in_server})")
+
+        if is_in_server:
+            logger.info(f"🎉 {discord_user.username} has access to VIP features!")
+        else:
+            logger.info(f"📝 {discord_user.username} needs to join the Discord server for full access")
+
         return discord_user
 
 # Singleton instance

@@ -217,3 +217,25 @@ async def refresh_user_info(current_user: Optional[DiscordUser] = Depends(get_cu
     except Exception as e:
         logger.error(f"❌ Failed to refresh user info: {e}")
         raise HTTPException(status_code=500, detail="Failed to refresh user information")
+
+
+@router.get("/debug/guilds")
+async def debug_user_guilds(current_user: Optional[DiscordUser] = Depends(get_current_user)):
+    """DEBUG: Get user's Discord guilds for troubleshooting"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    logger.info(f"🐛 DEBUG: Checking guilds for user {current_user.username}")
+
+    # We need to get the access token - this is a simplified version
+    # In a real implementation, you'd store and retrieve the actual access token
+
+    return {
+        "user": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "is_in_server": current_user.is_in_server
+        },
+        "target_server_id": DiscordConfig.SERVER_ID,
+        "debug_info": "Check server logs for detailed guild information"
+    }
