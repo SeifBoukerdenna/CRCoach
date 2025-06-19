@@ -96,9 +96,16 @@ async def discord_callback(code: str, error: Optional[str] = None):
         logger.info(f"💾 Stored user {discord_user.username} in session storage (Server member: {discord_user.is_in_server})")
         logger.info(f"📊 Current sessions: {list(user_sessions.keys())}")
 
-        # Create JWT token
+        # Create JWT token with full user data for persistence
         access_token = create_access_token(
-            data={"sub": discord_user.id, "username": discord_user.username},
+            data={
+                "sub": discord_user.id,
+                "username": discord_user.username,
+                "discriminator": discord_user.discriminator,
+                "avatar": discord_user.avatar,
+                "is_in_server": discord_user.is_in_server,
+                "server_nickname": discord_user.server_nickname
+            },
             expires_delta=timedelta(minutes=DiscordConfig.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
         )
 

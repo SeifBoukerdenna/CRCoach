@@ -72,7 +72,7 @@ async def get_current_user(request: Request) -> Optional[DiscordUser]:
     if not payload:
         return None
 
-    # Get user ID from token
+    # Get user data from token
     user_id = payload.get('sub')
     username = payload.get('username')
 
@@ -82,7 +82,7 @@ async def get_current_user(request: Request) -> Optional[DiscordUser]:
 
     logger.debug(f"🔍 Looking for user {username} (ID: {user_id}) in session storage...")
 
-    # Try to get user from stored sessions
+    # Try to get user from stored sessions first
     try:
         # Import the user sessions from discord_routes
         from ..api.discord_routes import user_sessions
@@ -92,16 +92,34 @@ async def get_current_user(request: Request) -> Optional[DiscordUser]:
             logger.debug(f"✅ Found user {username} in session storage with server membership: {stored_user.is_in_server}")
             return stored_user
         else:
-            logger.warning(f"⚠️ User {username} not found in session storage! Available users: {list(user_sessions.keys())}")
+            logger.debug(f"⚠️ User {username} not in session storage, restoring from JWT token...")
     except ImportError:
-        logger.debug("⚠️ Could not import user_sessions")
+        logger.debug("⚠️ Could not import user_sessions, restoring from JWT token...")
 
-    # FIXED: If user not in sessions, re-verify their server membership instead of defaulting to False
-    logger.warning(f"⚠️ User {username} not in sessions - this shouldn't happen after successful auth!")
-    logger.warning(f"🔄 User needs to re-authenticate to verify current server membership")
+    # FIXED: Restore user from JWT token data (for persistence across server restarts)
+    try:
+        restored_user = DiscordUser(
+            id=user_id,
+            username=username or "Unknown",
+            discriminator=payload.get('discriminator', '0'),
+            avatar=payload.get('avatar'),
+            is_in_server=payload.get('is_in_server', False),  # Restore from JWT!
+            server_nickname=payload.get('server_nickname')
+        )
 
-    # Return None to force re-authentication instead of creating a user with wrong server status
-    return None
+        # Re-add to session storage for future requests
+        try:
+            from ..api.discord_routes import user_sessions
+            user_sessions[user_id] = restored_user
+            logger.info(f"🔄 Restored user {username} from JWT token (Server member: {restored_user.is_in_server})")
+        except ImportError:
+            pass
+
+        return restored_user
+
+    except Exception as e:
+        logger.error(f"❌ Failed to restore user from JWT: {e}")
+        return None
 
 def require_authentication(func):
     """Decorator to require authentication for a route"""
