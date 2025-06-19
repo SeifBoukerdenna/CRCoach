@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import Request, HTTPException, status
-from core.config import Config
+from core.discord_config import DiscordConfig  # FIXED: Import DiscordConfig instead of Config
 from core.discord_service import DiscordUser
 
 logger = logging.getLogger(__name__)
@@ -20,14 +20,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     to_encode.update({"iat": datetime.now(timezone.utc)})
 
-    encoded_jwt = jwt.encode(to_encode, Config.JWT_SECRET_KEY, algorithm=Config.JWT_ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, DiscordConfig.JWT_SECRET_KEY, algorithm=DiscordConfig.JWT_ALGORITHM)
     logger.debug(f"✅ Created JWT token for user: {data.get('username')}")
     return encoded_jwt
 
 def verify_token(token: str) -> Optional[dict]:
     """Verify JWT token and return payload"""
     try:
-        payload = jwt.decode(token, Config.JWT_SECRET_KEY, algorithms=[Config.JWT_ALGORITHM])
+        payload = jwt.decode(token, DiscordConfig.JWT_SECRET_KEY, algorithms=[DiscordConfig.JWT_ALGORITHM])
         logger.debug(f"✅ JWT token verified for user: {payload.get('username')}")
         return payload
     except jwt.ExpiredSignatureError:
