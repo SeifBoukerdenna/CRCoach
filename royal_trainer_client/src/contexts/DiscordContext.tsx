@@ -109,12 +109,12 @@ export const DiscordProvider: React.FC<{ children: React.ReactNode }> = ({ child
         loadConfig();
     }, [checkAuthStatus, loadConfig]);
 
-    // Periodic auth check (every 5 minutes)
+    // Periodic auth check (every 10 minutes instead of 5)
     useEffect(() => {
         const interval = setInterval(() => {
             console.log('🔄 Periodic Discord auth check...');
             checkAuthStatus();
-        }, 5 * 60 * 1000);
+        }, 10 * 60 * 1000);
         return () => clearInterval(interval);
     }, [checkAuthStatus]);
 
@@ -138,11 +138,9 @@ export const DiscordProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     console.log('🚀 Immediately set user:', event.data.user.username, 'Server member:', event.data.user.is_in_server);
                 }
 
-                // Also refresh from server after a short delay to ensure consistency
-                setTimeout(async () => {
-                    console.log('🔄 Double-checking auth status from server...');
-                    await checkAuthStatus();
-                }, 1000);
+                // Skip the immediate double-check since we already have the correct user data
+                // The periodic check will handle any discrepancies later
+                console.log('✅ Skipping immediate double-check since we have fresh user data from popup');
 
             } else if (event.data.type === 'DISCORD_AUTH_ERROR') {
                 console.error('❌ Discord authentication failed:', event.data.error);

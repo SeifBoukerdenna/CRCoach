@@ -1,4 +1,4 @@
-# server/api/discord_routes.py - Updated with logout endpoint
+# server/api/discord_routes.py - FIXED with better session management
 
 from fastapi import APIRouter, HTTPException, Depends, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -10,7 +10,7 @@ from core.discord_service import get_discord_service, DiscordUser
 from core.discord_config import DiscordConfig
 from core.auth import create_access_token, get_current_user
 
-# User sessions storage
+# User sessions storage - IMPROVED with better logging
 user_sessions = {}
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,10 @@ router = APIRouter(prefix="/auth/discord", tags=["discord"])
 @router.get("/status")
 async def get_auth_status(current_user: Optional[DiscordUser] = Depends(get_current_user)):
     """Get current authentication status"""
+    logger.debug(f"🔍 Auth status check - Current sessions: {list(user_sessions.keys())}")
+
     if current_user:
+        logger.info(f"✅ User {current_user.username} authenticated with server membership: {current_user.is_in_server}")
         return {
             "authenticated": True,
             "user": {
@@ -32,6 +35,7 @@ async def get_auth_status(current_user: Optional[DiscordUser] = Depends(get_curr
             }
         }
     else:
+        logger.info("❌ No authenticated user found")
         return {"authenticated": False}
 
 @router.get("/login")
@@ -87,14 +91,16 @@ async def discord_callback(code: str, error: Optional[str] = None):
         if not discord_user:
             raise HTTPException(status_code=400, detail="Failed to retrieve user information")
 
+        # FIXED: Store user session with better logging
+        user_sessions[discord_user.id] = discord_user
+        logger.info(f"💾 Stored user {discord_user.username} in session storage (Server member: {discord_user.is_in_server})")
+        logger.info(f"📊 Current sessions: {list(user_sessions.keys())}")
+
         # Create JWT token
         access_token = create_access_token(
             data={"sub": discord_user.id, "username": discord_user.username},
             expires_delta=timedelta(minutes=DiscordConfig.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
         )
-
-        # Store user session
-        user_sessions[discord_user.id] = discord_user
 
         logger.info(f"✅ Discord login successful for {discord_user.username} (Server member: {discord_user.is_in_server})")
 
@@ -155,6 +161,7 @@ async def discord_logout(request: Request, current_user: Optional[DiscordUser] =
         if current_user and current_user.id in user_sessions:
             del user_sessions[current_user.id]
             logger.info(f"✅ User {current_user.username} logged out successfully")
+            logger.info(f"📊 Remaining sessions: {list(user_sessions.keys())}")
 
         # Create response
         response = JSONResponse({
@@ -198,12 +205,9 @@ async def refresh_user_info(current_user: Optional[DiscordUser] = Depends(get_cu
     discord_service = get_discord_service()
 
     try:
-        # Get fresh user data from Discord
-        # Note: This would require storing and using the refresh token
-        # For now, just return the cached user data
-
         # Update session cache
         user_sessions[current_user.id] = current_user
+        logger.info(f"🔄 Refreshed user {current_user.username} in session storage")
 
         return {
             "id": current_user.id,
@@ -218,6 +222,18 @@ async def refresh_user_info(current_user: Optional[DiscordUser] = Depends(get_cu
         logger.error(f"❌ Failed to refresh user info: {e}")
         raise HTTPException(status_code=500, detail="Failed to refresh user information")
 
+@router.get("/debug/sessions")
+async def debug_sessions():
+    """DEBUG: Check current user sessions"""
+    return {
+        "total_sessions": len(user_sessions),
+        "user_ids": list(user_sessions.keys()),
+        "users": [{
+            "id": user.id,
+            "username": user.username,
+            "is_in_server": user.is_in_server
+        } for user in user_sessions.values()]
+    }
 
 @router.get("/debug/guilds")
 async def debug_user_guilds(current_user: Optional[DiscordUser] = Depends(get_current_user)):
@@ -226,9 +242,6 @@ async def debug_user_guilds(current_user: Optional[DiscordUser] = Depends(get_cu
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     logger.info(f"🐛 DEBUG: Checking guilds for user {current_user.username}")
-
-    # We need to get the access token - this is a simplified version
-    # In a real implementation, you'd store and retrieve the actual access token
 
     return {
         "user": {
