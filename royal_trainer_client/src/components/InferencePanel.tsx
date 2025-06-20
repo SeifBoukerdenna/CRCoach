@@ -1,25 +1,20 @@
-// royal_trainer_client/src/components/InferencePanel.tsx - Enhanced for new layout
+// royal_trainer_client/src/components/InferencePanel.tsx - Full component with scrollable content
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Brain,
-    ChevronUp,
     Target,
     Eye,
-    Filter,
-    Download,
-    Maximize2,
-    Camera,
     BarChart3,
+    Signal,
+    CheckCircle,
+    AlertCircle,
+    Power,
+    PowerOff
 } from 'lucide-react';
 
-// Import all the decoupled components
-import DetectionCard from './inference/DetectionCard';
-import DetectionSummary from './inference/DetectionSummary';
-import PerformanceInsights from './inference/PerformanceInsights';
-import OfflineState from './inference/OfflineState';
-import type { Detection, InferenceData, InferenceStats } from '../types';
+import type { InferenceData, InferenceStats } from '../types';
 
 interface ExtendedInferenceStats extends InferenceStats {
     connectionAttempts?: number;
@@ -37,653 +32,483 @@ interface InferencePanelProps {
     isActive: boolean;
     stats: ExtendedInferenceStats;
     sessionCode?: string;
+    isInferenceEnabled: boolean;
+    onToggleInference: (enabled: boolean) => Promise<boolean>;
+    getFrameStats: () => any;
+    isConnected: boolean;
 }
 
-interface ClassFilter {
-    name: string;
-    enabled: boolean;
-    count: number;
-    confidence: number;
-}
+// Helper function to format coordinates more compactly
+const formatCoordinate = (value: number): string => {
+    if (value < 1) return value.toFixed(2);
+    if (value < 10) return value.toFixed(1);
+    return Math.round(value).toString();
+};
+
+// Helper function to format position
+const formatPosition = (x: number, y: number): string => {
+    return `(${formatCoordinate(x)}, ${formatCoordinate(y)})`;
+};
+
+// Helper function to format size
+const formatSize = (width: number, height: number): string => {
+    return `${formatCoordinate(width)}×${formatCoordinate(height)}`;
+};
 
 const InferencePanel: React.FC<InferencePanelProps> = ({
     inferenceData,
     isActive,
     stats,
-    sessionCode = '0000'
+    sessionCode = '0000',
+    isInferenceEnabled,
+    onToggleInference,
+    isConnected
 }) => {
-    // Panel State
-    const [isExpanded, setIsExpanded] = useState(true);
-    const [autoRefresh,] = useState(true);
-    const [activeTab, setActiveTab] = useState<'detections' | 'frame' | 'stats'>('detections');
+    const [selectedTab, setSelectedTab] = useState<'detections' | 'frame' | 'stats'>('detections');
+    const [confidenceFilter, setConfidenceFilter] = useState(0.0);
+    const [classFilters, _] = useState<string[]>([]);
 
-    // Detection Management
-    const [selectedDetection, setSelectedDetection] = useState<Detection | null>(null);
-    const [detectionFilters, setDetectionFilters] = useState<ClassFilter[]>([]);
-    const [confidenceThreshold, setConfidenceThreshold] = useState(0.5);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [sortBy,] = useState<'confidence' | 'size' | 'class'>('confidence');
-    const [sortOrder,] = useState<'asc' | 'desc'>('desc');
-
-    // Performance Tracking
-    const [performanceHistory, setPerformanceHistory] = useState<{
-        timestamps: number[];
-        inferenceTimes: number[];
-        detectionCounts: number[];
-        fps: number[];
-    }>({
-        timestamps: [],
-        inferenceTimes: [],
-        detectionCounts: [],
-        fps: []
-    });
-
-    const lastUpdateRef = useRef<number>(Date.now());
-    const performanceIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Update tracking
-    useEffect(() => {
-        if (inferenceData) {
-            lastUpdateRef.current = Date.now();
-
-            // Update performance history
-            setPerformanceHistory(prev => {
-                const now = Date.now();
-                const newTimestamps = [...prev.timestamps, now];
-                const newInferenceTimes = [...prev.inferenceTimes, inferenceData.inference_time];
-                const newDetectionCounts = [...prev.detectionCounts, inferenceData.detections.length];
-                const newFps = [...prev.fps, stats.inferenceFPS || 0];
-
-                // Keep only last 100 data points
-                const maxPoints = 100;
-                return {
-                    timestamps: newTimestamps.slice(-maxPoints),
-                    inferenceTimes: newInferenceTimes.slice(-maxPoints),
-                    detectionCounts: newDetectionCounts.slice(-maxPoints),
-                    fps: newFps.slice(-maxPoints)
-                };
-            });
-        }
-    }, [inferenceData, stats.inferenceFPS]);
-
-    // Initialize class filters when detections change
-    useEffect(() => {
-        if (inferenceData?.detections) {
-            const classMap = new Map<string, { count: number; totalConfidence: number }>();
-
-            inferenceData.detections.forEach(detection => {
-                const existing = classMap.get(detection.class) || { count: 0, totalConfidence: 0 };
-                classMap.set(detection.class, {
-                    count: existing.count + 1,
-                    totalConfidence: existing.totalConfidence + detection.confidence
-                });
-            });
-
-            const newFilters: ClassFilter[] = Array.from(classMap.entries()).map(([name, data]) => ({
-                name,
-                enabled: true,
-                count: data.count,
-                confidence: data.totalConfidence / data.count
-            }));
-
-            setDetectionFilters(newFilters);
-        }
-    }, [inferenceData]);
-
-    // Performance monitoring
-    useEffect(() => {
-        if (isActive && autoRefresh) {
-            performanceIntervalRef.current = setInterval(() => {
-                setPerformanceHistory(prev => ({ ...prev }));
-            }, 1000);
-
-            return () => {
-                if (performanceIntervalRef.current) {
-                    clearInterval(performanceIntervalRef.current);
-                }
-            };
-        }
-    }, [isActive, autoRefresh]);
-
-    // Utility functions
-    const getConnectionStatusColor = useCallback(() => {
-        if (!isActive) return 'text-gray-400';
-        if (stats.isWebSocketConnected) return 'text-green-400';
-        return 'text-yellow-400';
-    }, [isActive, stats.isWebSocketConnected]);
-
-    const getConnectionStatusText = useCallback(() => {
-        if (!isActive) return 'Offline';
-        if (stats.isWebSocketConnected) return 'WebSocket';
-        return 'HTTP Polling';
-    }, [isActive, stats.isWebSocketConnected]);
-
-
-    // Action handlers
-    const downloadAnnotatedFrame = useCallback(() => {
-        if (!inferenceData?.annotated_frame) return;
-
-        const link = document.createElement('a');
-        link.href = `data:image/jpeg;base64,${inferenceData.annotated_frame}`;
-        link.download = `clash_royale_analysis_${sessionCode}_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }, [inferenceData?.annotated_frame, sessionCode]);
-
-    const openAnnotatedFrameFullscreen = useCallback(() => {
-        if (!inferenceData?.annotated_frame) return;
-
-        const newWindow = window.open('', '_blank', 'width=1200,height=800');
-        if (newWindow) {
-            newWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Clash Royale AI Analysis - Session ${sessionCode}</title>
-            <style>
-              body {
-                margin: 0;
-                background: #0b162d;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-                font-family: Arial, sans-serif;
-              }
-              .container {
-                max-width: 95vw;
-                max-height: 95vh;
-                position: relative;
-              }
-              img {
-                max-width: 100%;
-                max-height: 100%;
-                object-fit: contain;
-                border: 3px solid #ffd700;
-                border-radius: 15px;
-              }
-              .info {
-                position: absolute;
-                top: 10px;
-                left: 10px;
-                background: rgba(0,0,0,0.8);
-                color: white;
-                padding: 10px;
-                border-radius: 8px;
-                font-size: 14px;
-              }
-              .close {
-                position: absolute;
-                top: 10px;
-                right: 10px;
-                background: #ff4444;
-                color: white;
-                border: none;
-                padding: 8px 12px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: bold;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="info">
-                Session: ${sessionCode} | ${inferenceData.detections.length} objects detected | ${Math.round(inferenceData.inference_time)}ms processing
-              </div>
-              <button class="close" onclick="window.close()">Close</button>
-              <img src="data:image/jpeg;base64,${inferenceData.annotated_frame}" alt="AI Analysis" />
-            </div>
-          </body>
-        </html>
-      `);
-        }
-    }, [inferenceData, sessionCode]);
-
-    const resetFilters = useCallback(() => {
-        setDetectionFilters(prev => prev.map(filter => ({ ...filter, enabled: true })));
-        setConfidenceThreshold(0.5);
-        setSearchQuery('');
-    }, []);
-
-    // Filter and sort detections
+    // Filter detections based on confidence and class
     const filteredDetections = React.useMemo(() => {
         if (!inferenceData?.detections) return [];
 
-        const filtered = inferenceData.detections.filter(detection => {
-            if (detection.confidence < confidenceThreshold) return false;
-
-            const classFilter = detectionFilters.find(f => f.name === detection.class);
-            if (classFilter && !classFilter.enabled) return false;
-
-            if (searchQuery && !detection.class.toLowerCase().includes(searchQuery.toLowerCase())) {
-                return false;
-            }
-
-            return true;
+        return inferenceData.detections.filter(detection => {
+            const confidenceMatch = detection.confidence >= confidenceFilter;
+            const classMatch = classFilters.length === 0 || classFilters.includes(detection.class);
+            return confidenceMatch && classMatch;
         });
+    }, [inferenceData?.detections, confidenceFilter, classFilters]);
 
-        filtered.sort((a, b) => {
-            let comparison = 0;
-            switch (sortBy) {
-                case 'confidence':
-                    comparison = a.confidence - b.confidence;
-                    break;
-                case 'size':
-                    comparison = (a.bbox.width * a.bbox.height) - (b.bbox.width * b.bbox.height);
-                    break;
-                case 'class':
-                    comparison = a.class.localeCompare(b.class);
-                    break;
-            }
-            return sortOrder === 'desc' ? -comparison : comparison;
-        });
+    // Get connection status
+    const getConnectionStatus = () => {
+        if (!isActive) return { text: 'Offline', color: 'text-red-400', icon: AlertCircle };
+        if (stats.isWebSocketConnected || isConnected) return { text: 'WebSocket', color: 'text-green-400', icon: CheckCircle };
+        return { text: 'Connecting', color: 'text-yellow-400', icon: Signal };
+    };
 
-        return filtered;
-    }, [inferenceData?.detections, confidenceThreshold, detectionFilters, searchQuery, sortBy, sortOrder]);
+    const connectionStatus = getConnectionStatus();
 
-    // Calculate performance metrics
-    const performanceMetrics = React.useMemo(() => {
-        if (performanceHistory.timestamps.length === 0) {
-            return {
-                avgInferenceTime: 0,
-                maxInferenceTime: 0,
-                minInferenceTime: 0,
-                avgDetections: 0,
-                totalFrames: 0,
-                uptime: 0
-            };
-        }
+    // Calculate detection statistics
+    const detectionStats = React.useMemo(() => {
+        const detections = filteredDetections;
+        const total = detections.length;
 
-        const times = performanceHistory.inferenceTimes;
-        const detections = performanceHistory.detectionCounts;
-        const timestamps = performanceHistory.timestamps;
+        if (total === 0) return { high: 0, medium: 0, low: 0, avgConfidence: 0, uniqueClasses: 0 };
 
-        return {
-            avgInferenceTime: times.reduce((a, b) => a + b, 0) / times.length,
-            maxInferenceTime: Math.max(...times),
-            minInferenceTime: Math.min(...times),
-            avgDetections: detections.reduce((a, b) => a + b, 0) / detections.length,
-            totalFrames: times.length,
-            uptime: timestamps.length > 0 ? (Date.now() - timestamps[0]) / 1000 : 0
-        };
-    }, [performanceHistory]);
+        const high = detections.filter(d => d.confidence >= 0.8).length;
+        const medium = detections.filter(d => d.confidence >= 0.6 && d.confidence < 0.8).length;
+        const low = detections.filter(d => d.confidence < 0.6).length;
+        const avgConfidence = detections.reduce((sum, d) => sum + d.confidence, 0) / total;
+        const uniqueClasses = new Set(detections.map(d => d.class)).size;
+
+        return { high, medium, low, avgConfidence, uniqueClasses };
+    }, [filteredDetections]);
 
     return (
-        <motion.div
-            className="bg-gradient-to-br from-cr-navy/95 to-cr-purple/25 backdrop-blur-xl border-2 border-cr-purple/40 rounded-2xl overflow-hidden shadow-2xl h-full flex flex-col"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-        >
-            {/* Compact Header */}
-            <div className="p-4 border-b border-cr-purple/30 bg-gradient-to-r from-cr-purple/20 to-cr-gold/10">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <Brain className="w-6 h-6 text-cr-purple" />
-                            {isActive && (
-                                <motion.div
-                                    className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full"
-                                    animate={{ scale: [1, 1.2, 1] }}
-                                    transition={{ duration: 2, repeat: Infinity }}
-                                />
-                            )}
+        <div className="space-y-4 pb-4">
+            {/* Header Card */}
+            <motion.div
+                className="bg-gradient-to-br from-slate-900/95 to-purple-900/25 backdrop-blur-xl border-2 border-purple-500/40 rounded-2xl shadow-2xl"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+            >
+                <div className="p-4 border-b border-purple-500/30 bg-gradient-to-r from-purple-600/20 to-blue-600/10">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <Brain className="w-5 h-5 text-purple-400" />
+                            <h3 className="text-lg font-bold text-purple-300">AI Analysis</h3>
                         </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-cr-purple">AI Analysis</h3>
-                            <div className="flex items-center gap-2 text-xs">
-                                <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-500' : 'bg-gray-500'}`} />
-                                <span className={`${getConnectionStatusColor()}`}>
-                                    {getConnectionStatusText()}
-                                </span>
-                                {isActive && inferenceData && (
-                                    <>
-                                        <span className="text-white/60">•</span>
-                                        <span className="text-cr-gold font-medium">
-                                            Session {sessionCode}
-                                        </span>
-                                    </>
-                                )}
-                            </div>
+                        <div className="flex items-center gap-1">
+                            <connectionStatus.icon className={`w-4 h-4 ${connectionStatus.color}`} />
+                            <span className={`text-sm font-medium ${connectionStatus.color}`}>
+                                {connectionStatus.text}
+                            </span>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        {/* Quick Stats */}
-                        {isActive && inferenceData && (
-                            <div className="flex gap-4 mr-4">
-                                <div className="text-center">
-                                    <div className="text-xl font-bold text-cr-gold">
-                                        {filteredDetections.length}
-                                    </div>
-                                    <div className="text-xs text-white/60">Objects</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-xl font-bold text-green-400">
-                                        {Math.round(inferenceData.inference_time)}
-                                    </div>
-                                    <div className="text-xs text-white/60">ms</div>
-                                </div>
-                                {stats.inferenceFPS && (
-                                    <div className="text-center">
-                                        <div className="text-xl font-bold text-cr-purple">
-                                            {stats.inferenceFPS.toFixed(1)}
-                                        </div>
-                                        <div className="text-xs text-white/60">FPS</div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                    {/* Compact Stats Row */}
+                    <div className="grid grid-cols-4 gap-2 text-xs mb-4">
+                        <div className="text-center p-2 bg-slate-800/30 rounded-lg">
+                            <div className="text-yellow-400 font-bold text-lg">{sessionCode.slice(-2)}</div>
+                            <div className="text-white/60">Session</div>
+                        </div>
+                        <div className="text-center p-2 bg-slate-800/30 rounded-lg">
+                            <div className="text-green-400 font-bold text-lg">{filteredDetections.length}</div>
+                            <div className="text-white/60">Objects</div>
+                        </div>
+                        <div className="text-center p-2 bg-slate-800/30 rounded-lg">
+                            <div className="text-blue-400 font-bold text-lg">{Math.round(stats.lastInferenceTime || 0)}</div>
+                            <div className="text-white/60">ms</div>
+                        </div>
+                        <div className="text-center p-2 bg-slate-800/30 rounded-lg">
+                            <div className="text-purple-400 font-bold text-lg">{(stats.inferenceFPS || 0).toFixed(1)}</div>
+                            <div className="text-white/60">FPS</div>
+                        </div>
+                    </div>
 
-                        <motion.button
-                            onClick={() => setIsExpanded(!isExpanded)}
-                            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            title="Toggle Panel"
-                        >
-                            <motion.div
-                                animate={{ rotate: isExpanded ? 180 : 0 }}
-                                transition={{ duration: 0.3 }}
-                            >
-                                <ChevronUp className="w-4 h-4 text-white/70" />
-                            </motion.div>
-                        </motion.button>
+                    {/* Performance Stats Bar */}
+                    <div className="grid grid-cols-4 gap-2 text-xs">
+                        <div className="text-center p-2 bg-slate-700/30 rounded">
+                            <div className="text-green-400 font-bold">{Math.round(stats.lastInferenceTime || 0)}ms</div>
+                            <div className="text-white/50">Avg Time</div>
+                        </div>
+                        <div className="text-center p-2 bg-slate-700/30 rounded">
+                            <div className="text-yellow-400 font-bold">{(stats.inferenceFPS || 0).toFixed(1)}/s</div>
+                            <div className="text-white/50">Rate</div>
+                        </div>
+                        <div className="text-center p-2 bg-slate-700/30 rounded">
+                            <div className="text-purple-400 font-bold">{(stats.inferenceFPS || 0).toFixed(1)}</div>
+                            <div className="text-white/50">FPS</div>
+                        </div>
+                        <div className="text-center p-2 bg-slate-700/30 rounded">
+                            <div className="text-white font-bold">100%</div>
+                            <div className="text-white/50">Accuracy</div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </motion.div>
 
-            {/* Expandable Content */}
-            <AnimatePresence>
-                {isExpanded && (
+            {/* Inference Controls Card */}
+            <motion.div
+                className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+            >
+                <div className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <Brain className="w-5 h-5 text-purple-400" />
+                            <span className="text-lg font-bold text-white">AI Inference</span>
+                        </div>
+                        <button
+                            onClick={() => onToggleInference(!isInferenceEnabled)}
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${isInferenceEnabled ? 'bg-purple-600' : 'bg-slate-600'
+                                }`}
+                        >
+                            <span
+                                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform flex items-center justify-center ${isInferenceEnabled ? 'translate-x-7' : 'translate-x-1'
+                                    }`}
+                            >
+                                {isInferenceEnabled ? (
+                                    <Power className="w-3 h-3 text-purple-600" />
+                                ) : (
+                                    <PowerOff className="w-3 h-3 text-slate-600" />
+                                )}
+                            </span>
+                        </button>
+                    </div>
+                    <div className="text-sm text-white/70">
+                        {isInferenceEnabled ? (
+                            <span className="text-green-400">✓ Real-time detection active</span>
+                        ) : (
+                            <span className="text-red-400">✗ Click to enable AI analysis</span>
+                        )}
+                    </div>
+                </div>
+            </motion.div>
+
+            {/* Tab Navigation Card */}
+            <motion.div
+                className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+            >
+                <div className="p-4">
+                    <div className="flex rounded-lg bg-slate-800/50 p-1 gap-1">
+                        {[
+                            { id: 'detections', label: 'Detections', icon: Target },
+                            { id: 'frame', label: 'Frame', icon: Eye },
+                            { id: 'stats', label: 'Stats', icon: BarChart3 }
+                        ].map(({ id, label, icon: Icon }) => (
+                            <button
+                                key={id}
+                                onClick={() => setSelectedTab(id as any)}
+                                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded text-sm font-medium transition-all ${selectedTab === id
+                                    ? 'bg-purple-600 text-white'
+                                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                                    }`}
+                            >
+                                <Icon className="w-4 h-4" />
+                                <span>{label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </motion.div>
+
+            {/* Content Cards */}
+            <AnimatePresence mode="wait">
+                {selectedTab === 'detections' && (
                     <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex-1 flex flex-col min-h-0"
+                        key="detections"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-4"
                     >
-                        {isActive && inferenceData ? (
-                            <div className="flex-1 flex flex-col p-4 space-y-4 min-h-0">
-                                {/* Compact Performance Dashboard */}
-                                <div className="bg-black/20 rounded-xl p-3 border border-cr-purple/20">
-                                    <div className="grid grid-cols-4 gap-3">
-                                        <div className="text-center">
-                                            <div className="text-lg font-bold text-green-400">
-                                                {Math.round(stats.avgInferenceTime || 0)}ms
+                        {/* Detection Controls Card */}
+                        <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-lg font-bold text-white">
+                                    Live Detections ({filteredDetections.length}/{inferenceData?.detections?.length || 0})
+                                </h4>
+                                <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-white/60">Live Filter:</span>
+                                    <span className="text-purple-400 font-mono">
+                                        {Math.round(confidenceFilter * 100)}%
+                                    </span>
+                                </div>
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.05"
+                                value={confidenceFilter}
+                                onChange={(e) => setConfidenceFilter(parseFloat(e.target.value))}
+                                className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer mb-2"
+                            />
+                            <div className="flex justify-between text-xs text-white/40">
+                                <span>Show all</span>
+                                <span>High confidence only</span>
+                            </div>
+                        </div>
+
+                        {/* Detections List - Scrollable */}
+                        <div className="max-h-96 overflow-y-auto thin-scrollbar space-y-3">
+                            {filteredDetections.length > 0 ? (
+                                filteredDetections.map((detection, idx) => (
+                                    <motion.div
+                                        key={idx}
+                                        className="bg-slate-800/40 backdrop-blur-xl border border-slate-600/30 rounded-xl p-4 hover:border-purple-500/50 transition-all"
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: idx * 0.05 }}
+                                    >
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <Target className="w-4 h-4 text-purple-400" />
+                                                <span className="font-bold text-white text-lg truncate">
+                                                    {detection.class}
+                                                </span>
                                             </div>
-                                            <div className="text-xs text-white/60">Avg Time</div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs bg-slate-700/50 px-2 py-1 rounded">
+                                                    ID: {idx}
+                                                </span>
+                                                <span className="text-lg font-bold text-green-400">
+                                                    {Math.round(detection.confidence * 100)}%
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="text-center">
-                                            <div className="text-lg font-bold text-cr-gold">
-                                                {stats.detectionsPerSecond.toFixed(1)}/s
+
+                                        {/* Compact coordinates */}
+                                        <div className="text-sm text-white/70 mb-3">
+                                            <div className="truncate">
+                                                {formatSize(detection.bbox.width, detection.bbox.height)} • at {formatPosition(detection.bbox.x1, detection.bbox.y1)}
                                             </div>
-                                            <div className="text-xs text-white/60">Rate</div>
                                         </div>
-                                        <div className="text-center">
-                                            <div className="text-lg font-bold text-cr-purple">
-                                                {(stats.inferenceFPS || 0).toFixed(1)}
+
+                                        {/* Additional info in compact grid */}
+                                        <div className="grid grid-cols-3 gap-2 text-xs">
+                                            <div className="bg-slate-700/30 p-2 rounded text-center">
+                                                <div className="text-white/50">Center</div>
+                                                <div className="text-white font-mono">
+                                                    {formatPosition(
+                                                        detection.bbox.x1 + detection.bbox.width / 2,
+                                                        detection.bbox.y1 + detection.bbox.height / 2
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-white/60">FPS</div>
+                                            <div className="bg-slate-700/30 p-2 rounded text-center">
+                                                <div className="text-white/50">Area</div>
+                                                <div className="text-white font-mono">
+                                                    {formatCoordinate(detection.bbox.width * detection.bbox.height)}
+                                                </div>
+                                            </div>
+                                            <div className="bg-slate-700/30 p-2 rounded text-center">
+                                                <div className="text-white/50">Aspect</div>
+                                                <div className="text-white font-mono">
+                                                    {(detection.bbox.width / detection.bbox.height).toFixed(1)}:1
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="text-center">
-                                            <div className="text-lg font-bold text-white">
-                                                {Math.round(stats.accuracy || 0)}%
+
+                                        {/* Position indicator */}
+                                        <div className="mt-3 flex items-center justify-between text-sm">
+                                            <div className="flex items-center gap-1">
+                                                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                                                <span className="text-white/50">Position:</span>
+                                                <span className="text-white">
+                                                    {detection.bbox.x1 < 100 ? 'Left' :
+                                                        detection.bbox.x1 > 200 ? 'Right' : 'Middle'}
+                                                </span>
                                             </div>
-                                            <div className="text-xs text-white/60">Accuracy</div>
+                                            <div className={`px-3 py-1 rounded-full text-sm ${detection.confidence >= 0.8 ? 'bg-green-900/30 text-green-400' :
+                                                detection.confidence >= 0.6 ? 'bg-yellow-900/30 text-yellow-400' :
+                                                    'bg-red-900/30 text-red-400'
+                                                }`}>
+                                                {detection.confidence >= 0.8 ? 'High' :
+                                                    detection.confidence >= 0.6 ? 'Medium' : 'Low'}
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))
+                            ) : (
+                                <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-600/30 rounded-xl p-8">
+                                    <div className="flex flex-col items-center justify-center text-white/50">
+                                        <Target className="w-12 h-12 mb-3 opacity-50" />
+                                        <p className="text-lg font-medium">No detections found</p>
+                                        <p className="text-sm text-white/30 mt-1">
+                                            {inferenceData?.detections?.length ?
+                                                `Try lowering the confidence threshold` :
+                                                `Waiting for AI analysis...`
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+
+                {selectedTab === 'frame' && (
+                    <motion.div
+                        key="frame"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-4"
+                    >
+                        <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4">
+                            {inferenceData?.annotated_frame ? (
+                                <div className="space-y-4">
+                                    <h4 className="text-lg font-bold text-white">Current Frame</h4>
+
+                                    {/* Frame Image - Scrollable if needed */}
+                                    <div className="max-h-96 overflow-auto thin-scrollbar bg-black rounded-xl border border-slate-600/50">
+                                        <img
+                                            src={`data:image/jpeg;base64,${inferenceData.annotated_frame}`}
+                                            alt="Current Analysis Frame"
+                                            className="w-full h-auto object-contain"
+                                        />
+                                    </div>
+
+                                    {/* Frame Info */}
+                                    <div className="bg-slate-700/40 border border-slate-600/30 rounded-xl p-4">
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <div className="text-white/60">Frame Time:</div>
+                                                <div className="text-green-400 font-mono text-lg">
+                                                    {Math.round(stats.lastInferenceTime || 0)}ms
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-white/60">Objects Found:</div>
+                                                <div className="text-purple-400 font-bold text-lg">
+                                                    {inferenceData.detections?.length || 0}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-white/60">Processing Rate:</div>
+                                                <div className="text-yellow-400 font-mono text-lg">
+                                                    {(stats.inferenceFPS || 0).toFixed(1)}/s
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-white/60">Status:</div>
+                                                <div className={`${connectionStatus.color} text-lg`}>
+                                                    {connectionStatus.text}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* Tab Navigation */}
-                                <div className="flex gap-1 bg-black/20 rounded-lg p-1">
-                                    {[
-                                        { id: 'detections', label: 'Detections', icon: Target },
-                                        { id: 'frame', label: 'Frame', icon: Eye },
-                                        { id: 'stats', label: 'Stats', icon: BarChart3 }
-                                    ].map(({ id, label, icon: Icon }) => (
-                                        <motion.button
-                                            key={id}
-                                            onClick={() => setActiveTab(id as any)}
-                                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === id
-                                                ? 'bg-cr-purple text-white'
-                                                : 'text-white/70 hover:bg-white/10'
-                                                }`}
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
-                                        >
-                                            <Icon className="w-4 h-4" />
-                                            {label}
-                                        </motion.button>
-                                    ))}
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-12 text-white/50">
+                                    <Eye className="w-16 h-16 mb-4 opacity-50" />
+                                    <p className="text-lg font-medium">No frame data</p>
+                                    <p className="text-sm text-white/30 mt-2">
+                                        Waiting for analysis frames...
+                                    </p>
                                 </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
 
-                                {/* Tab Content */}
-                                <div className="flex-1 min-h-0">
-                                    <AnimatePresence mode="wait">
-                                        {activeTab === 'detections' && (
-                                            <motion.div
-                                                key="detections"
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: 20 }}
-                                                className="h-full flex flex-col"
-                                            >
-                                                {/* Quick Filters */}
-                                                <div className="mb-3">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-sm font-bold text-white">
-                                                            Live Detections ({filteredDetections.length}/{inferenceData.detections.length})
-                                                        </span>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-xs text-white/60">
-                                                                Confidence: {Math.round(confidenceThreshold * 100)}%
-                                                            </span>
-                                                            <input
-                                                                type="range"
-                                                                min="0"
-                                                                max="1"
-                                                                step="0.05"
-                                                                value={confidenceThreshold}
-                                                                onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
-                                                                className="w-16 h-1 bg-black/30 rounded-lg appearance-none cursor-pointer slider"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Detections List */}
-                                                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                                                    {filteredDetections.length > 0 ? (
-                                                        filteredDetections.map((detection, index) => (
-                                                            <DetectionCard
-                                                                key={`${detection.class}-${detection.bbox.x1}-${detection.bbox.y1}-${index}`}
-                                                                detection={detection}
-                                                                index={index}
-                                                                isSelected={selectedDetection === detection}
-                                                                onSelect={setSelectedDetection}
-                                                                imageShape={inferenceData.image_shape}
-                                                            />
-                                                        ))
-                                                    ) : inferenceData.detections.length > 0 ? (
-                                                        <div className="text-center py-8">
-                                                            <Filter className="w-12 h-12 text-white/30 mx-auto mb-3" />
-                                                            <h4 className="text-lg font-bold text-white/60 mb-2">No Objects Match Filters</h4>
-                                                            <p className="text-white/40">
-                                                                {inferenceData.detections.length} objects detected but filtered out
-                                                            </p>
-                                                            <motion.button
-                                                                onClick={resetFilters}
-                                                                className="mt-3 px-3 py-2 bg-cr-purple rounded-lg text-white hover:bg-cr-purple/80 transition-colors"
-                                                                whileHover={{ scale: 1.05 }}
-                                                                whileTap={{ scale: 0.95 }}
-                                                            >
-                                                                Reset Filters
-                                                            </motion.button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="text-center py-8">
-                                                            <Eye className="w-16 h-16 text-white/20 mx-auto mb-4" />
-                                                            <h4 className="text-lg font-bold text-white/60 mb-2">No Objects Detected</h4>
-                                                            <p className="text-white/40">AI is actively scanning for game elements</p>
-                                                            <div className="mt-4 flex items-center justify-center gap-4 text-sm text-white/30">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                                                    <span>Inference Active</span>
-                                                                </div>
-                                                                <span>•</span>
-                                                                <span>Processing: {Math.round(inferenceData.inference_time)}ms</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Detection Summary */}
-                                                {filteredDetections.length > 0 && (
-                                                    <DetectionSummary detections={filteredDetections} />
-                                                )}
-                                            </motion.div>
-                                        )}
-
-                                        {activeTab === 'frame' && (
-                                            <motion.div
-                                                key="frame"
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: 20 }}
-                                                className="h-full flex flex-col"
-                                            >
-                                                {inferenceData.annotated_frame ? (
-                                                    <div className="h-full flex flex-col">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <h4 className="text-lg font-bold text-white flex items-center gap-2">
-                                                                <Camera className="w-5 h-5 text-cr-gold" />
-                                                                Annotated Frame
-                                                            </h4>
-                                                            <div className="flex items-center gap-2">
-                                                                <motion.button
-                                                                    onClick={downloadAnnotatedFrame}
-                                                                    className="px-3 py-1 bg-cr-purple/20 border border-cr-purple/40 rounded-lg text-white text-sm font-medium hover:bg-cr-purple/30 transition-colors flex items-center gap-2"
-                                                                    whileHover={{ scale: 1.05 }}
-                                                                    whileTap={{ scale: 0.95 }}
-                                                                >
-                                                                    <Download className="w-3 h-3" />
-                                                                    Save
-                                                                </motion.button>
-                                                                <motion.button
-                                                                    onClick={openAnnotatedFrameFullscreen}
-                                                                    className="px-3 py-1 bg-cr-gold/20 border border-cr-gold/40 rounded-lg text-white text-sm font-medium hover:bg-cr-gold/30 transition-colors flex items-center gap-2"
-                                                                    whileHover={{ scale: 1.05 }}
-                                                                    whileTap={{ scale: 0.95 }}
-                                                                >
-                                                                    <Maximize2 className="w-3 h-3" />
-                                                                    Expand
-                                                                </motion.button>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex-1 rounded-xl overflow-hidden border border-cr-purple/30">
-                                                            <img
-                                                                src={`data:image/jpeg;base64,${inferenceData.annotated_frame}`}
-                                                                alt="Annotated frame with AI detections"
-                                                                className="w-full h-full object-contain bg-black cursor-pointer"
-                                                                onClick={openAnnotatedFrameFullscreen}
-                                                                onLoad={() => console.log('Annotated frame loaded successfully')}
-                                                                onError={() => console.error('Failed to load annotated frame')}
-                                                            />
-                                                        </div>
-
-                                                        <div className="mt-3 text-center">
-                                                            <div className="text-sm text-white/60">
-                                                                {inferenceData.detections.length} detections • {Math.round(inferenceData.inference_time)}ms • {new Date().toLocaleTimeString()}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="h-full flex items-center justify-center">
-                                                        <div className="text-center">
-                                                            <Camera className="w-16 h-16 text-white/20 mx-auto mb-4" />
-                                                            <h4 className="text-lg font-bold text-white/60 mb-2">No Frame Available</h4>
-                                                            <p className="text-white/40">Waiting for annotated frame data</p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </motion.div>
-                                        )}
-
-                                        {activeTab === 'stats' && (
-                                            <motion.div
-                                                key="stats"
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: 20 }}
-                                                className="h-full overflow-y-auto custom-scrollbar"
-                                            >
-                                                <PerformanceInsights
-                                                    inferenceTime={inferenceData.inference_time}
-                                                    inferenceFPS={stats.inferenceFPS || 0}
-                                                    accuracy={stats.accuracy || 0}
-                                                    isWebSocketConnected={stats.isWebSocketConnected || false}
-                                                    connectionAttempts={stats.connectionAttempts || 0}
-                                                    uptime={performanceMetrics.uptime}
-                                                    totalFrames={performanceMetrics.totalFrames}
-                                                    minInferenceTime={performanceMetrics.minInferenceTime}
-                                                    maxInferenceTime={performanceMetrics.maxInferenceTime}
-                                                />
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+                {selectedTab === 'stats' && (
+                    <motion.div
+                        key="stats"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-4"
+                    >
+                        {/* Detection Quality Breakdown */}
+                        <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-600/30 rounded-xl p-4">
+                            <h4 className="text-lg font-bold text-white mb-4">Detection Quality</h4>
+                            <div className="grid grid-cols-5 gap-3 text-sm">
+                                <div className="text-center p-3 bg-green-900/20 rounded-lg">
+                                    <div className="text-green-400 font-bold text-2xl">{detectionStats.high}</div>
+                                    <div className="text-white/60">High</div>
+                                    <div className="text-green-400/60 text-xs">≥80%</div>
+                                </div>
+                                <div className="text-center p-3 bg-yellow-900/20 rounded-lg">
+                                    <div className="text-yellow-400 font-bold text-2xl">{detectionStats.medium}</div>
+                                    <div className="text-white/60">Medium</div>
+                                    <div className="text-yellow-400/60 text-xs">60-79%</div>
+                                </div>
+                                <div className="text-center p-3 bg-red-900/20 rounded-lg">
+                                    <div className="text-red-400 font-bold text-2xl">{detectionStats.low}</div>
+                                    <div className="text-white/60">Low</div>
+                                    <div className="text-red-400/60 text-xs">&lt;60%</div>
+                                </div>
+                                <div className="text-center p-3 bg-slate-700/30 rounded-lg">
+                                    <div className="text-white font-bold text-2xl">{Math.round(detectionStats.avgConfidence * 100)}%</div>
+                                    <div className="text-white/60">Avg</div>
+                                    <div className="text-white/60 text-xs">confidence</div>
+                                </div>
+                                <div className="text-center p-3 bg-purple-900/20 rounded-lg">
+                                    <div className="text-purple-400 font-bold text-2xl">{detectionStats.uniqueClasses}</div>
+                                    <div className="text-white/60">Classes</div>
+                                    <div className="text-purple-400/60 text-xs">found</div>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="p-6">
-                                <OfflineState
-                                    sessionCode={sessionCode}
-                                    connectionStatus={getConnectionStatusText()}
-                                />
+                        </div>
+
+                        {/* Performance Metrics */}
+                        <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-600/30 rounded-xl p-4">
+                            <h4 className="text-lg font-bold text-white mb-4">Performance</h4>
+                            <div className="space-y-3 text-sm">
+                                <div className="flex justify-between p-3 bg-slate-700/30 rounded-lg">
+                                    <span className="text-white/60">Inference Time:</span>
+                                    <span className="text-green-400 font-mono text-lg">{Math.round(stats.lastInferenceTime || 0)}ms</span>
+                                </div>
+                                <div className="flex justify-between p-3 bg-slate-700/30 rounded-lg">
+                                    <span className="text-white/60">Processing Rate:</span>
+                                    <span className="text-yellow-400 font-mono text-lg">{(stats.inferenceFPS || 0).toFixed(1)}/s</span>
+                                </div>
+                                <div className="flex justify-between p-3 bg-slate-700/30 rounded-lg">
+                                    <span className="text-white/60">Total Frames:</span>
+                                    <span className="text-blue-400 font-mono text-lg">{stats.totalFramesProcessed || 0}</span>
+                                </div>
+                                <div className="flex justify-between p-3 bg-slate-700/30 rounded-lg">
+                                    <span className="text-white/60">Connection:</span>
+                                    <span className={`${connectionStatus.color} text-lg`}>{connectionStatus.text}</span>
+                                </div>
                             </div>
-                        )}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            {/* Custom Styles */}
-            <style>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                    width: 6px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                    background: rgba(255, 255, 255, 0.1);
-                    border-radius: 3px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: rgba(177, 84, 255, 0.5);
-                    border-radius: 3px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: rgba(177, 84, 255, 0.7);
-                }
-                .slider::-webkit-slider-thumb {
-                    appearance: none;
-                    width: 16px;
-                    height: 16px;
-                    border-radius: 50%;
-                    background: #b154ff;
-                    cursor: pointer;
-                    border: 2px solid #ffffff;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                }
-                .slider::-webkit-slider-track {
-                    width: 100%;
-                    height: 4px;
-                    cursor: pointer;
-                    background: rgba(255,255,255,0.2);
-                    border-radius: 2px;
-                }
-            `}</style>
-        </motion.div>
+        </div>
     );
 };
 

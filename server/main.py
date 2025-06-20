@@ -1,42 +1,49 @@
-"""
-server/main.py - Updated with single viewer enforcement
-"""
-
+# server/main.py - Fixed background task calls
 import asyncio
 import uvicorn
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Existing imports
 from api.routes import router, session_manager
 from api.websocket import websocket_endpoint
-from tasks.background_tasks import cleanup_task, stats_task
+from api.inference_routes import router as inference_router
+from tasks.background_tasks import cleanup_task, stats_task, monitor_single_viewer_sessions
 from core.config import Config
 from services.yolo_inference import get_inference_service
 
-# ✅ Import inference routes
-from api.inference_routes import router as inference_router
+# NEW: Discord authentication imports
+from api.discord_routes import router as discord_router
+from core.discord_config import DiscordConfig
+from core.discord_service import get_discord_service
 
-import logging
+from core.cors import setup_cors
 
-# Setup logging with appropriate level
+
+# Setup logging
 log_level = logging.INFO if Config.ENABLE_DETAILED_LOGGING else logging.WARNING
-logging.basicConfig(
-    level=log_level,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-# Background task handles
-background_tasks = []
+logging.basicConfig(level=log_level, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan with single viewer enforcement"""
+    """Application lifespan management with Discord auth"""
     print("🚀 FastAPI WebRTC + AI Analysis Server starting...")
     print("👤 SINGLE VIEWER ENFORCEMENT ENABLED")
-    print("🚫 Maximum 1 viewer per broadcast session")
+    print("🔐 Discord Authentication Enabled")
 
     # Log configuration
     Config.log_config()
+
+    # NEW: Validate Discord configuration
+    try:
+        DiscordConfig.validate_config()
+        print("✅ Discord OAuth2 configuration validated")
+        print(f"🎮 Target Discord Server ID: {DiscordConfig.SERVER_ID}")
+    except ValueError as e:
+        print(f"⚠️ Discord configuration issue: {e}")
+        print("⚠️ Discord authentication will be unavailable")
 
     # Initialize YOLO inference service
     print("🧠 Initializing YOLOv8 inference service...")
@@ -47,149 +54,54 @@ async def lifespan(app: FastAPI):
 
     if inference_service.is_ready():
         print("✅ YOLOv8 model loaded successfully")
-        print(f"📋 Model classes: {inference_service.get_stats()['classes']}")
         print(f"🎯 Inference FPS limit: {Config.INFERENCE_FPS_LIMIT}")
         print(f"🧠 Max concurrent inference sessions: {Config.MAX_INFERENCE_SESSIONS}")
     else:
-        print("⚠️ YOLOv8 model not available - inference features disabled")
-        print("   Make sure 'models/best.pt' exists and ultralytics is installed")
+        print("⚠️ YOLOv8 model not available - inference disabled")
 
-    # Start background tasks with single viewer monitoring
-    print("🔄 Starting background tasks...")
-    cleanup_handle = asyncio.create_task(cleanup_task(session_manager))
-    stats_handle = asyncio.create_task(stats_task(session_manager))
-
-    # Add single viewer monitoring task
-    monitoring_handle = asyncio.create_task(monitor_single_viewer_sessions(session_manager))
-
-    background_tasks.extend([cleanup_handle, stats_handle, monitoring_handle])
-
-    print("✅ Server startup complete")
-    print(f"👤 SINGLE VIEWER LIMIT: 1 viewer per session (STRICTLY ENFORCED)")
-    print(f"🔗 Maximum {Config.MAX_CONNECTIONS_PER_IP} connections per IP address")
+    # FIXED: Start background tasks with proper arguments
+    print("🔄 Starting background cleanup tasks...")
+    try:
+        # Pass session_manager to tasks that need it
+        asyncio.create_task(cleanup_task(session_manager))
+        asyncio.create_task(stats_task(session_manager))
+        asyncio.create_task(monitor_single_viewer_sessions(session_manager))
+        print("✅ Background tasks started successfully")
+    except Exception as e:
+        print(f"⚠️ Failed to start some background tasks: {e}")
 
     yield
 
-    # Cleanup
-    print("🛑 Server shutting down...")
+    # Cleanup on shutdown
+    print("🛑 Shutting down server...")
 
-    # Cleanup YOLO service
-    if inference_service:
-        inference_service.cleanup()
+    # NEW: Close Discord service
+    try:
+        discord_service = get_discord_service()
+        await discord_service.close()
+        print("✅ Discord service closed")
+    except Exception as e:
+        print(f"⚠️ Error closing Discord service: {e}")
 
-    # Cancel background tasks
-    for task in background_tasks:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-
-    # Enhanced cleanup for single viewer sessions
-    total_connections_closed = 0
-
-    for session in list(session_manager.sessions.values()):
-        session_connections = 0
-
-        # Close broadcaster
-        if session.broadcaster:
-            try:
-                await session.broadcaster.close(code=1000, reason="Server shutting down")
-                session_connections += 1
-            except Exception as e:
-                print(f"⚠️ Error closing broadcaster in session {session.session_code}: {e}")
-
-        # Close the single viewer (if any)
-        for viewer in list(session.viewers):
-            try:
-                await viewer.close(code=1000, reason="Server shutting down")
-                session_connections += 1
-            except Exception as e:
-                print(f"⚠️ Error closing viewer in session {session.session_code}: {e}")
-
-        if session_connections > 0:
-            print(f"🔌 Closed {session_connections} connections in single viewer session {session.session_code}")
-        total_connections_closed += session_connections
-
-    session_manager.sessions.clear()
-    print(f"✅ Server shutdown complete - closed {total_connections_closed} total connections from single viewer sessions")
-
-async def monitor_single_viewer_sessions(session_manager):
-    """Monitor single viewer sessions for performance insights"""
-    while True:
-        try:
-            # Check every 2 minutes
-            await asyncio.sleep(120)
-
-            active_sessions = []
-            full_sessions = []
-            available_sessions = []
-            total_viewers = 0
-
-            for session in session_manager.sessions.values():
-                viewer_count = len(session.viewers)
-                total_viewers += viewer_count
-
-                session_info = {
-                    'code': session.session_code,
-                    'viewers': viewer_count,
-                    'has_broadcaster': session.broadcaster is not None,
-                    'webrtc_established': session.webrtc_established,
-                    'uptime': (session.last_activity - session.created_at).total_seconds(),
-                    'is_full': session.is_full(),
-                    'available': session.is_available_for_viewer()
-                }
-
-                active_sessions.append(session_info)
-
-                if session.is_full():
-                    full_sessions.append(session_info)
-                elif session.is_available_for_viewer():
-                    available_sessions.append(session_info)
-
-            if active_sessions:
-                print("🎯 Single Viewer Session Report:")
-                print(f"📊 Total sessions: {len(active_sessions)}")
-                print(f"👤 Total viewers: {total_viewers}")
-                print(f"🔴 Full sessions (1/1): {len(full_sessions)}")
-                print(f"🟢 Available sessions (0/1): {len(available_sessions)}")
-
-                for session_info in sorted(active_sessions, key=lambda x: (not x['has_broadcaster'], -x['uptime'])):
-                    status = "🟢" if session_info['has_broadcaster'] and session_info['webrtc_established'] else "🟡"
-                    availability = "🔴 FULL" if session_info['is_full'] else "🟢 AVAILABLE"
-                    print(f"  {status} Session {session_info['code']}: {session_info['viewers']}/1 viewers {availability}, "
-                          f"uptime: {session_info['uptime']:.0f}s")
-
-                # Performance warnings
-                if len(full_sessions) > len(active_sessions) * 0.8:
-                    print(f"⚠️ Warning: {len(full_sessions)}/{len(active_sessions)} sessions are at capacity")
-
-                # Server capacity analysis
-                capacity_info = session_manager.get_server_capacity_info()
-                print(f"📈 Server utilization: {capacity_info['capacity_utilization_percent']:.1f}% "
-                      f"({total_viewers}/{capacity_info['total_capacity']} max possible viewers)")
-
-                if capacity_info['capacity_utilization_percent'] > 80:
-                    print(f"⚠️ High server utilization: {capacity_info['capacity_utilization_percent']:.1f}%")
-
-        except Exception as e:
-            print(f"❌ Error in single viewer session monitoring: {e}")
-
-# Create FastAPI app with single viewer configuration
+# Create FastAPI app
 app = FastAPI(
-    title="FastAPI WebRTC + AI Analysis Server (Single Viewer)",
+    title="FastAPI WebRTC + AI Analysis Server (Single Viewer + Discord Auth)",
     version=Config.VERSION,
-    description="WebRTC server with STRICT single viewer enforcement per broadcast session",
+    description="WebRTC server with STRICT single viewer enforcement per broadcast session and Discord authentication",
     lifespan=lifespan
 )
 
+# CORS middleware - Updated for Discord OAuth2
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://tormentor.dev",
         "https://www.tormentor.dev",
-        "http://localhost:3000",  # Keep for local development
-        "http://127.0.0.1:3000",  # Keep for local development
+        "https://api.tormentor.dev",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8080",  # For Discord callback
+        "http://127.0.0.1:8080",  # For Discord callback
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -197,60 +109,50 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
+setup_cors(app)
+
 # Include routes
 app.include_router(router, tags=["sessions"])
 app.include_router(inference_router, prefix="/api")
 
+# NEW: Include Discord authentication routes
+app.include_router(discord_router, tags=["Discord Authentication"])
+
 # WebSocket endpoint
 app.websocket("/ws/{session_code}")(websocket_endpoint)
 
-# Add health check with single viewer info
-@app.get("/health-single-viewer")
-async def single_viewer_health_check():
-    """Health check with single viewer statistics"""
-    capacity_info = session_manager.get_server_capacity_info()
-    available_sessions = session_manager.get_available_sessions()
-    full_sessions = session_manager.get_full_sessions()
+# Health check endpoint with Discord status
+@app.get("/health")
+async def enhanced_health_check():
+    """Enhanced health check with Discord authentication status"""
+    # Existing health check logic
+    total_broadcasters = sum(1 for s in session_manager.sessions.values() if s.broadcaster)
+    total_viewers = sum(len(s.viewers) for s in session_manager.sessions.values())
+
+    # Discord auth status
+    discord_configured = False
+    try:
+        DiscordConfig.validate_config()
+        discord_configured = True
+    except:
+        pass
 
     return {
         "status": "healthy",
-        "version": "1.2.0-single-viewer",
-        "timestamp": asyncio.get_event_loop().time(),
-        "single_viewer_enforcement": {
-            "enabled": True,
-            "max_viewers_per_session": 1,
-            "total_sessions": len(session_manager.sessions),
-            "available_sessions": len(available_sessions),
-            "full_sessions": len(full_sessions),
-            "capacity_utilization_percent": capacity_info['capacity_utilization_percent']
+        "version": Config.VERSION,
+        "sessions": {
+            "total": len(session_manager.sessions),
+            "broadcasters": total_broadcasters,
+            "viewers": total_viewers
         },
-        "server_capacity": capacity_info,
-        "configuration": Config.get_performance_config(),
-        "features": {
-            "single_viewer_limit": True,
-            "ai_inference": get_inference_service().is_ready(),
-            "detailed_logging": Config.ENABLE_DETAILED_LOGGING,
-            "strict_session_enforcement": True
+        "inference": {
+            "available": get_inference_service().is_ready(),
+            "model_loaded": get_inference_service().is_ready()
+        },
+        "discord_auth": {
+            "configured": discord_configured,
+            "server_id": DiscordConfig.SERVER_ID if discord_configured else None
         }
-    }
-
-# Enhanced session status endpoint
-@app.get("/api/sessions/available")
-async def get_available_sessions():
-    """Get sessions available for new viewers"""
-    return {
-        "available_sessions": session_manager.get_available_sessions(),
-        "single_viewer_limit": True,
-        "max_viewers_per_session": 1
-    }
-
-@app.get("/api/sessions/full")
-async def get_full_sessions():
-    """Get sessions that are at capacity"""
-    return {
-        "full_sessions": session_manager.get_full_sessions(),
-        "single_viewer_limit": True,
-        "max_viewers_per_session": 1
     }
 
 # Development server runner
@@ -259,7 +161,7 @@ if __name__ == "__main__":
     print("👤 SINGLE VIEWER ENFORCEMENT ENABLED")
     print("🚫 STRICT LIMIT: Only 1 viewer per broadcast session")
     print("🧠 YOLOv8 Clash Royale troop detection enabled")
-    print("🔍 Debug mode: Detection images will be saved to debug_outputs/")
+    print("🔐 Discord OAuth2 authentication enabled")
     print(f"📊 Supporting EXACTLY 1 viewer per session (NO EXCEPTIONS)")
 
     uvicorn.run(
@@ -269,7 +171,6 @@ if __name__ == "__main__":
         reload=False,
         log_level="info" if Config.ENABLE_DETAILED_LOGGING else "warning",
         access_log=Config.ENABLE_DETAILED_LOGGING,
-        # Enhanced settings for single viewer sessions
         ws_ping_interval=60,
         ws_ping_timeout=120,
         ws_max_size=16777216  # 16MB for larger frames

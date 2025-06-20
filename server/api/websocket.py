@@ -1,11 +1,9 @@
-"""
-server/api/websocket.py - Fixed WebSocket handler with better connection management
-"""
-
+# server/api/websocket.py - Memory leak fixes
 import json
 import uuid
 import time
 import asyncio
+import weakref
 from fastapi import WebSocket, WebSocketDisconnect
 from handlers.websocket_handlers import (
     handle_connect,
@@ -19,11 +17,31 @@ from handlers.websocket_handlers import (
 from api.routes import session_manager
 from core.config import Config
 
+# Use WeakSet to automatically clean up dead websocket references
+active_websockets = weakref.WeakSet()
+
+async def ping_loop(websocket: WebSocket, connection_id: str):
+    """Ping loop with automatic cleanup"""
+    try:
+        while websocket.is_alive:
+            await asyncio.sleep(30)
+            if not websocket.is_alive:
+                break
+            try:
+                await websocket.send_text(json.dumps({"type": "ping", "timestamp": time.time() * 1000}))
+            except:
+                websocket.is_alive = False
+                break
+    except asyncio.CancelledError:
+        pass
+    finally:
+        websocket.is_alive = False
+
 async def websocket_endpoint(websocket: WebSocket, session_code: str):
-    """Enhanced WebSocket handler with improved error handling and connection management"""
+    """Enhanced WebSocket handler with memory leak fixes"""
     await websocket.accept()
 
-    # Generate unique connection ID
+    # Generate unique connection ID and initialize
     connection_id = str(uuid.uuid4())[:8]
     websocket.connection_id = connection_id
     websocket.is_alive = True
@@ -31,13 +49,17 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
     websocket.connect_time = time.time() * 1000
     websocket.connection_attempts = 0
 
+    # Add to weak reference set for automatic cleanup
+    active_websockets.add(websocket)
+
     current_session = None
     role = None
+    ping_task = None
 
     print(f"🔌 New WebSocket connection (ID: {connection_id}) for session {session_code}")
 
     try:
-        # Set up ping interval to keep connection alive
+        # Set up ping interval with proper task management
         ping_task = asyncio.create_task(ping_loop(websocket, connection_id))
 
         async for data in websocket.iter_text():
@@ -47,100 +69,53 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
             try:
                 msg = json.loads(data)
 
-                # Basic rate limiting
+                # Rate limiting with reset mechanism
                 websocket.messages_sent += 1
-                if websocket.messages_sent > 2000:  # Increased limit
+                if websocket.messages_sent > 2000:
                     await send_error(websocket, 'Rate limit exceeded')
                     break
 
-                # Add server timing info
+                # Reset counter every minute to prevent permanent blocks
+                if websocket.messages_sent % 100 == 0:
+                    current_time = time.time() * 1000
+                    if current_time - websocket.connect_time > 60000:  # 1 minute
+                        websocket.messages_sent = max(0, websocket.messages_sent - 50)
+
                 msg['server_receive_time'] = message_receive_time
                 message_type = msg.get('type')
 
-                # Don't log frame_data and ping messages to avoid spam
-                if message_type not in ['frame_data', 'ping']:
-                    print(f"📨 Received: {message_type} from {role or 'unknown'} ({connection_id})")
+                # Only log important messages to reduce memory usage
+                if message_type not in ['frame_data', 'ping', 'pong']:
+                    print(f"📨 Received: {message_type} from {role or 'unknown'} {connection_id}")
 
+                # Handle different message types
                 if message_type == 'connect':
-                    # Handle initial connection
                     current_session, role = await handle_connect(websocket, msg, session_manager)
-
-                    if not current_session or not role:
-                        print(f"❌ Connection failed for {connection_id}")
+                    if not current_session:
                         break
 
-                    print(f"✅ {role} {connection_id} successfully connected to session {session_code}")
-
-                elif message_type in ['offer', 'answer', 'ice']:
-                    # Handle WebRTC signaling
-                    if not current_session:
-                        await send_error(websocket, 'Must connect to session first')
-                        continue
-
-                    await handle_signaling(current_session, websocket, msg)
-                    websocket.messages_sent += 1
+                elif message_type == 'offer' or message_type == 'answer' or message_type == 'ice-candidate':
+                    if current_session:
+                        await handle_signaling(current_session, websocket, msg, role)
 
                 elif message_type == 'ping':
-                    # Handle keep-alive ping
-                    await handle_ping(websocket)
+                    await handle_ping(websocket, msg)
 
                 elif message_type == 'frame_timing':
-                    # Handle latency measurement
-                    if not current_session:
-                        await send_error(websocket, 'Must connect to session first')
-                        continue
-
-                    await handle_frame_timing(websocket, msg, session_manager)
+                    if current_session:
+                        await handle_frame_timing(current_session, msg)
 
                 elif message_type == 'frame_data':
-                    # Handle frame data for inference - ALLOW BOTH BROADCASTERS AND VIEWERS
-                    if role not in ['broadcaster', 'viewer']:
-                        await send_error(websocket, 'Only broadcasters and viewers can send frame data')
-                        continue
+                    if current_session:
+                        await handle_frame_data(current_session, msg)
 
-                    # Viewers send frame data for AI inference, broadcasters send for streaming
-                    await handle_frame_data(websocket, msg)
-
-                elif message_type == 'latency_test':
-                    # Handle latency test request
-                    client_timestamp = msg.get('timestamp', message_receive_time)
-                    latency_response = {
-                        'type': 'latency_response',
-                        'client_timestamp': client_timestamp,
-                        'server_receive_time': message_receive_time,
-                        'server_send_time': time.time() * 1000,
-                        'connection_id': connection_id,
-                        'role': role,
-                        'round_trip_start': client_timestamp
-                    }
-                    await websocket.send_text(json.dumps(latency_response))
-
-                elif message_type == 'canvas_frame':
-                    # Handle canvas frame data from React client - ALLOW VIEWERS
-                    if role not in ['broadcaster', 'viewer']:
-                        await send_error(websocket, 'Only broadcasters and viewers can send canvas frames')
-                        continue
-
-                    frame_data = msg.get('frameData')
-                    if frame_data and current_session:
-                        await handle_frame_data(websocket, {
-                            'sessionCode': session_code,
-                            'frameData': frame_data,
-                            'timestamp': message_receive_time
-                        })
-
-                elif message_type == 'viewer_status_request':
-                    # Handle viewer status request
+                elif message_type == 'get_status':
                     if current_session:
                         status_response = {
-                            'type': 'viewer_status_response',
-                            'session_code': session_code,
-                            'viewer_count': len(current_session.viewers),
-                            'max_viewers': current_session.max_viewers,
-                            'has_broadcaster': current_session.broadcaster is not None,
-                            'webrtc_established': current_session.webrtc_established,
-                            'your_role': role,
-                            'your_connection_id': connection_id,
+                            'type': 'status_response',
+                            'session_code': current_session.session_code,
+                            'role': role,
+                            'connection_id': connection_id,
                             'session_uptime': (current_session.last_activity - current_session.created_at).total_seconds(),
                             'timestamp': time.time() * 1000
                         }
@@ -162,68 +137,57 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
     except Exception as e:
         print(f"❌ WebSocket error from {connection_id}: {e}")
     finally:
-        # Cancel ping task
-        if 'ping_task' in locals():
+        # Critical cleanup section
+        websocket.is_alive = False
+
+        # Cancel ping task first
+        if ping_task:
             ping_task.cancel()
             try:
                 await ping_task
             except asyncio.CancelledError:
                 pass
 
-        # Cleanup
+        # Calculate session duration
         disconnect_time = time.time() * 1000
         session_duration = disconnect_time - websocket.connect_time
 
         print(f"🧹 Starting cleanup for {role or 'unknown'} {connection_id} (duration: {session_duration:.1f}ms)")
 
+        # Handle session cleanup
         if current_session:
             await handle_disconnect(current_session, websocket, session_manager)
 
+        # Force cleanup of any references
+        try:
+            active_websockets.discard(websocket)
+        except:
+            pass
+
         print(f"✅ Cleanup completed for {connection_id}")
 
-        # Log final session state if it still exists
+        # Log final session state for debugging
         if current_session and current_session.session_code in session_manager.sessions:
             remaining_session = session_manager.get_session(current_session.session_code)
             if remaining_session:
-                print(f"📊 Session {session_code} after cleanup: {len(remaining_session.viewers)} viewers, "
-                      f"broadcaster: {'✅' if remaining_session.broadcaster else '❌'}")
-            else:
-                print(f"📊 Session {session_code} was removed during cleanup")
+                print(f"📊 Session {current_session.session_code} state: "
+                      f"broadcaster={'yes' if remaining_session.broadcaster else 'no'}, "
+                      f"viewers={len(remaining_session.viewers)}")
 
-async def ping_loop(websocket: WebSocket, connection_id: str):
-    """Send periodic pings to keep WebSocket connection alive - STABLE VERSION"""
-    try:
-        while True:
-            # Use Config.PING_INTERVAL (now 30 seconds) for stable connections
-            await asyncio.sleep(Config.PING_INTERVAL)
+# Add cleanup function for active websockets
+async def cleanup_dead_websockets():
+    """Remove dead websocket references - called by background task"""
+    dead_count = 0
+    for ws in list(active_websockets):
+        if not getattr(ws, 'is_alive', False):
+            try:
+                active_websockets.discard(ws)
+                dead_count += 1
+            except:
+                pass
 
-            if hasattr(websocket, 'is_alive') and websocket.is_alive:
-                try:
-                    ping_msg = {
-                        'type': 'server_ping',
-                        'timestamp': time.time() * 1000,
-                        'connection_id': connection_id,
-                        'interval': Config.PING_INTERVAL  # Let client know our interval
-                    }
-                    await websocket.send_text(json.dumps(ping_msg))
+    if dead_count > 0:
+        print(f"🧹 Cleaned up {dead_count} dead websocket references")
 
-                    # Only log occasionally to avoid spam
-                    if not hasattr(ping_loop, '_last_log'):
-                        ping_loop._last_log = {}
-
-                    current_time = time.time()
-                    if connection_id not in ping_loop._last_log or current_time - ping_loop._last_log[connection_id] > 120:
-                        print(f"📡 Sent stable ping to {connection_id} (interval: {Config.PING_INTERVAL}s)")
-                        ping_loop._last_log[connection_id] = current_time
-
-                except Exception as e:
-                    print(f"❌ Failed to send ping to {connection_id}: {e}")
-                    break
-            else:
-                print(f"🔌 Connection {connection_id} no longer alive, stopping ping loop")
-                break
-
-    except asyncio.CancelledError:
-        print(f"🔌 Ping loop cancelled for {connection_id}")
-    except Exception as e:
-        print(f"❌ Ping loop error for {connection_id}: {e}")
+# Export cleanup function for use in background tasks
+__all__ = ['websocket_endpoint', 'cleanup_dead_websockets']
