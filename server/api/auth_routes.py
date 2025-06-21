@@ -1,5 +1,5 @@
 """
-server/api/auth_routes.py - Discord Authentication Routes
+server/api/auth_routes.py - Updated Discord Authentication Routes for Popup Flow
 """
 
 import secrets
@@ -62,18 +62,27 @@ async def auth_callback(
     error: Optional[str] = None,
     error_description: Optional[str] = None
 ):
-    """Handle Discord OAuth callback"""
+    """Handle Discord OAuth callback - Updated for popup flow"""
     # Check for OAuth errors
     if error:
         logger.warning(f"🚫 Discord OAuth error: {error} - {error_description}")
 
-        error_url = f"{auth_config.FRONTEND_URL}/auth/error?error={error}&description={error_description or ''}"
+        # Redirect to popup callback page with error
+        error_url = (
+            f"{auth_config.FRONTEND_URL}/auth-popup-callback.html"
+            f"?error={error}"
+            f"&description={error_description or ''}"
+        )
         return RedirectResponse(url=error_url)
 
     # Validate required parameters
     if not code:
         logger.warning("🚫 Missing authorization code in callback")
-        error_url = f"{auth_config.FRONTEND_URL}/auth/error?error=missing_code&description=Authorization code not provided"
+        error_url = (
+            f"{auth_config.FRONTEND_URL}/auth-popup-callback.html"
+            f"?error=missing_code"
+            f"&description=Authorization code not provided"
+        )
         return RedirectResponse(url=error_url)
 
     try:
@@ -97,9 +106,9 @@ async def auth_callback(
             user_agent=user_agent
         )
 
-        # Build success redirect URL with tokens
+        # Build success redirect URL with tokens for popup callback page
         success_url = (
-            f"{auth_config.FRONTEND_URL}/auth/success"
+            f"{auth_config.FRONTEND_URL}/auth-popup-callback.html"
             f"?access_token={jwt_tokens.access_token}"
             f"&refresh_token={jwt_tokens.refresh_token}"
             f"&expires_in={jwt_tokens.expires_in}"
@@ -111,12 +120,20 @@ async def auth_callback(
 
     except DiscordAPIError as e:
         logger.error(f"❌ Discord API error in callback: {e.message}")
-        error_url = f"{auth_config.FRONTEND_URL}/auth/error?error=discord_api_error&description={e.message}"
+        error_url = (
+            f"{auth_config.FRONTEND_URL}/auth-popup-callback.html"
+            f"?error=discord_api_error"
+            f"&description={e.message}"
+        )
         return RedirectResponse(url=error_url)
 
     except Exception as e:
         logger.error(f"❌ Authentication callback error: {e}")
-        error_url = f"{auth_config.FRONTEND_URL}/auth/error?error=auth_failed&description=Authentication process failed"
+        error_url = (
+            f"{auth_config.FRONTEND_URL}/auth-popup-callback.html"
+            f"?error=auth_failed"
+            f"&description=Authentication process failed"
+        )
         return RedirectResponse(url=error_url)
 
 
@@ -228,7 +245,8 @@ async def auth_status():
             "guild_id": auth_config.DISCORD_GUILD_ID,
             "frontend_url": auth_config.FRONTEND_URL,
             "session_stats": session_stats,
-            "oauth_url": discord_service.get_oauth_url() if auth_config.DISCORD_CLIENT_ID else None
+            "oauth_url": discord_service.get_oauth_url() if auth_config.DISCORD_CLIENT_ID else None,
+            "popup_callback_url": f"{auth_config.FRONTEND_URL}/auth-popup-callback.html"
         }
 
     except Exception as e:
