@@ -1,29 +1,29 @@
-// royal_trainer_client/src/components/inference/EnhancedInferenceControlPanel.tsx
+// royal_trainer_client/src/components/inference/InferenceControlPanel.tsx - Updated with Auth Integration
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    BrainCircuit,
-    Brain,
-    AlertTriangle,
-    CheckCircle,
-    Loader2,
-    RefreshCw,
-    Wifi,
-    WifiOff,
-    Server,
-    Camera,
-    Settings
-} from 'lucide-react';
 import confetti from 'canvas-confetti';
+import {
+    Brain,
+    Loader2,
+    AlertTriangle,
+    Server,
+    Settings,
+    ChevronDown,
+    ChevronUp,
+    CheckCircle,
+    XCircle,
+} from 'lucide-react';
+
+// ✅ Import the updated hook and auth popup
+import { useInferenceToggle } from '../../hooks/useInferenceToggle';
 import { getApiUrl } from '../../config/api';
+import { useAuthPopup } from '../auth/DiscordAuthPopup';
 
 interface InferenceControlPanelProps {
-    sessionCode: string;
+    sessionCode: string | null;
     isConnected: boolean;
-    isInferenceEnabled: boolean;
-    onToggleInference: (enabled: boolean) => Promise<boolean>;
-    frameStats?: {
+    frameStats: {
         totalFramesCaptured: number;
         isCapturing: boolean;
         captureRate: number;
@@ -44,16 +44,26 @@ interface ServiceStatus {
 const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
     sessionCode,
     isConnected,
-    isInferenceEnabled,
-    onToggleInference,
     frameStats,
     className = ''
 }) => {
-    const [isToggling, setIsToggling] = useState(false);
-    const [toggleError, setToggleError] = useState<string | null>(null);
+    // ✅ Use the updated inference toggle hook with built-in auth
+    const {
+        isInferenceEnabled,
+        hasYoloService,
+        isToggling,
+        toggleError,
+        retryCount,
+        authCheckResult,
+        toggleInference,
+        clearError
+    } = useInferenceToggle(sessionCode);
+
+    // ✅ Auth popup for manual control (optional - the hook handles most cases automatically)
+    const { showPopup, AuthPopupComponent } = useAuthPopup();
+
     const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const [retryCount, setRetryCount] = useState(0);
     const maxRetries = 3;
 
     // Check service status
@@ -64,11 +74,8 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
             if (response.ok) {
                 const data = await response.json();
                 setServiceStatus(data.service_stats);
-                setToggleError(null);
             }
         } catch (error) {
-            console.log("-------------------")
-            console.log(getApiUrl(`api/inference/${sessionCode}/status`))
             console.warn('Failed to check service status:', error);
         }
     }, [isConnected, sessionCode]);
@@ -76,22 +83,19 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
     // Check status on mount and connection changes
     useEffect(() => {
         checkServiceStatus();
-        const interval = setInterval(checkServiceStatus, 10000); // Check every 10 seconds
+        const interval = setInterval(checkServiceStatus, 10000);
         return () => clearInterval(interval);
     }, [checkServiceStatus]);
 
+    // ✅ Handle inference toggle with automatic auth checking
     const handleToggleInference = useCallback(async () => {
         if (!sessionCode || isToggling) return;
 
-        setIsToggling(true);
-        setToggleError(null);
-
         try {
-            const success = await onToggleInference(!isInferenceEnabled);
+            // The toggleInference function now handles auth automatically
+            const success = await toggleInference(!isInferenceEnabled);
 
             if (success) {
-                setRetryCount(0);
-
                 // Celebration for enabling AI
                 if (!isInferenceEnabled) {
                     confetti({
@@ -101,327 +105,245 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
                         colors: ['#b154ff', '#ffd700', '#00ff00']
                     });
                 }
-            } else {
-                throw new Error('Toggle request failed');
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-            // Implement retry logic
-            if (retryCount < maxRetries) {
-                const newRetryCount = retryCount + 1;
-                setRetryCount(newRetryCount);
-                setToggleError(`${errorMessage} (Retrying ${newRetryCount}/${maxRetries}...)`);
-
-                // Exponential backoff
-                const retryDelay = Math.pow(2, newRetryCount - 1) * 1000;
-                setTimeout(() => {
-                    if (newRetryCount <= maxRetries) {
-                        handleToggleInference();
-                    }
-                }, retryDelay);
-            } else {
-                setToggleError(errorMessage);
-                setRetryCount(0);
-            }
-        } finally {
-            setIsToggling(false);
+            console.error('Inference toggle failed:', error);
         }
-    }, [sessionCode, isToggling, isInferenceEnabled, onToggleInference, retryCount]);
+    }, [sessionCode, isToggling, toggleInference, isInferenceEnabled]);
 
-    if (!isConnected) {
-        return null;
-    }
-
-    const isServiceReady = serviceStatus?.is_ready ?? false;
-    const canToggle = !isToggling && isServiceReady;
+    const isServiceReady = hasYoloService && serviceStatus?.is_ready;
+    const canToggle = isConnected && sessionCode && isServiceReady && !isToggling;
 
     return (
         <motion.div
-            className={`bg-gradient-to-br from-cr-purple/20 to-cr-gold/10 backdrop-blur-xl border-3 border-cr-purple/40 rounded-2xl p-6 shadow-xl ${className}`}
-            initial={{ opacity: 0, y: 20 }}
+            className={`bg-slate-900/50 border border-slate-700/50 rounded-xl p-4 ${className}`}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.3 }}
         >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <BrainCircuit className="w-6 h-6 text-cr-purple" />
-                    <h3 className="text-lg font-bold text-white">AI Analysis</h3>
+                <div className="flex items-center gap-2">
+                    <Brain className="w-5 h-5 text-purple-400" />
+                    <h3 className="text-white font-semibold">AI Detection</h3>
                 </div>
 
+                {/* ✅ Auth Status Indicator */}
                 <div className="flex items-center gap-2">
-                    {/* Service Status */}
-                    <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${isServiceReady
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'bg-yellow-500/20 text-yellow-400'
-                        }`}>
-                        <Server className="w-3 h-3" />
-                        <span>{isServiceReady ? 'Ready' : 'Loading'}</span>
-                    </div>
+                    {authCheckResult && (
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs ${authCheckResult.can_use_inference
+                            ? 'bg-green-900/30 text-green-400'
+                            : 'bg-red-900/30 text-red-400'
+                            }`}>
+                            {authCheckResult.can_use_inference ? (
+                                <>
+                                    <CheckCircle className="w-3 h-3" />
+                                    <span>Authorized</span>
+                                </>
+                            ) : (
+                                <>
+                                    <XCircle className="w-3 h-3" />
+                                    <span>Auth Required</span>
+                                </>
+                            )}
+                        </div>
+                    )}
 
-                    {/* Connection Status */}
-                    <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${isConnected
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'bg-red-500/20 text-red-400'
-                        }`}>
-                        {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-                        <span>{isConnected ? 'Connected' : 'Offline'}</span>
-                    </div>
-
-                    {/* Settings */}
-                    <motion.button
+                    <button
                         onClick={() => setShowAdvanced(!showAdvanced)}
-                        className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        title="Advanced Settings"
+                        className="text-slate-400 hover:text-white transition-colors"
                     >
-                        <Settings className="w-4 h-4 text-white/70" />
-                    </motion.button>
-
-                    {/* Refresh */}
-                    <motion.button
-                        onClick={checkServiceStatus}
-                        className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        title="Refresh Status"
-                    >
-                        <RefreshCw className="w-4 h-4 text-white/70" />
-                    </motion.button>
+                        {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
                 </div>
             </div>
 
-            <div className="space-y-4">
-                {/* Status Display */}
-                <div className="flex items-center justify-between">
-                    <span className="text-white/80 font-medium">YOLOv8 Detection</span>
-                    <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full transition-all duration-300 ${isInferenceEnabled
-                            ? 'bg-green-500 animate-pulse shadow-lg shadow-green-500/50'
-                            : 'bg-gray-500'
-                            }`} />
-                        <span className={`text-sm font-bold ${isInferenceEnabled ? 'text-green-400' : 'text-gray-400'
-                            }`}>
-                            {isInferenceEnabled ? 'ACTIVE' : 'INACTIVE'}
-                        </span>
+            {/* Connection Status */}
+            {!isConnected && (
+                <div className="mb-4 p-3 bg-amber-900/20 border border-amber-500/30 rounded-lg">
+                    <div className="flex items-center gap-2 text-amber-300 text-sm">
+                        <AlertTriangle className="w-4 h-4" />
+                        Connect to a session to enable AI detection
                     </div>
                 </div>
+            )}
 
-                {/* Session & Model Info */}
-                <div className="text-xs text-white/60 bg-black/20 p-3 rounded-lg space-y-2">
-                    <div className="flex justify-between">
-                        <span>Session:</span>
-                        <span className="font-mono text-cr-gold">{sessionCode}</span>
-                    </div>
-                    {serviceStatus && (
-                        <>
-                            <div className="flex justify-between">
-                                <span>Model:</span>
-                                <span className="text-white/80">{serviceStatus.model_path.split('/').pop()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Classes:</span>
-                                <span className="text-cr-purple">{serviceStatus.classes.length} types</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Confidence:</span>
-                                <span className="text-white/80">{Math.round(serviceStatus.confidence_threshold * 100)}%</span>
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {/* Frame Capture Stats */}
-                {frameStats && isInferenceEnabled && (
-                    <div className="text-xs text-white/60 bg-black/20 p-3 rounded-lg">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Camera className="w-4 h-4 text-cr-gold" />
-                            <span className="font-medium">Frame Capture</span>
+            {/* Service Status */}
+            {isConnected && (
+                <div className="mb-4 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-300">AI Service:</span>
+                        <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${isServiceReady ? 'bg-green-400' : 'bg-red-400'}`} />
+                            <span className={isServiceReady ? 'text-green-400' : 'text-red-400'}>
+                                {isServiceReady ? 'Ready' : 'Loading'}
+                            </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="flex justify-between">
-                                <span>Rate:</span>
-                                <span className="text-cr-gold">{frameStats.captureRate} FPS</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Quality:</span>
-                                <span className="text-white/80">{Math.round(frameStats.quality * 100)}%</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Captured:</span>
-                                <span className="text-white/80">{frameStats.totalFramesCaptured}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Status:</span>
+                    </div>
+
+                    {/* Frame Capture Status */}
+                    {frameStats && (
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-slate-300">Frame Capture:</span>
+                            <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${frameStats.isCapturing ? 'bg-green-400' : 'bg-red-400'}`} />
                                 <span className={frameStats.isCapturing ? 'text-green-400' : 'text-red-400'}>
                                     {frameStats.isCapturing ? 'Active' : 'Stopped'}
                                 </span>
                             </div>
                         </div>
-                    </div>
+                    )}
+                </div>
+            )}
+
+            {/* Main Toggle Button */}
+            <motion.button
+                onClick={handleToggleInference}
+                disabled={!canToggle}
+                className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-3 border-3 ${!isServiceReady
+                    ? 'bg-gray-600 border-gray-500 cursor-not-allowed'
+                    : isInferenceEnabled
+                        ? 'bg-red-gradient border-red-800 hover:scale-105 active:scale-95'
+                        : 'bg-purple-gradient border-cr-purple hover:scale-105 active:scale-95'
+                    } ${(!canToggle) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                whileHover={canToggle ? { y: -2 } : {}}
+                whileTap={canToggle ? { y: 0 } : {}}
+            >
+                {!isServiceReady ? (
+                    <>
+                        <Server className="w-5 h-5" />
+                        AI Service Loading...
+                    </>
+                ) : isToggling ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        {retryCount > 0
+                            ? `Retrying... (${retryCount}/${maxRetries})`
+                            : isInferenceEnabled ? 'Stopping AI...' : 'Starting AI...'
+                        }
+                    </>
+                ) : (
+                    <>
+                        <Brain className="w-5 h-5" />
+                        {isInferenceEnabled ? 'Stop AI Detection' : 'Start AI Detection'}
+                    </>
                 )}
+            </motion.button>
 
-                {/* Main Toggle Button */}
+            {/* ✅ Manual Auth Check Button (for testing/debugging) */}
+            {!authCheckResult?.can_use_inference && (
                 <motion.button
-                    onClick={handleToggleInference}
-                    disabled={!canToggle}
-                    className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-3 border-3 ${!isServiceReady
-                        ? 'bg-gray-600 border-gray-500 cursor-not-allowed'
-                        : isInferenceEnabled
-                            ? 'bg-red-gradient border-red-800 hover:scale-105 active:scale-95'
-                            : 'bg-purple-gradient border-cr-purple hover:scale-105 active:scale-95'
-                        } ${(!canToggle) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    whileHover={canToggle ? { y: -2 } : {}}
-                    whileTap={canToggle ? { y: 0 } : {}}
+                    onClick={() => showPopup({
+                        authRequired: !authCheckResult?.authenticated,
+                        guildRequired: authCheckResult?.authenticated && !authCheckResult?.in_required_guild,
+                        discordInviteUrl: authCheckResult?.discord_invite_url,
+                        errorMessage: authCheckResult?.error_message
+                    })}
+                    className="w-full mt-2 py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm transition-colors flex items-center justify-center gap-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
                 >
-                    {!isServiceReady ? (
-                        <>
-                            <Server className="w-5 h-5" />
-                            AI Service Loading...
-                        </>
-                    ) : isToggling ? (
-                        <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            {retryCount > 0
-                                ? `Retrying... (${retryCount}/${maxRetries})`
-                                : isInferenceEnabled ? 'Stopping AI...' : 'Starting AI...'
-                            }
-                        </>
-                    ) : (
-                        <>
-                            <Brain className="w-5 h-5" />
-                            {isInferenceEnabled ? 'Stop AI Detection' : 'Start AI Detection'}
-                        </>
-                    )}
+                    🔐 Check Authentication
                 </motion.button>
+            )}
 
-                {/* Error Display */}
-                <AnimatePresence>
-                    {toggleError && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="p-3 bg-red-900/30 border border-red-500/40 rounded-lg"
-                        >
-                            <div className="flex items-start gap-2">
-                                <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-                                <div>
-                                    <div className="text-red-300 text-sm font-medium">
-                                        {retryCount > 0 ? 'Retrying...' : 'Error'}
-                                    </div>
-                                    <div className="text-red-200 text-xs mt-1">
-                                        {toggleError}
-                                    </div>
+            {/* Error Display */}
+            <AnimatePresence>
+                {toggleError && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="mt-3 p-3 bg-red-900/30 border border-red-500/40 rounded-lg"
+                    >
+                        <div className="flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <div className="text-red-300 text-sm font-medium">
+                                    {retryCount > 0 ? `Retry ${retryCount}/${maxRetries}` : 'Error'}
                                 </div>
+                                <div className="text-red-200 text-xs mt-1">
+                                    {toggleError}
+                                </div>
+                                <button
+                                    onClick={clearError}
+                                    className="text-red-400 hover:text-red-300 text-xs mt-1 underline"
+                                >
+                                    Dismiss
+                                </button>
                             </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                {/* Success State */}
-                <AnimatePresence>
-                    {isInferenceEnabled && !toggleError && !isToggling && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="p-3 bg-green-900/30 border border-green-500/40 rounded-lg"
-                        >
-                            <div className="flex items-center gap-2">
-                                <CheckCircle className="w-4 h-4 text-green-400" />
-                                <div className="text-green-300 text-sm">
-                                    AI is analyzing Clash Royale gameplay
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Advanced Settings Panel */}
-                <AnimatePresence>
-                    {showAdvanced && serviceStatus && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="bg-black/20 rounded-lg p-4 border border-white/10"
-                        >
-                            <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                                <Settings className="w-4 h-4 text-cr-gold" />
-                                Advanced Settings
-                            </h4>
-
-                            <div className="space-y-3 text-xs">
-                                <div>
-                                    <label className="text-white/70 mb-1 block">Detection Classes</label>
-                                    <div className="flex flex-wrap gap-1">
-                                        {serviceStatus.classes.slice(0, 8).map((className, index) => (
-                                            <span key={index} className="px-2 py-1 bg-cr-purple/20 text-cr-purple rounded text-xs">
-                                                {className}
-                                            </span>
-                                        ))}
-                                        {serviceStatus.classes.length > 8 && (
-                                            <span className="px-2 py-1 bg-white/10 text-white/60 rounded text-xs">
-                                                +{serviceStatus.classes.length - 8} more
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-white/70 mb-1 block">Total Inferences</label>
-                                        <div className="text-white font-mono">{serviceStatus.total_inferences.toLocaleString()}</div>
-                                    </div>
-                                    <div>
-                                        <label className="text-white/70 mb-1 block">Avg Processing</label>
-                                        <div className="text-white font-mono">{serviceStatus.avg_inference_time.toFixed(1)}ms</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Performance Indicators */}
-                {isInferenceEnabled && serviceStatus && (
+            {/* Advanced Settings */}
+            <AnimatePresence>
+                {showAdvanced && serviceStatus && (
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10"
+                        className="mt-4 pt-4 border-t border-slate-700/50"
                     >
-                        <div className="text-center">
-                            <div className="text-xs text-white/50">Model</div>
-                            <div className="text-sm font-bold text-green-400">YOLOv8</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-xs text-white/50">Speed</div>
-                            <div className="text-sm font-bold text-white">
-                                {serviceStatus.avg_inference_time < 100 ? 'Fast' : 'Normal'}
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-slate-300">
+                                <Settings className="w-4 h-4" />
+                                <span className="text-sm font-medium">Service Details</span>
                             </div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-xs text-white/50">Mode</div>
-                            <div className="text-sm font-bold text-cr-gold">Real-time</div>
+
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Inferences:</span>
+                                    <span className="text-white">{serviceStatus.total_inferences}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Avg Time:</span>
+                                    <span className="text-white">{serviceStatus.avg_inference_time?.toFixed(1)}ms</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Confidence:</span>
+                                    <span className="text-white">{(serviceStatus.confidence_threshold * 100).toFixed(0)}%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Classes:</span>
+                                    <span className="text-white">{serviceStatus.classes?.length || 0}</span>
+                                </div>
+                            </div>
+
+                            {/* Auth Details */}
+                            {authCheckResult && (
+                                <div className="mt-3 p-2 bg-slate-800/50 rounded-lg">
+                                    <div className="text-xs space-y-1">
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-400">Authenticated:</span>
+                                            <span className={authCheckResult.authenticated ? 'text-green-400' : 'text-red-400'}>
+                                                {authCheckResult.authenticated ? 'Yes' : 'No'}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-400">Guild Member:</span>
+                                            <span className={authCheckResult.in_required_guild ? 'text-green-400' : 'text-red-400'}>
+                                                {authCheckResult.in_required_guild ? 'Yes' : 'No'}
+                                            </span>
+                                        </div>
+                                        {authCheckResult.username && (
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-400">User:</span>
+                                                <span className="text-white">{authCheckResult.username}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )}
+            </AnimatePresence>
 
-                {/* Help Text */}
-                <div className="text-xs text-white/60 text-center">
-                    {!isServiceReady ? (
-                        '⚠️ Loading AI model... Please wait'
-                    ) : isInferenceEnabled ? (
-                        '🧠 Detecting troops, buildings, and spells in your gameplay'
-                    ) : (
-                        '⚡ Click to start real-time Clash Royale object detection'
-                    )}
-                </div>
-            </div>
+            {/* ✅ Discord Auth Popup - This will automatically show when auth is required */}
+            <AuthPopupComponent />
         </motion.div>
     );
 };
