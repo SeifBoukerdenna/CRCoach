@@ -1,4 +1,4 @@
-// royal_trainer_client/src/hooks/useDiscordAuth.ts - Fixed Discord Authentication Hook
+// royal_trainer_client/src/hooks/useDiscordAuth.ts - Final Fixed Discord Authentication Hook
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getApiUrl } from "../config/api";
@@ -26,7 +26,10 @@ export const useDiscordAuth = () => {
 
   const refreshTimeoutRef = useRef<NodeJS.Timeout>();
   const isRefreshingRef = useRef(false);
-  const authPopupRef = useRef<Window | null>(null); // Add popup reference
+  const authPopupRef = useRef<Window | null>(null);
+  const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(
+    null
+  );
 
   // Clear error
   const clearError = useCallback(() => {
@@ -35,12 +38,14 @@ export const useDiscordAuth = () => {
 
   // Update auth state
   const updateAuthState = useCallback((updates: Partial<AuthState>) => {
+    console.log("🔄 Updating auth state:", updates);
     setAuthState((prev) => ({ ...prev, ...updates }));
   }, []);
 
   // Store tokens in localStorage
   const storeTokens = useCallback(
     (tokens: JWTTokens) => {
+      console.log("💾 Storing tokens");
       localStorage.setItem(TOKEN_STORAGE_KEY, tokens.access_token);
       localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, tokens.refresh_token);
 
@@ -55,6 +60,7 @@ export const useDiscordAuth = () => {
 
   // Clear stored tokens
   const clearTokens = useCallback(() => {
+    console.log("🗑️ Clearing tokens");
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_STORAGE_KEY);
@@ -194,9 +200,25 @@ export const useDiscordAuth = () => {
       }
     }, [makeAuthenticatedRequest]);
 
+  // Clean up popup and event listeners
+  const cleanupPopup = useCallback(() => {
+    console.log("🧹 Cleaning up popup");
+
+    if (authPopupRef.current) {
+      authPopupRef.current.close();
+      authPopupRef.current = null;
+    }
+
+    if (messageHandlerRef.current) {
+      window.removeEventListener("message", messageHandlerRef.current);
+      messageHandlerRef.current = null;
+    }
+  }, []);
+
   // Handle authentication callback from popup
   const handleAuthCallback = useCallback(
     async (params: AuthCallbackParams) => {
+      console.log("🎯 Handling auth callback:", params);
       updateAuthState({ isLoading: true, error: null });
 
       try {
@@ -264,18 +286,22 @@ export const useDiscordAuth = () => {
 
   // Check authentication status
   const checkAuth = useCallback(async () => {
+    console.log("🔍 Checking authentication status");
     updateAuthState({ isLoading: true, error: null });
 
     try {
       const tokens = getStoredTokens();
       if (!tokens) {
+        console.log("❌ No stored tokens found");
         updateAuthState({ isLoading: false });
         return;
       }
 
+      console.log("🎫 Found stored tokens, checking validity");
       // Try to get current user info
       const userInfo = await getCurrentUser();
       if (!userInfo) {
+        console.log("❌ Failed to get user info, clearing tokens");
         clearTokens();
         updateAuthState({ isLoading: false });
         return;
@@ -317,9 +343,13 @@ export const useDiscordAuth = () => {
 
   // Initiate Discord login with popup flow
   const login = useCallback(async () => {
+    console.log("🚀 Initiating Discord login");
     updateAuthState({ isLoading: true, error: null });
 
     try {
+      // Clean up any existing popup
+      cleanupPopup();
+
       const response = await fetch(getApiUrl("api/auth/login"));
 
       if (!response.ok) {
@@ -338,7 +368,10 @@ export const useDiscordAuth = () => {
       const popup = window.open(
         data.oauth_url,
         "discord-auth",
-        "width=500,height=700,scrollbars=yes,resizable=yes"
+        "width=500,height=700,scrollbars=yes,resizable=yes,left=" +
+          (screen.width / 2 - 250) +
+          ",top=" +
+          (screen.height / 2 - 350)
       );
 
       authPopupRef.current = popup;
@@ -351,13 +384,19 @@ export const useDiscordAuth = () => {
 
       // Listen for messages from popup
       const messageHandler = (event: MessageEvent) => {
+        console.log("📨 Received message from popup:", event);
+
         // Verify origin for security
         if (event.origin !== window.location.origin) {
+          console.warn("⚠️ Message from wrong origin:", event.origin);
           return;
         }
 
         if (event.data.type === "DISCORD_AUTH_SUCCESS") {
           console.log("✅ Received auth success from popup");
+
+          // Clean up first
+          cleanupPopup();
 
           // Handle successful authentication
           handleAuthCallback({
@@ -366,34 +405,28 @@ export const useDiscordAuth = () => {
             expires_in: event.data.tokens.expires_in,
             in_guild: event.data.tokens.in_guild,
           });
-
-          // Clean up
-          window.removeEventListener("message", messageHandler);
-          popup.close();
-          authPopupRef.current = null;
         } else if (event.data.type === "DISCORD_AUTH_ERROR") {
           console.error("❌ Received auth error from popup:", event.data.error);
+
+          // Clean up first
+          cleanupPopup();
 
           updateAuthState({
             isLoading: false,
             error: event.data.error || "Authentication failed",
           });
-
-          // Clean up
-          window.removeEventListener("message", messageHandler);
-          popup.close();
-          authPopupRef.current = null;
         }
       };
 
+      messageHandlerRef.current = messageHandler;
       window.addEventListener("message", messageHandler);
 
       // Handle popup being closed manually
       const checkClosed = setInterval(() => {
-        if (popup.closed) {
+        if (!popup || popup.closed) {
+          console.log("🔒 Popup was closed");
           clearInterval(checkClosed);
-          window.removeEventListener("message", messageHandler);
-          authPopupRef.current = null;
+          cleanupPopup();
 
           // Only update state if we're still loading (user didn't complete auth)
           if (authState.isLoading) {
@@ -404,17 +437,24 @@ export const useDiscordAuth = () => {
           }
         }
       }, 1000);
+
+      // Cleanup interval after 10 minutes (fallback)
+      setTimeout(() => {
+        clearInterval(checkClosed);
+      }, 600000);
     } catch (error) {
       console.error("❌ Login initiation failed:", error);
+      cleanupPopup();
       updateAuthState({
         isLoading: false,
         error: error instanceof Error ? error.message : "Authentication failed",
       });
     }
-  }, [updateAuthState, handleAuthCallback, authState.isLoading]);
+  }, [updateAuthState, handleAuthCallback, authState.isLoading, cleanupPopup]);
 
   // Logout user
   const logout = useCallback(async () => {
+    console.log("👋 Logging out user");
     updateAuthState({ isLoading: true });
 
     try {
@@ -429,16 +469,13 @@ export const useDiscordAuth = () => {
       // Continue with local logout even if API call fails
     }
 
-    // Close auth popup if open
-    if (authPopupRef.current) {
-      authPopupRef.current.close();
-      authPopupRef.current = null;
-    }
+    // Clean up popup and event listeners
+    cleanupPopup();
 
     // Clear local storage and state
     clearTokens();
     updateAuthState({ isLoading: false });
-  }, [makeAuthenticatedRequest, clearTokens, updateAuthState]);
+  }, [makeAuthenticatedRequest, clearTokens, updateAuthState, cleanupPopup]);
 
   // Check for auth callback on mount (for direct URL access)
   useEffect(() => {
@@ -447,6 +484,7 @@ export const useDiscordAuth = () => {
       urlParams.get("access_token") || urlParams.get("error");
 
     if (hasAuthParams) {
+      console.log("🔗 Found auth params in URL, handling callback");
       const params: AuthCallbackParams = {
         access_token: urlParams.get("access_token") || undefined,
         refresh_token: urlParams.get("refresh_token") || undefined,
@@ -466,14 +504,13 @@ export const useDiscordAuth = () => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      console.log("🧹 Component unmounting, cleaning up");
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
-      if (authPopupRef.current) {
-        authPopupRef.current.close();
-      }
+      cleanupPopup();
     };
-  }, []);
+  }, [cleanupPopup]);
 
   return {
     ...authState,
