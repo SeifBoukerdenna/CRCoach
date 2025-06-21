@@ -1,8 +1,12 @@
+// royal_trainer_client/src/components/OfflineLanding.tsx - Updated with Discord Auth
+
+import React from "react";
 import { motion } from "framer-motion";
 import type { ConnectionState } from "../types";
 import ConnectionSection from "./ConnectionSection";
 import BetaBanner from "./BetaBanner";
 import WatermarkSettings from "./WatermarkSettings";
+import AuthSection from "./auth/AuthSection";
 
 /* ── OFFLINE LANDING PAGE ─────────────────────────────────────────── */
 interface OfflineProps {
@@ -51,12 +55,25 @@ const OfflineLanding: React.FC<OfflineProps> = ({
                 </h2>
             </motion.div>
 
-            {/* 2-COLUMN GRID (connection left, banner right) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
-                {/* LEFT – CONNECTION CARD */}
+            {/* 3-COLUMN GRID (auth, connection, banner) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+                {/* LEFT – AUTH SECTION */}
                 <motion.div
                     initial={{ opacity: 0, x: -50 }}
                     animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, delay: 0.1 }}
+                >
+                    <AuthSection
+                        showTitle={true}
+                        expanded={false}
+                        className="h-full"
+                    />
+                </motion.div>
+
+                {/* CENTER – CONNECTION CARD */}
+                <motion.div
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
                 >
                     <ConnectionSection
@@ -73,32 +90,75 @@ const OfflineLanding: React.FC<OfflineProps> = ({
                     />
                 </motion.div>
 
-                {/* RIGHT – CONFIDENTIAL BANNER */}
-                <BetaBanner />
+                {/* RIGHT – BETA BANNER */}
+                <motion.div
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, delay: 0.3 }}
+                >
+                    <BetaBanner />
+                </motion.div>
             </div>
 
-            {/* WATERMARK SETTINGS PANEL */}
+            {/* FEATURES GRID – keep existing features */}
             <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.8 }}
-                className="mb-12 flex justify-center"
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
             >
-                <div className="bg-gradient-to-br from-red-900/50 to-purple-900/50 backdrop-blur-xl border border-red-500/30 rounded-2xl p-6">
-                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                        🛡️ Security&nbsp;&amp;&nbsp;Protection
-                    </h3>
-                    <div className="flex justify-center">
-                        <WatermarkSettings />
-                    </div>
-                    <p className="text-white/70 text-sm mt-4 max-w-md">
-                        Configure anti-piracy watermarks and security settings. These measures help protect the
-                        confidential nature of this beta software.
-                    </p>
-                </div>
+                {/* Feature cards */}
+                {[
+                    {
+                        icon: "🧠",
+                        title: "YOLOv8 AI",
+                        desc: "Real-time object detection with state-of-the-art accuracy"
+                    },
+                    {
+                        icon: "⚡",
+                        title: "Low Latency",
+                        desc: "Sub-100ms analysis for immediate feedback and coaching"
+                    },
+                    {
+                        icon: "📊",
+                        title: "Frame History",
+                        desc: "Review past detections and track performance over time"
+                    },
+                    {
+                        icon: "🛡️",
+                        title: "Secure",
+                        desc: "Discord authentication and anti-piracy protection"
+                    }
+                ].map((feature, idx) => (
+                    <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.5 + idx * 0.1 }}
+                        className="bg-gradient-to-br from-gray-800/40 to-gray-900/60 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:border-yellow-500/30 transition-all duration-300"
+                    >
+                        <div className="text-3xl mb-3">{feature.icon}</div>
+                        <h3 className="text-lg font-semibold text-white mb-2">
+                            {feature.title}
+                        </h3>
+                        <p className="text-gray-400 text-sm">
+                            {feature.desc}
+                        </p>
+                    </motion.div>
+                ))}
+            </motion.div>
+
+            {/* WATERMARK SETTINGS */}
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.8 }}
+                className="max-w-md mx-auto"
+            >
+                <WatermarkSettings />
             </motion.div>
         </div>
     </motion.div>
 );
 
-export default OfflineLanding
+export default OfflineLanding;
