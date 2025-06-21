@@ -1,6 +1,6 @@
-// royal_trainer_client/src/types/index.ts - Updated with Discord Auth Types
+// royal_trainer_client/src/types/index.ts - Complete fixed types with all missing definitions
 
-// Existing types (keep all existing ones)
+// Connection and Stream types
 export interface StreamStats {
   fps?: number;
   bitrate?: number;
@@ -41,15 +41,29 @@ export interface SessionStatus {
   last_activity?: string;
 }
 
+// Fixed ConnectionState - simplified to just the state value
+export type ConnectionStateValue =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "disconnecting"
+  | "error"
+  | "offline"
+  | "live";
+
+// Legacy interface for backwards compatibility (if needed elsewhere)
 export interface ConnectionState {
-  connectionState:
-    | "idle"
-    | "connecting"
-    | "connected"
-    | "disconnecting"
-    | "error";
+  connectionState: ConnectionStateValue;
   isConnecting: boolean;
   isConnected: boolean;
+}
+
+// Detection and Inference types
+export interface Detection {
+  bbox: [number, number, number, number]; // [x1, y1, x2, y2]
+  confidence: number;
+  class_id: number;
+  class_name: string;
 }
 
 export interface DetectionData {
@@ -62,13 +76,6 @@ export interface DetectionData {
   processed_image_size: [number, number];
 }
 
-export interface Detection {
-  bbox: [number, number, number, number]; // [x1, y1, x2, y2]
-  confidence: number;
-  class_id: number;
-  class_name: string;
-}
-
 export interface InferenceStats {
   totalDetections: number;
   averageConfidence: number;
@@ -76,7 +83,30 @@ export interface InferenceStats {
   frameRate: number;
 }
 
-// New Discord Authentication Types
+// Missing types that were accidentally removed
+export interface InferenceData {
+  detections: Detection[];
+  timestamp: number;
+  frameId: string;
+  confidence_threshold: number;
+  inference_time_ms: number;
+  original_image_size: [number, number];
+  processed_image_size: [number, number];
+}
+
+export interface DetectionHistoryItem {
+  id: string;
+  timestamp: number;
+  frameId: string;
+  detections: Detection[];
+  confidence_threshold: number;
+  inference_time_ms: number;
+  original_image_size: [number, number];
+  processed_image_size: [number, number];
+  screenshot?: string; // Base64 encoded image
+}
+
+// Discord Authentication Types
 export interface DiscordUser {
   id: string;
   username: string;

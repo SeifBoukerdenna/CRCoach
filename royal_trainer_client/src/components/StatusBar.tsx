@@ -1,10 +1,10 @@
-// royal_trainer_client/src/components/StatusBar.tsx
+// royal_trainer_client/src/components/StatusBar.tsx - REQUIRED COMPONENT
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Wifi, WifiOff, Clock, Zap, Play, Activity, Brain } from 'lucide-react';
 import StatusBadge from './StatusBadge';
-import type { ConnectionState, StreamStats } from '../types';
+import type { ConnectionStateValue, StreamStats } from '../types';
 
 interface LatencyStats {
     current: number;
@@ -12,7 +12,7 @@ interface LatencyStats {
 }
 
 interface StatusBarProps {
-    connectionState: ConnectionState;
+    connectionState: ConnectionStateValue;
     elapsed: string;
     streamStats: StreamStats | null;
     latencyStats: LatencyStats;

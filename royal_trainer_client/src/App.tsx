@@ -1,4 +1,4 @@
-// royal_trainer_client/src/App.tsx - Refactored for better maintainability
+// royal_trainer_client/src/App.tsx - Complete Fixed Version
 
 import React from 'react';
 import { AnimatePresence } from 'framer-motion';
@@ -29,7 +29,7 @@ const App: React.FC = () => {
 
   const webRTC = useWebRTCWithFrameCapture();
 
-  const connectionState = useConnectionState(webRTC.isConnecting, webRTC.isConnected);
+  const connection = useConnectionState(webRTC.isConnecting, webRTC.isConnected);
 
   const inference = useInference(uiState.sessionCode, webRTC.isConnected);
 
@@ -42,19 +42,19 @@ const App: React.FC = () => {
     const status = await webRTC.checkSessionStatus(uiState.sessionCode);
     if (status && !status.available_for_viewer) return;
 
-    connectionState.handleConnectionStart();
+    connection.handleConnectionStart();
 
     try {
       await webRTC.connect(uiState.sessionCode);
     } catch (e) {
       console.error(e);
-      connectionState.handleConnectionEnd();
+      connection.handleConnectionEnd();
     }
   };
 
   const handleDisconnect = () => {
     webRTC.disconnect();
-    connectionState.handleConnectionEnd();
+    connection.handleConnectionEnd();
     detectionHistory.clearHistory();
   };
 
@@ -68,10 +68,10 @@ const App: React.FC = () => {
       <div className="relative z-10 flex flex-col min-h-screen p-3">
         <Header />
 
-        {/* STATUS BAR */}
+        {/* STATUS BAR - Fixed with correct props */}
         <StatusBar
-          connectionState={connectionState.connectionState}
-          elapsed={connectionState.elapsed}
+          connectionState={connection.connectionState}
+          elapsed={connection.elapsed}
           streamStats={webRTC.streamStats}
           latencyStats={webRTC.latencyStats}
           isInferenceEnabled={webRTC.isInferenceEnabled}
@@ -82,12 +82,12 @@ const App: React.FC = () => {
         {/* MAIN CONTENT AREA */}
         <div className="flex-1 min-h-0">
           <AnimatePresence mode="wait">
-            {connectionState.connectionState === 'live' ? (
+            {connection.connectionState === 'live' ? (
               <LiveDashboard
                 // Session & Connection
                 sessionCode={uiState.sessionCode}
                 onSessionCodeChange={uiState.handleSessionCodeChange}
-                connectionState={connectionState.connectionState}
+                connectionState={connection.connectionState}
                 onConnect={handleConnect}
                 onDisconnect={handleDisconnect}
                 isConnecting={webRTC.isConnecting}
@@ -128,7 +128,7 @@ const App: React.FC = () => {
               <OfflineLanding
                 sessionCode={uiState.sessionCode}
                 onSessionCodeChange={uiState.handleSessionCodeChange}
-                connectionState={connectionState.connectionState}
+                connectionState={connection.connectionState}
                 onConnect={handleConnect}
                 onDisconnect={handleDisconnect}
                 isConnecting={webRTC.isConnecting}
@@ -145,7 +145,7 @@ const App: React.FC = () => {
       </div>
 
       {/* OVERLAYS */}
-      <ConnectionLoader show={connectionState.showLoader} sessionCode={uiState.sessionCode} />
+      <ConnectionLoader show={connection.showLoader} sessionCode={uiState.sessionCode} />
       <ErrorToast error={webRTC.connectionError} />
 
       {/* GLOBAL STYLES */}

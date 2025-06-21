@@ -1,18 +1,17 @@
-// royal_trainer_client/src/components/OfflineLanding.tsx - Updated with Discord Auth
+// royal_trainer_client/src/components/OfflineLanding.tsx - DEFINITIVE FIX
 
 import React from "react";
 import { motion } from "framer-motion";
-import type { ConnectionState } from "../types";
+import type { ConnectionStateValue } from "../types";  // ✅ Import the correct type
 import ConnectionSection from "./ConnectionSection";
 import BetaBanner from "./BetaBanner";
 import WatermarkSettings from "./WatermarkSettings";
-import AuthSection from "./auth/AuthSection";
 
 /* ── OFFLINE LANDING PAGE ─────────────────────────────────────────── */
 interface OfflineProps {
     sessionCode: string;
     onSessionCodeChange: (s: string) => void;
-    connectionState: ConnectionState;
+    connectionState: ConnectionStateValue;  // ✅ Use string type, not object type
     onConnect: () => void;
     onDisconnect: () => void;
     isConnecting: boolean;
@@ -25,7 +24,7 @@ interface OfflineProps {
 const OfflineLanding: React.FC<OfflineProps> = ({
     sessionCode,
     onSessionCodeChange,
-    connectionState,
+    connectionState,  // ✅ This is now a string, not an object
     onConnect,
     onDisconnect,
     isConnecting,
@@ -55,20 +54,8 @@ const OfflineLanding: React.FC<OfflineProps> = ({
                 </h2>
             </motion.div>
 
-            {/* 3-COLUMN GRID (auth, connection, banner) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-                {/* LEFT – AUTH SECTION */}
-                <motion.div
-                    initial={{ opacity: 0, x: -50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
-                >
-                    <AuthSection
-                        showTitle={true}
-                        expanded={false}
-                        className="h-full"
-                    />
-                </motion.div>
+            {/* 2-COLUMN GRID (connection, banner) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
 
                 {/* CENTER – CONNECTION CARD */}
                 <motion.div
@@ -100,14 +87,13 @@ const OfflineLanding: React.FC<OfflineProps> = ({
                 </motion.div>
             </div>
 
-            {/* FEATURES GRID – keep existing features */}
+            {/* FEATURES GRID */}
             <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
             >
-                {/* Feature cards */}
                 {[
                     {
                         icon: "🧠",

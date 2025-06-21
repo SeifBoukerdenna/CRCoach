@@ -1,15 +1,32 @@
-// royal_trainer_client/src/hooks/useConnectionState.ts
+// royal_trainer_client/src/hooks/useConnectionState.ts - Fixed TypeScript errors
 
 import { useState, useEffect } from "react";
 import confetti from "canvas-confetti";
-import type { ConnectionState } from "../types";
+
+// Define the connection state as a union type for internal use
+type ConnectionStateValue =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "disconnecting"
+  | "error"
+  | "offline"
+  | "live";
+
+interface UseConnectionStateReturn {
+  connectionState: ConnectionStateValue;
+  elapsed: string;
+  showLoader: boolean;
+  handleConnectionStart: () => void;
+  handleConnectionEnd: () => void;
+}
 
 export const useConnectionState = (
   isConnecting: boolean,
   isConnected: boolean
-) => {
+): UseConnectionStateReturn => {
   const [connectionState, setConnectionState] =
-    useState<ConnectionState>("offline");
+    useState<ConnectionStateValue>("offline");
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsed, setElapsed] = useState("00:00:00");
   const [showLoader, setShowLoader] = useState(false);

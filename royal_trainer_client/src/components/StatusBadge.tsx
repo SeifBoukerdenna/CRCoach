@@ -5,7 +5,7 @@ import type { LucideProps } from 'lucide-react';
 interface StatusBadgeProps {
     icon: React.ComponentType<LucideProps>;
     text: string;
-    variant: 'offline' | 'connecting' | 'live' | 'inference' | 'info';
+    variant: 'offline' | 'connecting' | 'live' | 'inference' | 'info' | 'idle' | 'error' | 'connected' | 'disconnecting';
 }
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ icon: Icon, text, variant }) => {

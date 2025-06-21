@@ -7,7 +7,7 @@ import ConnectionSection from './ConnectionSection';
 import InferenceControlPanel from './inference/InferenceControlPanel';
 import WatermarkSettings from './WatermarkSettings';
 import LatencyDisplay from './LatencyDisplay';
-import type { ConnectionState, ConnectionError, SessionStatus, StreamStats } from '../types';
+import type { ConnectionError, SessionStatus, StreamStats, ConnectionStateValue } from '../types';
 
 interface LatencyStats {
     current: number;
@@ -21,7 +21,7 @@ interface LatencyStats {
 interface SidebarProps {
     sessionCode: string;
     onSessionCodeChange: (code: string) => void;
-    connectionState: ConnectionState;
+    connectionState: ConnectionStateValue;
     onConnect: () => void;
     onDisconnect: () => void;
     isConnecting: boolean;

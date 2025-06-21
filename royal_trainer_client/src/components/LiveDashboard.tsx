@@ -1,12 +1,19 @@
-// royal_trainer_client/src/components/LiveDashboard.tsx
+// royal_trainer_client/src/components/LiveDashboard.tsx - Fixed with correct types
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import Sidebar from './Sidebar';
 import CenterPanel from './CenterPanel';
 import InferencePanel from './InferencePanel';
-import type { DetectionHistoryItem } from '../hooks/useDetectionHistory';
-import type { ConnectionState, ConnectionError, SessionStatus, StreamStats, InferenceData, InferenceStats } from '../types';
+import type {
+    ConnectionStateValue,
+    ConnectionError,
+    SessionStatus,
+    StreamStats,
+    InferenceStats,
+    InferenceData,
+    DetectionHistoryItem
+} from '../types';
 
 interface LatencyStats {
     current: number;
@@ -21,7 +28,7 @@ interface LiveDashboardProps {
     // Session & Connection
     sessionCode: string;
     onSessionCodeChange: (code: string) => void;
-    connectionState: ConnectionState;
+    connectionState: ConnectionStateValue;
     onConnect: () => void;
     onDisconnect: () => void;
     isConnecting: boolean;

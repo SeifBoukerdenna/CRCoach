@@ -3,13 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wifi, AlertCircle, Crown, Smartphone, Zap, Square, Users, Check, X, Loader2, Clock, RefreshCw } from 'lucide-react';
-import type { ConnectionError, ConnectionState, SessionStatus } from '../types';
+import type { ConnectionError, ConnectionStateValue, SessionStatus } from '../types';
 
 
 interface ConnectionSectionProps {
     sessionCode: string;
     onSessionCodeChange: (code: string) => void;
-    connectionState: ConnectionState;
+    connectionState: ConnectionStateValue;
     onConnect: () => void;
     onDisconnect: () => void;
     isConnecting: boolean;
