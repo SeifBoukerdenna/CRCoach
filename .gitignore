@@ -8,3 +8,4 @@ server/debug_outputs
 model
 
 **/__pycache__/
+server/.env

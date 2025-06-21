@@ -13,3 +13,9 @@ numpy>=1.21.0
 pillow>=9.0.0
 torch>=2.0.0
 torchvision>=0.15.0
+
+# Discord OAuth Authentication Dependencies
+httpx==0.25.2
+python-jose==3.3.0
+passlib==1.7.4
+python-dateutil==2.8.2
