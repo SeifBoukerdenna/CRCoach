@@ -13,10 +13,12 @@ import {
     WifiOff,
     Server,
     Camera,
-    Settings
+    Settings,
+    LogIn
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getApiUrl } from '../../config/api';
+import { useDiscordAuth } from '../../hooks/useDiscordAuth';
 
 interface InferenceControlPanelProps {
     sessionCode: string;
@@ -49,6 +51,15 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
     frameStats,
     className = ''
 }) => {
+    /* ────────────────────────  AUTH  ──────────────────────── */
+    const {
+        isAuthenticated,
+        isInRequiredGuild,
+        isLoading: isAuthLoading,
+        login
+    } = useDiscordAuth();
+
+    /* ───────────────────── STATE  ─────────────────────────── */
     const [isToggling, setIsToggling] = useState(false);
     const [toggleError, setToggleError] = useState<string | null>(null);
     const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
@@ -56,7 +67,7 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
     const [retryCount, setRetryCount] = useState(0);
     const maxRetries = 3;
 
-    // Check service status
+    /* ──────────────────  SERVICE STATUS  ──────────────────── */
     const checkServiceStatus = useCallback(async () => {
         if (!isConnected || !sessionCode) return;
         try {
@@ -67,19 +78,17 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
                 setToggleError(null);
             }
         } catch (error) {
-            console.log("-------------------")
-            console.log(getApiUrl(`api/inference/${sessionCode}/status`))
             console.warn('Failed to check service status:', error);
         }
     }, [isConnected, sessionCode]);
 
-    // Check status on mount and connection changes
     useEffect(() => {
         checkServiceStatus();
-        const interval = setInterval(checkServiceStatus, 10000); // Check every 10 seconds
+        const interval = setInterval(checkServiceStatus, 10_000); // every 10 s
         return () => clearInterval(interval);
     }, [checkServiceStatus]);
 
+    /* ──────────────────  TOGGLE HANDLER  ──────────────────── */
     const handleToggleInference = useCallback(async () => {
         if (!sessionCode || isToggling) return;
 
@@ -92,7 +101,6 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
             if (success) {
                 setRetryCount(0);
 
-                // Celebration for enabling AI
                 if (!isInferenceEnabled) {
                     confetti({
                         particleCount: 80,
@@ -107,19 +115,12 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-            // Implement retry logic
             if (retryCount < maxRetries) {
                 const newRetryCount = retryCount + 1;
                 setRetryCount(newRetryCount);
                 setToggleError(`${errorMessage} (Retrying ${newRetryCount}/${maxRetries}...)`);
-
-                // Exponential backoff
-                const retryDelay = Math.pow(2, newRetryCount - 1) * 1000;
-                setTimeout(() => {
-                    if (newRetryCount <= maxRetries) {
-                        handleToggleInference();
-                    }
-                }, retryDelay);
+                const retryDelay = 2 ** (newRetryCount - 1) * 1000;
+                setTimeout(() => handleToggleInference(), retryDelay);
             } else {
                 setToggleError(errorMessage);
                 setRetryCount(0);
@@ -129,13 +130,20 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
         }
     }, [sessionCode, isToggling, isInferenceEnabled, onToggleInference, retryCount]);
 
+    /* ────────────────  GATING & MESSAGES  ─────────────────── */
+    const isServiceReady = serviceStatus?.is_ready ?? false;
+    const authGatePassed = isAuthenticated && isInRequiredGuild;
+    const canToggle = !isToggling && isServiceReady && authGatePassed;
+
+    let authMessage: string | null = null;
+    if (!isAuthenticated) authMessage = 'Connect your Discord account to enable AI.';
+    else if (!isInRequiredGuild) authMessage = 'Join the required Discord server to unlock AI.';
+
     if (!isConnected) {
         return null;
     }
 
-    const isServiceReady = serviceStatus?.is_ready ?? false;
-    const canToggle = !isToggling && isServiceReady;
-
+    /* ───────────────────────  UI  ─────────────────────────── */
     return (
         <motion.div
             className={`bg-gradient-to-br from-cr-purple/20 to-cr-gold/10 backdrop-blur-xl border-3 border-cr-purple/40 rounded-2xl p-6 shadow-xl ${className}`}
@@ -168,6 +176,19 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
                         {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
                         <span>{isConnected ? 'Connected' : 'Offline'}</span>
                     </div>
+
+                    {/* Login button if needed */}
+                    {!isAuthenticated && (
+                        <motion.button
+                            onClick={login}
+                            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            title="Login with Discord"
+                        >
+                            <LogIn className="w-4 h-4 text-white/70" />
+                        </motion.button>
+                    )}
 
                     {/* Settings */}
                     <motion.button
@@ -281,6 +302,16 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
                             <Server className="w-5 h-5" />
                             AI Service Loading...
                         </>
+                    ) : isAuthLoading ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Authenticating...
+                        </>
+                    ) : !authGatePassed ? (
+                        <>
+                            <AlertTriangle className="w-5 h-5" />
+                            {isAuthenticated ? 'Access Restricted' : 'Login Required'}
+                        </>
                     ) : isToggling ? (
                         <>
                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -323,7 +354,7 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
 
                 {/* Success State */}
                 <AnimatePresence>
-                    {isInferenceEnabled && !toggleError && !isToggling && (
+                    {isInferenceEnabled && !toggleError && !isToggling && authGatePassed && (
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -387,7 +418,7 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
                 </AnimatePresence>
 
                 {/* Performance Indicators */}
-                {isInferenceEnabled && serviceStatus && (
+                {isInferenceEnabled && serviceStatus && authGatePassed && (
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
@@ -411,9 +442,11 @@ const InferenceControlPanel: React.FC<InferenceControlPanelProps> = ({
                     </motion.div>
                 )}
 
-                {/* Help Text */}
+                {/* Help / Auth Text */}
                 <div className="text-xs text-white/60 text-center">
-                    {!isServiceReady ? (
+                    {authMessage ? (
+                        authMessage
+                    ) : !isServiceReady ? (
                         '⚠️ Loading AI model... Please wait'
                     ) : isInferenceEnabled ? (
                         '🧠 Detecting troops, buildings, and spells in your gameplay'
