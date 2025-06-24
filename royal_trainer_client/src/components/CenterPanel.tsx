@@ -3,9 +3,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import VideoStream from './VideoStream';
+import ElixirAndCards from './ElixirAndCards';
 import HistoryAndStats from './HistoryAndStats';
-import type { DetectionHistoryItem } from '../hooks/useDetectionHistory';
-import type { StreamStats } from '../types';
+import type { DetectionHistoryItem, StreamStats } from '../types';
 
 interface LatencyStats {
     current: number;
@@ -49,13 +49,18 @@ const CenterPanel: React.FC<CenterPanelProps> = ({
             transition={{ duration: 0.3, delay: 0.1 }}
         >
             {/* Video */}
-            <div className={`transition-all duration-300 ${isVideoMin ? 'h-48' : 'h-3/5'} mb-3`}>
+            <div className={`transition-all duration-300 ${isVideoMin ? 'h-48' : 'h-2/5'} mb-3`}>
                 <VideoStream
                     videoRef={videoRef}
                     sessionCode={sessionCode}
                     streamStats={streamStats}
                     remoteStream={remoteStream}
                 />
+            </div>
+
+            {/* Elixir Bar and Opponent Cards */}
+            <div className="mb-3">
+                <ElixirAndCards />
             </div>
 
             {/* History & stats */}

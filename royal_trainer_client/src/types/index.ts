@@ -104,6 +104,34 @@ export interface DetectionHistoryItem {
   original_image_size: [number, number];
   processed_image_size: [number, number];
   screenshot?: string; // Base64 encoded image
+  annotatedFrame?: string; // Base64 encoded image
+}
+
+// Clash Royale Game State Types
+export interface ClashRoyaleCard {
+  id: number;
+  name: string;
+  cost: number;
+  rarity: "common" | "rare" | "epic" | "legendary";
+  isInHand: boolean;
+  isNext: boolean;
+  level?: number;
+  cardKey?: string; // Internal game key
+}
+
+export interface ElixirState {
+  current: number;
+  max: number;
+  regenerationRate?: number; // per second
+  lastUpdated?: number;
+}
+
+export interface GameState {
+  elixir: ElixirState;
+  playerCards: ClashRoyaleCard[];
+  opponentCards: ClashRoyaleCard[];
+  gameTime?: number;
+  matchId?: string;
 }
 
 // Discord Authentication Types
