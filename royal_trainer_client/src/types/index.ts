@@ -1,4 +1,4 @@
-// royal_trainer_client/src/types/index.ts - Complete fixed types with all missing definitions
+// royal_trainer_client/src/types/index.ts - Updated with Champion support
 
 // Connection and Stream types
 export interface StreamStats {
@@ -107,16 +107,24 @@ export interface DetectionHistoryItem {
   annotatedFrame?: string; // Base64 encoded image
 }
 
-// Clash Royale Game State Types
+// Enhanced Clash Royale Game State Types with Champion support
 export interface ClashRoyaleCard {
   id: number;
   name: string;
   cost: number;
-  rarity: "common" | "rare" | "epic" | "legendary";
+  rarity: "common" | "rare" | "epic" | "legendary" | "champion";
   isInHand: boolean;
   isNext: boolean;
   level?: number;
   cardKey?: string; // Internal game key
+}
+
+export interface ChampionState {
+  activeChampion: ClashRoyaleCard | null;
+  isChampionDeployed: boolean;
+  canUseAbility: boolean;
+  abilityCost: number;
+  abilityCooldown?: number;
 }
 
 export interface ElixirState {
@@ -130,6 +138,7 @@ export interface GameState {
   elixir: ElixirState;
   playerCards: ClashRoyaleCard[];
   opponentCards: ClashRoyaleCard[];
+  championState: ChampionState;
   gameTime?: number;
   matchId?: string;
 }
@@ -259,4 +268,42 @@ export const getGuildIconUrl = (
 
   const extension = guild.icon.startsWith("a_") ? "gif" : "png";
   return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.${extension}?size=${size}`;
+};
+
+// Champion utility functions
+export const isChampion = (card: ClashRoyaleCard): boolean => {
+  return card.rarity === "champion";
+};
+
+export const getChampionAbilityCost = (championName: string): number => {
+  // Different champions could have different ability costs
+  switch (championName) {
+    case "Golden Knight":
+      return 2;
+    case "Archer Queen":
+      return 1;
+    case "Skeleton King":
+      return 2;
+    default:
+      return 2; // Default ability cost
+  }
+};
+
+export const getCardRarityColor = (
+  rarity: ClashRoyaleCard["rarity"]
+): string => {
+  switch (rarity) {
+    case "common":
+      return "#8B9DC3"; // Light blue-gray
+    case "rare":
+      return "#FF9500"; // Orange
+    case "epic":
+      return "#A843DC"; // Purple
+    case "legendary":
+      return "#FFD700"; // Gold
+    case "champion":
+      return "#FF4444"; // Red
+    default:
+      return "#8B9DC3";
+  }
 };
