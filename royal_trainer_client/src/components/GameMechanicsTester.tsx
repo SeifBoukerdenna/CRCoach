@@ -22,6 +22,11 @@ const GameMechanicsTester: React.FC = () => {
     const elixir = useElixirBar(5);
     const cardCycle = useCardCycle();
 
+    // Helper function to get card image path
+    const getCardImagePath = (cardKey: string): string => {
+        return `/cards/${cardKey}.png`;
+    };
+
     // Handle card play
     const handlePlayCard = (card: Card) => {
         console.log(`🎯 Attempting to play ${card.name} (${card.cost} elixir)`);
@@ -339,6 +344,7 @@ const GameMechanicsTester: React.FC = () => {
                 </div>
             </motion.div>
 
+
             {/* Card Hand */}
             <motion.div
                 initial={{ opacity: 0, y: 50 }}
@@ -346,30 +352,35 @@ const GameMechanicsTester: React.FC = () => {
                 className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6"
             >
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Target className="w-6 h-6 text-yellow-400" />
+                    <h3 className="text-2xl font-extrabold text-white flex items-center gap-2">
+                        <Target className="w-7 h-7 text-yellow-400" />
                         Current Hand (4 Cards)
                     </h3>
-                    <div className="text-sm text-white/60">
+                    <div className="text-base text-white/60">
                         {cardCycle.championState.isChampionDeployed ? (
                             <div>
-                                <div className="text-red-400 font-semibold">🏆 {cardCycle.championState.activeChampion?.name} Active</div>
-                                <div className="text-xs text-white/40 mt-1">
-                                    Champion on field - cycle queue reduced to 3 cards
+                                <div className="text-red-400 font-semibold text-lg">
+                                    🏆 {cardCycle.championState.activeChampion?.name} Active
+                                </div>
+                                <div className="text-sm text-white/40 mt-1">
+                                    Champion on field – queue reduced to 3 cards
                                 </div>
                             </div>
                         ) : (
                             <div>
-                                Next: <span className="text-yellow-400 font-semibold">{cardCycle.nextCard?.name || 'None'}</span>
-                                <div className="text-xs text-white/40 mt-1">
-                                    Play any card from hand → cycles to back → next card enters hand
+                                Next:{' '}
+                                <span className="text-xl font-bold text-yellow-300">
+                                    {cardCycle.nextCard?.name || 'None'}
+                                </span>
+                                <div className="text-sm text-white/40 mt-1">
+                                    Play any card → moves back → next enters hand
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-4 gap-6">
                     {cardCycle.hand.map((card, index) => {
                         const canPlay = cardCycle.isCardPlayable(card.id, elixir.current);
 
@@ -377,66 +388,79 @@ const GameMechanicsTester: React.FC = () => {
                             <motion.div
                                 key={`${card.id}-${index}`}
                                 className="relative group"
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
                             >
                                 <button
                                     onClick={() => handlePlayCard(card)}
                                     disabled={!canPlay}
                                     className={`
-                                        w-full aspect-[3/4] rounded-xl border-2 overflow-hidden transition-all duration-200
-                                        ${canPlay
-                                            ? `${getRarityBorderColor(card.rarity)} bg-gradient-to-b ${getRarityColor(card.rarity)} hover:shadow-lg cursor-pointer`
+              w-full aspect-[3/4] rounded-2xl border-2 overflow-hidden transition-all duration-200 relative
+              ${canPlay
+                                            ? `${getRarityBorderColor(card.rarity)} bg-gradient-to-b ${getRarityColor(card.rarity)} hover:shadow-2xl cursor-pointer`
                                             : 'border-slate-600 bg-gradient-to-b from-slate-700 to-slate-800 opacity-50 cursor-not-allowed'
                                         }
-                                    `}
+            `}
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-black/30" />
+                                    {/* Image */}
+                                    <div className="absolute inset-0">
+                                        <img
+                                            src={getCardImagePath(card.cardKey)}
+                                            alt={card.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                        />
+                                    </div>
 
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
-                                        <div className="text-sm font-bold text-white text-center leading-tight mb-1">
+                                    {/* Disabled Overlay */}
+                                    {!canPlay && <div className="absolute inset-0 bg-black/50" />}
+
+                                    {/* Name & Level */}
+                                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3">
+                                        <div className="text-lg font-extrabold text-white text-center leading-tight drop-shadow-xl">
                                             {card.name}
                                         </div>
-                                        <div className="text-xs text-white/80">
+                                        <div className="text-base text-white/90 text-center mt-1">
                                             Lv.{card.level}
                                         </div>
-                                        {/* Champion indicator */}
-                                        {card.rarity === "champion" && (
-                                            <div className="text-xs text-red-300 mt-1">
+                                        {card.rarity === 'champion' && (
+                                            <div className="text-base text-red-300 text-center mt-1">
                                                 👑 CHAMPION
                                             </div>
                                         )}
-                                        {/* Position indicator for testing */}
-                                        <div className="text-xs text-white/50 mt-1">
+                                        <div className="text-sm text-white/50 text-center mt-1">
                                             #{index + 1}
                                         </div>
                                     </div>
 
-                                    <div className="absolute top-2 left-2 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center border border-purple-400">
-                                        <span className="text-xs font-bold text-white">{card.cost}</span>
+                                    {/* Elixir Cost */}
+                                    <div className="absolute top-2 left-2 w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center border-2 border-purple-300 shadow-2xl">
+                                        <span className="text-lg font-extrabold text-white">{card.cost}</span>
                                     </div>
 
+                                    {/* Playable Pulse */}
                                     {canPlay && (
                                         <motion.div
-                                            className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border border-white shadow-lg"
-                                            animate={{ scale: [1, 1.2, 1] }}
-                                            transition={{ duration: 2, repeat: Infinity }}
+                                            className="absolute -top-2 -right-2 w-5 h-5 bg-green-400 rounded-full border-2 border-white shadow-xl"
+                                            animate={{ scale: [1, 1.3, 1] }}
+                                            transition={{ duration: 1.5, repeat: Infinity }}
                                         />
                                     )}
 
-                                    {/* Champion special effects */}
-                                    {card.rarity === "champion" && (
+                                    {/* Champion Glow */}
+                                    {card.rarity === 'champion' && (
                                         <motion.div
-                                            className="absolute inset-0 bg-red-500/20 rounded-xl"
-                                            animate={{ opacity: [0.3, 0.6, 0.3] }}
+                                            className="absolute inset-0 bg-red-500/30 rounded-2xl pointer-events-none"
+                                            animate={{ opacity: [0.2, 0.7, 0.2] }}
                                             transition={{ duration: 2, repeat: Infinity }}
                                         />
                                     )}
                                 </button>
 
-                                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                                    <div className="bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                                        {card.name} ({card.cost} elixir, Lv.{card.level}) - {card.rarity} - Position #{index + 1}
+                                {/* Tooltip */}
+                                <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+                                    <div className="bg-black/90 text-white text-sm px-3 py-1 rounded-lg whitespace-nowrap">
+                                        {card.name} ({card.cost} elixir, Lv.{card.level}) – {card.rarity} – #{index + 1}
                                     </div>
                                 </div>
                             </motion.div>
@@ -452,12 +476,12 @@ const GameMechanicsTester: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6"
                 >
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
-                        <Timer className="w-6 h-6 text-blue-400" />
+                    <h3 className="text-2xl font-extrabold text-white flex items-center gap-2 mb-4">
+                        <Timer className="w-7 h-7 text-blue-400" />
                         Cycle Queue (Next 4 Cards)
                     </h3>
 
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-4 gap-6">
                         {cardCycle.cycleQueue.map((card, index) => (
                             <motion.div
                                 key={`queue-${card.id}-${cardCycle.getCardPosition(card.id)}`}
@@ -468,34 +492,45 @@ const GameMechanicsTester: React.FC = () => {
                                 layout
                             >
                                 <div className={`
-                                    aspect-[3/4] rounded-xl border-2 overflow-hidden opacity-70
-                                    ${getRarityBorderColor(card.rarity)} bg-gradient-to-b ${getRarityColor(card.rarity)}
-                                `}>
-                                    <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-black/30" />
+            aspect-[3/4] rounded-2xl border-2 overflow-hidden opacity-80 relative
+            ${getRarityBorderColor(card.rarity)} bg-gradient-to-b ${getRarityColor(card.rarity)}
+          `}>
+                                    {/* Image */}
+                                    <div className="absolute inset-0">
+                                        <img
+                                            src={getCardImagePath(card.cardKey)}
+                                            alt={card.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                        />
+                                    </div>
 
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
-                                        <div className="text-sm font-bold text-white text-center leading-tight mb-1">
+                                    {/* Name & Level */}
+                                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2">
+                                        <div className="text-lg font-bold text-white text-center drop-shadow-lg">
                                             {card.name}
                                         </div>
-                                        <div className="text-xs text-white/80">
+                                        <div className="text-base text-white/90 text-center mt-1">
                                             Lv.{card.level}
                                         </div>
-                                        {card.rarity === "champion" && (
-                                            <div className="text-xs text-red-300 mt-1">
+                                        {card.rarity === 'champion' && (
+                                            <div className="text-base text-red-300 text-center mt-1">
                                                 👑 CHAMPION
                                             </div>
                                         )}
-                                        <div className="text-xs text-white/50 mt-1">
+                                        <div className="text-sm text-white/50 text-center mt-1">
                                             #{index + 5}
                                         </div>
                                     </div>
 
-                                    <div className="absolute top-2 left-2 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center border border-purple-400">
-                                        <span className="text-xs font-bold text-white">{card.cost}</span>
+                                    {/* Elixir Cost */}
+                                    <div className="absolute top-2 left-2 w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center border-2 border-purple-300 shadow-2xl">
+                                        <span className="text-lg font-extrabold text-white">{card.cost}</span>
                                     </div>
 
+                                    {/* Next Badge */}
                                     {index === 0 && (
-                                        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-yellow-400 text-black text-xs font-bold rounded">
+                                        <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-yellow-300 text-black text-base font-bold rounded-lg shadow-lg">
                                             NEXT
                                         </div>
                                     )}
@@ -505,6 +540,8 @@ const GameMechanicsTester: React.FC = () => {
                     </div>
                 </motion.div>
             )}
+
+
 
             {/* Champion Mode Queue Preview */}
             {cardCycle.championState.isChampionDeployed && (
@@ -529,27 +566,41 @@ const GameMechanicsTester: React.FC = () => {
                                 layout
                             >
                                 <div className={`
-                                    aspect-[3/4] rounded-xl border-2 overflow-hidden opacity-70
+                                    aspect-[3/4] rounded-xl border-2 overflow-hidden opacity-70 relative
                                     ${getRarityBorderColor(card.rarity)} bg-gradient-to-b ${getRarityColor(card.rarity)}
                                 `}>
-                                    <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-black/30" />
+                                    {/* Card Image */}
+                                    <div className="absolute inset-0">
+                                        <img
+                                            src={getCardImagePath(card.cardKey)}
+                                            alt={card.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.display = 'none';
+                                            }}
+                                        />
+                                    </div>
 
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
-                                        <div className="text-sm font-bold text-white text-center leading-tight mb-1">
+                                    {/* Card Name Overlay */}
+                                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1">
+                                        <div className="text-xs font-bold text-white text-center leading-tight">
                                             {card.name}
                                         </div>
-                                        <div className="text-xs text-white/80">
+                                        <div className="text-xs text-white/80 text-center">
                                             Lv.{card.level}
                                         </div>
-                                        <div className="text-xs text-white/50 mt-1">
+                                        <div className="text-xs text-white/50 text-center">
                                             #{index + 5}
                                         </div>
                                     </div>
 
-                                    <div className="absolute top-2 left-2 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center border border-purple-400">
+                                    {/* Elixir Cost */}
+                                    <div className="absolute top-2 left-2 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center border border-purple-400 shadow-lg">
                                         <span className="text-xs font-bold text-white">{card.cost}</span>
                                     </div>
 
+                                    {/* Next Card Indicator */}
                                     {index === 0 && (
                                         <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-yellow-400 text-black text-xs font-bold rounded">
                                             NEXT

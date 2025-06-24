@@ -9,3 +9,5 @@ model
 
 **/__pycache__/
 server/.env
+
+cards/

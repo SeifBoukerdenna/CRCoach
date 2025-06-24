@@ -35,7 +35,7 @@ export interface CardCycleActions {
   getCardPosition: (cardId: number) => number;
 }
 
-// Enhanced deck with a champion
+// Enhanced deck with proper card images and more variety including champions
 const DEFAULT_DECK: Card[] = [
   {
     id: 1,
