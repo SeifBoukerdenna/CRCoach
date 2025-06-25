@@ -16,6 +16,7 @@ export interface ElixirActions {
   spendElixir: (amount: number) => boolean;
   setMultiplier: (multiplier: ElixirMultiplier) => void;
   resetElixir: () => void;
+  setElixirToZero: () => void;
   pauseRegeneration: () => void;
   resumeRegeneration: () => void;
   addElixir: (amount: number) => void;
@@ -86,7 +87,7 @@ export const useElixirBar = (
     };
   }, [elixirState.isRegenerating, elixirState.multiplier, getRegenRate]);
 
-  // FINAL FIX: Completely synchronous approach that can't fail
+  // Spend elixir (instant for card plays)
   const spendElixir = useCallback(
     (amount: number): boolean => {
       if (amount < 0) return false;
@@ -124,7 +125,7 @@ export const useElixirBar = (
     lastUpdateRef.current = Date.now(); // Reset timing
   }, []);
 
-  // Reset elixir to initial state
+  // Reset elixir to initial state (5 elixir)
   const resetElixir = useCallback(() => {
     setElixirState({
       current: ELIXIR_CONSTANTS.INITIAL_ELIXIR,
@@ -134,6 +135,14 @@ export const useElixirBar = (
       lastRegenTime: Date.now(),
     });
     lastUpdateRef.current = Date.now();
+  }, []);
+
+  // Set elixir to zero (for debug purposes)
+  const setElixirToZero = useCallback(() => {
+    setElixirState((prevState) => ({
+      ...prevState,
+      current: 0,
+    }));
   }, []);
 
   // Pause elixir regeneration
@@ -177,6 +186,7 @@ export const useElixirBar = (
     spendElixir,
     setMultiplier,
     resetElixir,
+    setElixirToZero,
     pauseRegeneration,
     resumeRegeneration,
     addElixir,

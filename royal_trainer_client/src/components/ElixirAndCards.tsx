@@ -1,11 +1,13 @@
 // royal_trainer_client/src/components/ElixirAndCardsEnhanced.tsx
 // Two‑row layout: first row = cards in hand, second row = grey cycle cards
+// Now with integrated Clash Royale-style game timer
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Crown } from 'lucide-react';
+import { Zap, Crown, Clock, RotateCcw, Minus } from 'lucide-react';
 import { useElixirBar } from '../hooks/useElixirBar';
 import { useCardCycle } from '../hooks/useCardCycle';
+import { useGameTimer } from '../hooks/useGameTimer';
 
 interface ElixirAndCardsEnhancedProps {
     className?: string;
@@ -47,6 +49,104 @@ const getRarityBorderColor = (rarity: string) => {
     }
 };
 
+/* ---------------- Timer Display Component ---------------- */
+const GameTimerDisplay: React.FC<{
+    timer: any;
+    onResetTimer: () => void;
+    onResetElixir: () => void;
+}> = ({ timer, onResetTimer, onResetElixir }) => {
+    const getTimerColor = () => {
+        if (timer.isGameFinished) return 'text-red-500';
+        if (timer.currentPhase === 'overtime_triple') return 'text-red-400';
+        if (timer.currentPhase === 'regular_double' || timer.currentPhase === 'overtime_double') return 'text-orange-400';
+        return 'text-white';
+    };
+
+    const getPhaseText = () => {
+        switch (timer.currentPhase) {
+            case 'regular': return 'BATTLE TIME';
+            case 'regular_double': return 'DOUBLE ELIXIR!';
+            case 'overtime_double': return 'DOUBLE ELIXIR!';
+            case 'overtime_triple': return 'TRIPLE ELIXIR!';
+            case 'finished': return 'GAME OVER';
+            default: return 'BATTLE TIME';
+        }
+    };
+
+    const getPhaseColor = () => {
+        switch (timer.currentPhase) {
+            case 'regular_double':
+            case 'overtime_double': return 'text-orange-400';
+            case 'overtime_triple': return 'text-red-400';
+            case 'finished': return 'text-red-500';
+            default: return 'text-purple-400';
+        }
+    };
+
+    return (
+        <div className="flex items-center justify-between mb-6">
+            {/* Timer Display */}
+            <div className="flex items-center gap-4">
+                <div className="relative">
+                    {/* Main Timer */}
+                    <div className="bg-gradient-to-r from-slate-900 to-slate-800 border-2 border-slate-600 rounded-xl px-6 py-3 shadow-lg">
+                        <div className="flex items-center gap-3">
+                            <Clock className="w-6 h-6 text-blue-400" />
+                            <div className="text-center">
+                                <div className={`text-2xl font-black font-mono ${getTimerColor()}`}>
+                                    {String(timer.minutes).padStart(2, '0')}:{String(timer.seconds).padStart(2, '0')}
+                                </div>
+                                {/* Phase Indicator - moved inside timer box */}
+                                <motion.div
+                                    className="mt-1"
+                                    animate={timer.currentPhase.includes('double') || timer.currentPhase.includes('triple') ?
+                                        { scale: [1, 1.05, 1] } : {}}
+                                    transition={{ duration: 1, repeat: Infinity }}
+                                >
+                                    <div className={`text-xs font-bold ${getPhaseColor()}`}>
+                                        {getPhaseText()}
+                                    </div>
+                                </motion.div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Overtime Indicator */}
+                {timer.isOvertime && (
+                    <motion.div
+                        className="bg-gradient-to-r from-red-600 to-orange-600 border border-red-400 rounded-lg px-4 py-2"
+                        animate={{ opacity: [0.7, 1, 0.7] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                        <div className="text-white font-bold text-sm">OVERTIME</div>
+                    </motion.div>
+                )}
+            </div>
+
+            {/* Debug Controls */}
+            <div className="flex items-center gap-3">
+                <button
+                    onClick={onResetTimer}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-500 rounded-lg text-sm font-semibold text-white transition-all shadow-lg"
+                    title="Reset Timer"
+                >
+                    <RotateCcw className="w-4 h-4" />
+                    Reset Timer
+                </button>
+                <button
+                    onClick={onResetElixir}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 border border-purple-500 rounded-lg text-sm font-semibold text-white transition-all shadow-lg"
+                    title="Reset Elixir to 0"
+                >
+                    <Minus className="w-4 h-4" />
+                    Reset Elixir
+                </button>
+            </div>
+        </div>
+    );
+};
+
 /* ---------------- main component ---------------- */
 const ElixirAndCardsEnhanced: React.FC<ElixirAndCardsEnhancedProps> = ({
     className = '',
@@ -55,6 +155,27 @@ const ElixirAndCardsEnhanced: React.FC<ElixirAndCardsEnhancedProps> = ({
     /* hooks */
     const elixir = useElixirBar();
     const cardCycle = useCardCycle();
+    const gameTimer = useGameTimer();
+
+    /* track elixir changes for animation */
+    const [lastElixirValue, setLastElixirValue] = React.useState(elixir.current);
+    const [isElixirSpending, setIsElixirSpending] = React.useState(false);
+
+    /* sync elixir multiplier with game timer */
+    useEffect(() => {
+        elixir.setMultiplier(gameTimer.elixirMultiplier);
+    }, [gameTimer.elixirMultiplier, elixir.setMultiplier]);
+
+    /* track elixir spending vs regenerating for animation */
+    useEffect(() => {
+        if (elixir.current < lastElixirValue) {
+            // Elixir decreased - spending
+            setIsElixirSpending(true);
+            // Reset to regenerating mode after a short delay
+            setTimeout(() => setIsElixirSpending(false), 200);
+        }
+        setLastElixirValue(elixir.current);
+    }, [elixir.current, lastElixirValue]);
 
     /* derived */
     const elixirPercentage = (elixir.current / elixir.max) * 100;
@@ -66,6 +187,11 @@ const ElixirAndCardsEnhanced: React.FC<ElixirAndCardsEnhancedProps> = ({
 
     const handCards = displayCards.slice(0, 4);
     const cycleCards = displayCards.slice(4);
+
+    /* debug handlers */
+    const handleResetElixir = () => {
+        elixir.setElixirToZero();
+    };
 
     /* card renderer */
     const renderCard = (
@@ -199,6 +325,13 @@ const ElixirAndCardsEnhanced: React.FC<ElixirAndCardsEnhancedProps> = ({
                 <div className="text-base text-white/60">Live Detection • {elixir.multiplier}x Speed</div>
             </div>
 
+            {/* Game Timer */}
+            <GameTimerDisplay
+                timer={gameTimer}
+                onResetTimer={gameTimer.resetTimer}
+                onResetElixir={handleResetElixir}
+            />
+
             {/* elixir bar */}
             <div className="mb-10">
                 <div className="flex items-center justify-between mb-4">
@@ -212,9 +345,15 @@ const ElixirAndCardsEnhanced: React.FC<ElixirAndCardsEnhancedProps> = ({
                 <div className="relative">
                     <div className="h-6 bg-gradient-to-r from-slate-700 to-slate-800 rounded-full border border-slate-600 overflow-hidden">
                         <motion.div
-                            className="h-full bg-gradient-to-r from-purple-500 via-purple-400 to-pink-400 shadow-lg relative overflow-hidden"
+                            className={`h-full shadow-lg relative overflow-hidden ${elixir.multiplier === 3 ? 'bg-gradient-to-r from-red-500 via-red-400 to-orange-400' :
+                                elixir.multiplier === 2 ? 'bg-gradient-to-r from-orange-500 via-orange-400 to-yellow-400' :
+                                    'bg-gradient-to-r from-purple-500 via-purple-400 to-pink-400'
+                                }`}
                             style={{ width: `${elixirPercentage}%` }}
-                            transition={{ duration: 0.1 }}
+                            transition={{
+                                duration: isElixirSpending ? 0 : 0.1, // Instant when spending, smooth when regenerating
+                                ease: isElixirSpending ? 'linear' : 'easeOut'
+                            }}
                         >
                             <motion.div
                                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
