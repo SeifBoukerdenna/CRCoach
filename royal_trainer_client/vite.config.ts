@@ -93,6 +93,9 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [react()],
 
+    // ✅ CRITICAL: Explicitly configure public directory handling
+    publicDir: "public",
+
     // Environment variables
     define: {
       __REMOTE_SERVER_URL__: JSON.stringify(proxyTarget),
@@ -113,8 +116,17 @@ export default defineConfig(({ command, mode }) => {
       },
     },
 
-    // Build configuration for production
+    // ✅ ENHANCED: Build configuration for production with proper asset handling
     build: {
+      outDir: "dist",
+      assetsDir: "assets",
+
+      // ✅ CRITICAL: Ensure public directory is copied to dist
+      copyPublicDir: true,
+
+      // ✅ CRITICAL: Don't inline any assets to prevent path issues
+      assetsInlineLimit: 0,
+
       // Optimize for production
       minify: "terser",
       terserOptions: {
@@ -123,10 +135,32 @@ export default defineConfig(({ command, mode }) => {
           drop_debugger: true,
         },
       },
+
       // Source maps for debugging (disable in production for security)
       sourcemap: false,
+
       // Chunk size warnings
       chunkSizeWarningLimit: 1000,
+
+      // ✅ ENHANCED: Rollup options for proper asset handling
+      rollupOptions: {
+        output: {
+          // Ensure proper asset handling
+          assetFileNames: (assetInfo) => {
+            const info = assetInfo.name?.split(".") || [];
+            const ext = info[info.length - 1];
+
+            // Keep images in their original structure when possible
+            if (/png|jpe?g|svg|gif|tiff|bmp|ico|webp/i.test(ext)) {
+              return `assets/images/[name]-[hash][extname]`;
+            }
+
+            return `assets/[name]-[hash][extname]`;
+          },
+          chunkFileNames: "assets/js/[name]-[hash].js",
+          entryFileNames: "assets/js/[name]-[hash].js",
+        },
+      },
     },
 
     // Preview configuration (for production builds)

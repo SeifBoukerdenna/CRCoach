@@ -227,7 +227,7 @@ class YOLOInferenceService:
             if detections and self.debug_mode:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
                 debug_filename = f"detection_{session_code}_{timestamp}_{len(detections)}objs.jpg"
-                self.save_debug_image(annotated_image, debug_filename)
+                # self.save_debug_image(annotated_image, debug_filename)
 
                 logging.info(f"🎯 Inference #{self.inference_count}: {len(detections)} detections in {inference_time:.1f}ms")
                 for det in detections:
