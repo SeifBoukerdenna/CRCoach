@@ -6,8 +6,8 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import type { ConnectionStateValue } from "../types";
 import ConnectionSection from "./ConnectionSection";
 import BetaBanner from "./BetaBanner";
-import WatermarkSettings from "./WatermarkSettings";
 import GameMechanicsTester from "./GameMechanicsTester";
+import OptimizedWatermarkSettings from "./OptimizedWatermarkSettings";
 
 interface OfflineProps {
     sessionCode: string;
@@ -177,7 +177,7 @@ const OfflineLanding: React.FC<OfflineProps> = ({
                     transition={{ duration: 0.6, delay: 0.9 }}
                     className="max-w-md mx-auto"
                 >
-                    <WatermarkSettings />
+                    <OptimizedWatermarkSettings />
                 </motion.div>
             </div>
         </motion.div>

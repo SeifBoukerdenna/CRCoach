@@ -14,7 +14,7 @@ import ErrorToast from './components/overlays/ErrorToast';
 import StatusBar from './components/StatusBar';
 import LiveDashboard from './components/LiveDashboard';
 import OfflineLanding from './components/OfflineLanding';
-import AntiPiracyWatermark from './components/AntiPiracyWatermark';
+
 
 /* ── CUSTOM HOOKS ─────────────────────────────────────────────────── */
 import { useWebRTCWithFrameCapture } from './hooks/useWebRTCWithFrameCapture';
@@ -22,6 +22,7 @@ import { useInference } from './hooks/useInference';
 import { useConnectionState } from './hooks/useConnectionState';
 import { useDetectionHistory } from './hooks/useDetectionHistory';
 import { useUIState } from './hooks/useUIState';
+import OptimizedWatermark from './components/OptimizedWatermark';
 
 const App: React.FC = () => {
   /* ────────── CUSTOM HOOKS ─────────────────────────── */
@@ -63,7 +64,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 relative overflow-x-hidden overflow-y-auto">
       {/* Global decorations & watermark */}
       <AnimatedBackground />
-      <AntiPiracyWatermark />
+      <OptimizedWatermark />
 
       <div className="relative z-10 flex flex-col min-h-screen p-3">
         <Header />
