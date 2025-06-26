@@ -37,17 +37,16 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
     onSelectFrame,
     onClearHistory,
     performanceMetrics,
-
 }) => {
     const [activeTab, setActiveTab] = useState<'detections' | 'deployments'>('detections');
 
     // NEW: Troop deployment detection
     const [deploymentState, deploymentActions] = useTroopDeploymentDetection(history, {
-        timeWindow: 1000,        // 2 seconds
+        timeWindow: 2000,        // 2 seconds
         proximityThreshold: 80,  // 80 pixels
-        minDetections: 2,        // At least 3 detections
+        minDetections: 3,        // At least 3 detections
         maxDetections: 15,       // Up to 15 detections
-        confidenceThreshold: 0.4 // Minimum 60% confidence
+        confidenceThreshold: 0.6 // Minimum 60% confidence
     });
 
     // Helper to get detection type distribution
@@ -55,8 +54,8 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
         const typeCount = new Map<string, number>();
         history.forEach(item => {
             item.detections.forEach(detection => {
-                const count = typeCount.get(detection.class_name) || 0;
-                typeCount.set(detection.class_name, count + 1);
+                const count = typeCount.get(detection.class) || 0;
+                typeCount.set(detection.class, count + 1);
             });
         });
         return Array.from(typeCount.entries())
@@ -100,17 +99,17 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                         </div>
 
                         {selectedFrame.detections.map((d, i) => {
-                            const [x1, y1, x2, y2] = d.bbox;
+                            const { x1, y1, width, height } = d.bbox;
                             return (
                                 <div key={i} className="bg-slate-700/50 rounded-lg p-2">
                                     <div className="flex justify-between">
-                                        <span className="text-white capitalize">{d.class_name}</span>
+                                        <span className="text-white capitalize">{d.class}</span>
                                         <span className="text-green-400 text-sm">
                                             {Math.round(d.confidence * 100)}%
                                         </span>
                                     </div>
                                     <div className="text-xs text-white/60">
-                                        {Math.round(x2 - x1)}×{Math.round(y2 - y1)} at ({Math.round(x1)}, {Math.round(y1)})
+                                        {Math.round(width)}×{Math.round(height)} at ({Math.round(x1)}, {Math.round(y1)})
                                     </div>
                                 </div>
                             );
@@ -195,7 +194,7 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                                                     </span>
                                                 </div>
                                                 <div className="text-xs text-white/60">
-                                                    {item.detections.slice(0, 3).map(d => d.class_name).join(', ')}
+                                                    {item.detections.slice(0, 3).map(d => d.class).join(', ')}
                                                     {item.detections.length > 3 && ` +${item.detections.length - 3} more`}
                                                 </div>
                                             </motion.button>
@@ -258,7 +257,7 @@ const HistoryAndStats: React.FC<HistoryAndStatsProps> = ({
                                 </h4>
 
                                 <div className="space-y-2">
-                                    {typeDistribution.map(([type, count],) => (
+                                    {typeDistribution.map(([type, count]) => (
                                         <div key={type} className="flex justify-between items-center">
                                             <span className="text-white/80 text-sm capitalize">{type}</span>
                                             <div className="flex items-center gap-2">

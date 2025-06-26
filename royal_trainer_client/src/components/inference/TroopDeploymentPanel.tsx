@@ -52,7 +52,7 @@ const TroopDeploymentPanel: React.FC<TroopDeploymentPanelProps> = ({ state, acti
             'cannon': '💣', 'tesla': '⚡', 'inferno_tower': '🔥', 'bomb_tower': '💥',
             'elixir_collector': '💧', 'furnace': '🔥', 'tombstone': '⚰️', 'default': '🪖'
         };
-        return emojiMap[troopType.toLowerCase().replace(/\s+/g, '_')] || emojiMap.default;
+        return emojiMap[troopType.toLowerCase().replace(/[_\s]+/g, '_')] || emojiMap.default;
     };
 
     // Apply configuration changes

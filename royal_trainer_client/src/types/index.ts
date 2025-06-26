@@ -60,10 +60,17 @@ export interface ConnectionState {
 
 // Detection and Inference types
 export interface Detection {
-  bbox: [number, number, number, number]; // [x1, y1, x2, y2]
+  bbox: {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    width: number;
+    height: number;
+  };
   confidence: number;
   class_id: number;
-  class_name: string;
+  class: string; // Changed from class_name
 }
 
 export interface DetectionData {

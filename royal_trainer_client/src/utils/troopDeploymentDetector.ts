@@ -1,5 +1,20 @@
 // royal_trainer_client/src/utils/troopDeploymentDetector.ts
-import type { Detection, DetectionHistoryItem } from "../types";
+import type { DetectionHistoryItem } from "../types";
+
+// Corrected Detection interface to match your backend structure
+interface Detection {
+  bbox: {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    width: number;
+    height: number;
+  };
+  confidence: number;
+  class_id: number;
+  class: string; // Note: backend uses 'class', not 'class_name'
+}
 
 export interface TroopDeploymentEvent {
   id: string;
@@ -54,10 +69,9 @@ export class TroopDeploymentDetector {
    * Get center point of a detection
    */
   private getDetectionCenter(detection: Detection): { x: number; y: number } {
-    const [x1, y1, x2, y2] = detection.bbox;
     return {
-      x: x1 + (x2 - x1) / 2,
-      y: y1 + (y2 - y1) / 2,
+      x: detection.bbox.x1 + detection.bbox.width / 2,
+      y: detection.bbox.y1 + detection.bbox.height / 2,
     };
   }
 
@@ -146,7 +160,7 @@ export class TroopDeploymentDetector {
       totalX += center.x * detection.confidence;
       totalY += center.y * detection.confidence;
       totalConfidence += detection.confidence;
-      troopTypes.add(detection.class_name);
+      troopTypes.add(detection.class);
     });
 
     const centerX = totalX / totalConfidence;
@@ -158,10 +172,10 @@ export class TroopDeploymentDetector {
     const duration = Math.max(...timestamps) - Math.min(...timestamps);
 
     // Calculate deployment area (bounding box of all detections)
-    const allX1 = group.map(({ detection }) => detection.bbox[0]);
-    const allY1 = group.map(({ detection }) => detection.bbox[1]);
-    const allX2 = group.map(({ detection }) => detection.bbox[2]);
-    const allY2 = group.map(({ detection }) => detection.bbox[3]);
+    const allX1 = group.map(({ detection }) => detection.bbox.x1);
+    const allY1 = group.map(({ detection }) => detection.bbox.y1);
+    const allX2 = group.map(({ detection }) => detection.bbox.x2);
+    const allY2 = group.map(({ detection }) => detection.bbox.y2);
     const area =
       (Math.max(...allX2) - Math.min(...allX1)) *
       (Math.max(...allY2) - Math.min(...allY1));
