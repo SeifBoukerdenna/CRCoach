@@ -27,6 +27,8 @@ export interface TroopDeploymentEvent {
   duration: number; // Time span of the deployment
   area: number; // Deployment area size
   troopTypes: string[]; // Types of troops detected
+  annotatedFrame?: string; // Base64 encoded image of the deployment
+  historyItemId?: string; // ID of the original detection history item
 }
 
 export interface DeploymentDetectionConfig {
@@ -94,16 +96,35 @@ export class TroopDeploymentDetector {
    * Group detections by spatial proximity and time
    */
   private groupDetectionsByArea(
-    detections: Array<{ detection: Detection; timestamp: number }>
-  ): Array<Array<{ detection: Detection; timestamp: number }>> {
-    const groups: Array<Array<{ detection: Detection; timestamp: number }>> =
-      [];
+    detections: Array<{
+      detection: Detection;
+      timestamp: number;
+      historyItem: DetectionHistoryItem;
+    }>
+  ): Array<
+    Array<{
+      detection: Detection;
+      timestamp: number;
+      historyItem: DetectionHistoryItem;
+    }>
+  > {
+    const groups: Array<
+      Array<{
+        detection: Detection;
+        timestamp: number;
+        historyItem: DetectionHistoryItem;
+      }>
+    > = [];
     const processed = new Set<number>();
 
     detections.forEach((item, index) => {
       if (processed.has(index)) return;
 
-      const group: Array<{ detection: Detection; timestamp: number }> = [item];
+      const group: Array<{
+        detection: Detection;
+        timestamp: number;
+        historyItem: DetectionHistoryItem;
+      }> = [item];
       processed.add(index);
 
       // Find all detections in the same area
@@ -140,7 +161,11 @@ export class TroopDeploymentDetector {
    * Calculate deployment event statistics
    */
   private calculateDeploymentStats(
-    group: Array<{ detection: Detection; timestamp: number }>
+    group: Array<{
+      detection: Detection;
+      timestamp: number;
+      historyItem: DetectionHistoryItem;
+    }>
   ): {
     centerX: number;
     centerY: number;
@@ -209,8 +234,11 @@ export class TroopDeploymentDetector {
     if (!newHistory.length) return this.deploymentEvents;
 
     // Flatten all detections with timestamps
-    const allDetections: Array<{ detection: Detection; timestamp: number }> =
-      [];
+    const allDetections: Array<{
+      detection: Detection;
+      timestamp: number;
+      historyItem: DetectionHistoryItem;
+    }> = [];
 
     history.forEach((historyItem) => {
       if (historyItem.timestamp >= cutoffTime) {
@@ -223,6 +251,7 @@ export class TroopDeploymentDetector {
             allDetections.push({
               detection,
               timestamp: historyItem.timestamp,
+              historyItem, // Include the full history item for image access
             });
           });
       }
@@ -236,6 +265,13 @@ export class TroopDeploymentDetector {
       (group) => {
         const stats = this.calculateDeploymentStats(group);
 
+        // Find the history item with the most detections for this deployment
+        const bestHistoryItem = group
+          .map((item) => item.historyItem)
+          .reduce((best, current) =>
+            current.detections.length > best.detections.length ? current : best
+          );
+
         return {
           id: `deployment_${Date.now()}_${Math.random()
             .toString(36)
@@ -243,16 +279,18 @@ export class TroopDeploymentDetector {
           timestamp: Math.min(...group.map((item) => item.timestamp)),
           detectionCount: group.length,
           detections: group.map((item) => item.detection),
+          annotatedFrame: bestHistoryItem.annotatedFrame, // Add the image
+          historyItemId: bestHistoryItem.id, // Reference to original detection
           ...stats,
         };
       }
     );
 
-    // Add new deployments and remove old ones
-    this.deploymentEvents = [
-      ...newDeployments,
-      ...this.deploymentEvents.filter((event) => event.timestamp >= cutoffTime),
-    ].slice(0, 20); // Keep last 20 deployment events
+    // Add new deployments - DON'T remove old ones, keep them persistent
+    this.deploymentEvents = [...newDeployments, ...this.deploymentEvents].slice(
+      0,
+      50
+    ); // Keep last 50 deployment events (increased from 20)
 
     this.lastProcessedTimestamp = Math.max(
       ...newHistory.map((item) => item.timestamp)
@@ -315,7 +353,11 @@ export class TroopDeploymentDetector {
       };
     }
 
-    const recentDeployments = this.getRecentDeployments(60000); // Last minute
+    // Recent deployments for rate calculation only
+    const recentDeployments = this.deploymentEvents.filter(
+      (event) => Date.now() - event.timestamp <= 60000 // Last minute
+    );
+
     const totalDetections = this.deploymentEvents.reduce(
       (sum, event) => sum + event.detectionCount,
       0
@@ -325,7 +367,7 @@ export class TroopDeploymentDetector {
       0
     );
 
-    // Count troop types
+    // Count troop types from all deployments
     const troopTypeCounts = new Map<string, number>();
     this.deploymentEvents.forEach((event) => {
       event.troopTypes.forEach((troopType) => {
@@ -349,7 +391,7 @@ export class TroopDeploymentDetector {
         totalDetections / this.deploymentEvents.length,
       averageDeploymentDuration: totalDuration / this.deploymentEvents.length,
       mostCommonTroopType,
-      deploymentsPerMinute: recentDeployments.length,
+      deploymentsPerMinute: recentDeployments.length, // Only recent for rate
     };
   }
 }

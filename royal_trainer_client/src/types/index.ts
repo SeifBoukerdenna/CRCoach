@@ -70,7 +70,7 @@ export interface Detection {
   };
   confidence: number;
   class_id: number;
-  class: string; // Changed from class_name
+  class: string; // Note: backend uses 'class', not 'class_name'
 }
 
 export interface DetectionData {

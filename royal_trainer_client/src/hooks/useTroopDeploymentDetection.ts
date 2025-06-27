@@ -1,4 +1,4 @@
-// hooks/useTroopDeploymentDetection.ts
+// royal_trainer_client/src/hooks/useTroopDeploymentDetection.ts
 import { useState, useEffect, useRef, useMemo } from "react";
 import type { DetectionHistoryItem } from "../types";
 import {
@@ -80,7 +80,7 @@ export const useTroopDeploymentDetection = (
     }
   }, [history, isDetectionEnabled, lastEventCount]);
 
-  // Calculate recent deployments (last 30 seconds)
+  // Calculate recent deployments (last 30 seconds) - but keep all in deploymentEvents
   const recentDeployments = useMemo(() => {
     return deploymentEvents.filter(
       (event) => Date.now() - event.timestamp <= 30000
